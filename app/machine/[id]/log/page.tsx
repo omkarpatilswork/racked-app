@@ -45,6 +45,16 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   // Weight increment: use the machine's own override when set (e.g. Lat
   // Pulldown steps in 5kg), otherwise fall back to the unit-based default.
   const weightStep = machine?.weightStep ?? (machine?.unit === "KG" ? 2.5 : 1);
+  const weightMin = machine?.minWeight ?? 0;
+  const weightMax = machine?.maxWeight;
+  const repsMin = machine?.minReps ?? 1;
+  const repsMax = machine?.maxReps;
+
+  function clampTo(v: number, lo: number, hi?: number) {
+    if (v < lo) v = lo;
+    if (typeof hi === "number" && v > hi) v = hi;
+    return v;
+  }
 
   useEffect(() => {
     if (!machine || !view || !session) return;
@@ -61,9 +71,10 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
           ? Number(data.pb_weight)
           : machine.startWeight ?? Math.round(view.challenge.weight * 0.7);
         const startR = data ? data.pb_reps : machine.startReps ?? 10;
-        setWeight(startW);
-        setReps(startR);
+        setWeight(clampTo(startW, weightMin, weightMax));
+        setReps(clampTo(startR, repsMin, repsMax));
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [machine, view, mode, session, supabase]);
 
   if (!machine || !view) return notFound();
@@ -130,8 +141,15 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
             </div>
           </div>
         )}
-        <Stepper label={`Weight (${machine.unit})`} value={weight} onChange={setWeight} step={weightStep} min={0} />
-        <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={1} />
+        <Stepper
+          label={`Weight (${machine.unit})`}
+          value={weight}
+          onChange={setWeight}
+          step={weightStep}
+          min={weightMin}
+          max={weightMax}
+        />
+        <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={repsMin} max={repsMax} />
         <button className="btn btn-yellow" style={{ padding: 18 }} onClick={handleSubmit} disabled={saving}>
           {saving ? "SAVING…" : "LOG SET"}
         </button>

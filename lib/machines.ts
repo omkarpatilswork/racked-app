@@ -31,6 +31,12 @@ export type Machine = {
   startWeight?: number;
   // Smart starting reps shown to first-time users (defaults to 8 when omitted).
   startReps?: number;
+  // Optional bounds for the weight/reps steppers on the log page. Weight
+  // defaults to min 0 / no max; reps defaults to min 1 / no max, when omitted.
+  minWeight?: number;
+  maxWeight?: number;
+  minReps?: number;
+  maxReps?: number;
 };
 
 export const MACHINES: Machine[] = [
@@ -58,6 +64,10 @@ export const MACHINES: Machine[] = [
     weightStep: 5,
     startWeight: 40,
     startReps: 10,
+    minWeight: 5,
+    maxWeight: 150,
+    minReps: 1,
+    maxReps: 25,
   },
   {
     id: "chest-press-02",

@@ -6,19 +6,24 @@ export default function Stepper({
   onChange,
   step,
   min,
+  max,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
   step: number;
   min: number;
+  max?: number;
 }) {
-  function bump(dir: number) {
-    let v = value + dir * step;
+  function clamp(v: number) {
     if (v < min) v = min;
+    if (typeof max === "number" && v > max) v = max;
     // avoid floating point artifacts like 62.499999999
-    v = Math.round(v * 100) / 100;
-    onChange(v);
+    return Math.round(v * 100) / 100;
+  }
+
+  function bump(dir: number) {
+    onChange(clamp(value + dir * step));
   }
 
   return (
@@ -36,11 +41,25 @@ export default function Stepper({
             type="number"
             step={step}
             min={min}
+            max={max}
             inputMode={step % 1 !== 0 ? "decimal" : "numeric"}
             value={value}
             onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === "") {
+                onChange(0);
+                return;
+              }
+              const v = parseFloat(raw);
+              if (!Number.isFinite(v)) return;
+              // Only clamp once the typed number actually breaches a bound —
+              // clamping every keystroke would fight the user mid-type.
+              const bounded = v < min || (typeof max === "number" && v > max) ? clamp(v) : v;
+              onChange(bounded);
+            }}
+            onBlur={(e) => {
               const v = parseFloat(e.target.value);
-              onChange(Number.isFinite(v) ? v : 0);
+              onChange(clamp(Number.isFinite(v) ? v : min));
             }}
             onKeyDown={(e) => {
               // Belt-and-suspenders: some mobile/in-app browsers don't wire
