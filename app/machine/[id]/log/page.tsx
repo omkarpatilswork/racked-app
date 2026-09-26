@@ -38,9 +38,13 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
 
   const [mine, setMine] = useState<StatsRow | null>(null);
   const [weight, setWeight] = useState(0);
-  const [reps, setReps] = useState(8);
+  const [reps, setReps] = useState(10);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<LogSetResult | null>(null);
+
+  // Weight increment: use the machine's own override when set (e.g. Lat
+  // Pulldown steps in 5kg), otherwise fall back to the unit-based default.
+  const weightStep = machine?.weightStep ?? (machine?.unit === "KG" ? 2.5 : 1);
 
   useEffect(() => {
     if (!machine || !view || !session) return;
@@ -53,8 +57,10 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
       .maybeSingle()
       .then(({ data }) => {
         setMine(data ?? null);
-        const startW = data ? Number(data.pb_weight) : Math.round(view.challenge.weight * 0.7);
-        const startR = data ? data.pb_reps : 8;
+        const startW = data
+          ? Number(data.pb_weight)
+          : machine.startWeight ?? Math.round(view.challenge.weight * 0.7);
+        const startR = data ? data.pb_reps : machine.startReps ?? 10;
         setWeight(startW);
         setReps(startR);
       });
@@ -124,7 +130,7 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
             </div>
           </div>
         )}
-        <Stepper label={`Weight (${machine.unit})`} value={weight} onChange={setWeight} step={machine.unit === "KG" ? 2.5 : 1} min={0} />
+        <Stepper label={`Weight (${machine.unit})`} value={weight} onChange={setWeight} step={weightStep} min={0} />
         <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={1} />
         <button className="btn btn-yellow" style={{ padding: 18 }} onClick={handleSubmit} disabled={saving}>
           {saving ? "SAVING…" : "LOG SET"}

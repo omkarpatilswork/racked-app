@@ -80,19 +80,16 @@ function MachinePageInner({ params }: { params: { id: string } }) {
       </div>
 
       <div className="stack-lg">
-        <div className="hero-machine">
-          <div className="glyph-lg">
+        <div className="hero-machine" style={{ padding: "18px 16px" }}>
+          <div className="glyph-lg" style={{ width: 36, height: 36 }}>
             <Icon name="dumbbell" />
           </div>
-          <div className="eyebrow" style={{ color: "rgba(255,255,255,.55)" }}>
+          <div className="eyebrow" style={{ color: "rgba(255,255,255,.55)", fontSize: 10.5 }}>
             You are at
           </div>
-          <h1>{machine.name}</h1>
-          <div
-            className="pill"
-            style={{ position: "relative", background: "rgba(255,255,255,.1)", borderColor: "rgba(255,255,255,.15)", color: "#fff", marginTop: 2 }}
-          >
-            Machine #{machine.number}
+          <h1 style={{ fontSize: 19, margin: "2px 0 3px" }}>{machine.name}</h1>
+          <div className="muted-on-dark" style={{ fontSize: 11.5, opacity: 0.75 }}>
+            {view.muscles.join(" · ")}
           </div>
         </div>
 
@@ -144,56 +141,45 @@ function MachinePageInner({ params }: { params: { id: string } }) {
           </div>
         )}
 
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 10 }}>
-            Target Muscles
-          </div>
-          <div className="chip-row">
-            {view.muscles.map((x) => (
-              <span className="pill" key={x}>
-                {x}
-              </span>
-            ))}
-          </div>
-        </div>
+        <Link
+          href={`/machine/${machine.id}/log${mode ? `?mode=${mode}` : ""}`}
+          className="btn btn-yellow"
+          style={{ padding: 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 16 }}
+        >
+          <Icon name="flame" /> LOG YOUR SET
+        </Link>
 
-        <div className="stack">
-          <Link href={`/machine/${machine.id}/guide${mode ? `?mode=${mode}` : ""}`} className="action-card">
-            <div className="glyph">
-              <Icon name="dumbbell" />
-            </div>
-            <div className="body">
-              <div className="title">How to use</div>
-              <div className="sub">Learn the correct setup and form</div>
-            </div>
-            <div className="chev">
-              <Icon name="chev" />
-            </div>
-          </Link>
-          <Link href={`/machine/${machine.id}/log${mode ? `?mode=${mode}` : ""}`} className="action-card">
-            <div className="glyph yellow">
-              <Icon name="flame" />
-            </div>
-            <div className="body">
-              <div className="title">Log your set</div>
-              <div className="sub">Track your weight, reps & PB</div>
-            </div>
-            <div className="chev">
-              <Icon name="chev" />
-            </div>
-          </Link>
-          <Link href={`/machine/${machine.id}/feedback${mode ? `?mode=${mode}` : ""}`} className="action-card">
-            <div className="glyph">
-              <Icon name="star" />
-            </div>
-            <div className="body">
-              <div className="title">Give feedback</div>
-              <div className="sub">Help the gym improve</div>
-            </div>
-            <div className="chev">
-              <Icon name="chev" />
-            </div>
-          </Link>
+        <div className="card">
+          <div className="row">
+            <h3 style={{ margin: 0, fontSize: 15 }}>
+              <Icon name="trophy" /> Top Performers
+            </h3>
+            <Link
+              href={`/leaderboard?tab=machines&machine=${machine.id}${mode ? `&mode=${mode}` : ""}`}
+              className="faint"
+              style={{ fontSize: 12, fontWeight: 700 }}
+            >
+              See all
+            </Link>
+          </div>
+          <div style={{ marginTop: 6 }}>
+            {top3.length ? (
+              top3.map((u) => (
+                <LbRow
+                  key={u.uid}
+                  rank={u.rank}
+                  name={u.display_name}
+                  avatarUrl={u.avatar_url}
+                  best={`${u.pb_weight}${machine.unit}×${u.pb_reps}`}
+                  isMe={session?.user.id === u.uid}
+                />
+              ))
+            ) : (
+              <div className="empty" style={{ padding: "16px 0" }}>
+                Be the first on the leaderboard.
+              </div>
+            )}
+          </div>
         </div>
 
         {mine && (
@@ -284,37 +270,31 @@ function MachinePageInner({ params }: { params: { id: string } }) {
           </div>
         )}
 
-        <div className="card">
-          <div className="row">
-            <h3 style={{ margin: 0, fontSize: 15 }}>
-              <Icon name="trophy" /> Top Performers
-            </h3>
-            <Link
-              href={`/leaderboard?tab=machines&machine=${machine.id}${mode ? `&mode=${mode}` : ""}`}
-              className="faint"
-              style={{ fontSize: 12, fontWeight: 700 }}
-            >
-              See all
-            </Link>
-          </div>
-          <div style={{ marginTop: 6 }}>
-            {top3.length ? (
-              top3.map((u) => (
-                <LbRow
-                  key={u.uid}
-                  rank={u.rank}
-                  name={u.display_name}
-                  avatarUrl={u.avatar_url}
-                  best={`${u.pb_weight}${machine.unit}×${u.pb_reps}`}
-                  isMe={session?.user.id === u.uid}
-                />
-              ))
-            ) : (
-              <div className="empty" style={{ padding: "16px 0" }}>
-                Be the first on the leaderboard.
-              </div>
-            )}
-          </div>
+        <div className="stack">
+          <Link href={`/machine/${machine.id}/guide${mode ? `?mode=${mode}` : ""}`} className="action-card">
+            <div className="glyph">
+              <Icon name="dumbbell" />
+            </div>
+            <div className="body">
+              <div className="title">How to use</div>
+              <div className="sub">Learn the correct setup and form</div>
+            </div>
+            <div className="chev">
+              <Icon name="chev" />
+            </div>
+          </Link>
+          <Link href={`/machine/${machine.id}/feedback${mode ? `?mode=${mode}` : ""}`} className="action-card">
+            <div className="glyph">
+              <Icon name="star" />
+            </div>
+            <div className="body">
+              <div className="title">Give feedback</div>
+              <div className="sub">Help the gym improve</div>
+            </div>
+            <div className="chev">
+              <Icon name="chev" />
+            </div>
+          </Link>
         </div>
       </div>
     </>

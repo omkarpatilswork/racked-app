@@ -23,6 +23,14 @@ export type Machine = {
   tip?: string;
   challenge?: { weight: number; reps: number };
   modes?: Record<string, MachineMode>;
+  // Optional per-machine overrides for the weight stepper on the log page.
+  // weightStep: increment size (defaults to 2.5 for KG machines, 1 otherwise).
+  // startWeight: smart starting weight shown to first-time users (defaults
+  // to 70% of the challenge weight when omitted).
+  weightStep?: number;
+  startWeight?: number;
+  // Smart starting reps shown to first-time users (defaults to 8 when omitted).
+  startReps?: number;
 };
 
 export const MACHINES: Machine[] = [
@@ -47,6 +55,9 @@ export const MACHINES: Machine[] = [
     tip: 'Think "elbows down" rather than "hands down".',
     challenge: { weight: 70, reps: 8 },
     unit: "KG",
+    weightStep: 5,
+    startWeight: 40,
+    startReps: 10,
   },
   {
     id: "chest-press-02",
