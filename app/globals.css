@@ -598,6 +598,16 @@ textarea.field {
 .stepper input:focus {
   outline: none;
 }
+/* Hide the browser's tiny native number spinner (it clashes with our big
+   custom +/- buttons) without disabling the arrow-key stepping itself. */
+.stepper input::-webkit-outer-spin-button,
+.stepper input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.stepper input[type="number"] {
+  -moz-appearance: textfield;
+}
 
 .rating {
   display: flex;

@@ -33,11 +33,26 @@ export default function Stepper({
         <div className="value">
           <input
             className="num"
+            type="number"
+            step={step}
+            min={min}
             inputMode={step % 1 !== 0 ? "decimal" : "numeric"}
             value={value}
             onChange={(e) => {
               const v = parseFloat(e.target.value);
               onChange(Number.isFinite(v) ? v : 0);
+            }}
+            onKeyDown={(e) => {
+              // Belt-and-suspenders: some mobile/in-app browsers don't wire
+              // ArrowUp/ArrowDown to the native number step even on
+              // type="number" inputs, so handle it ourselves too.
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                bump(1);
+              } else if (e.key === "ArrowDown") {
+                e.preventDefault();
+                bump(-1);
+              }
             }}
           />
         </div>
