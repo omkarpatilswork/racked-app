@@ -5,10 +5,6 @@ import { usePathname } from "next/navigation";
 import Icon from "@/components/Icon";
 import clsx from "clsx";
 
-// Chrome-free on machine/guide/log/feedback pages — matches the "only that
-// machine's data shows" behavior from the artifact prototype (Round 2).
-const CHROME_FREE_PREFIXES = ["/machine/"];
-
 const TABS = [
   { href: "/", label: "Home", icon: "home" as const },
   { href: "/machines", label: "Machines", icon: "grid" as const },
@@ -18,9 +14,13 @@ const TABS = [
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const hidden =
-    pathname.startsWith("/admin") ||
-    CHROME_FREE_PREFIXES.some((p) => pathname.startsWith(p));
+  const segments = pathname.split("/").filter(Boolean);
+  // Show the nav on the main machine screen (what you land on after an NFC
+  // tap: /machine/<id>) so Ranks/Profile/Home are always one tap away. Still
+  // hide it on the deeper, focused sub-pages (guide/log/feedback) where the
+  // full-width "back" flow matters more than cross-app navigation.
+  const isMachineSubpage = segments[0] === "machine" && segments.length > 2;
+  const hidden = pathname.startsWith("/admin") || isMachineSubpage;
 
   if (hidden) return null;
 
