@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 export default function Stepper({
   label,
   value,
@@ -15,6 +17,20 @@ export default function Stepper({
   min: number;
   max?: number;
 }) {
+  // The visible text is tracked separately from the numeric `value`. If the
+  // <input> just displayed `value` directly, every keystroke's re-render
+  // would stomp on what's mid-typed — clearing the field to retype snaps
+  // back to showing "0", and a trailing "." while typing a decimal (e.g.
+  // "40." on the way to "40.5") gets silently stripped because `String(40)`
+  // has no dot. Keeping our own text buffer, and only resyncing it from
+  // `value` while the field isn't focused, avoids both.
+  const [text, setText] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setText(String(value));
+  }, [value, focused]);
+
   function clamp(v: number) {
     if (v < min) v = min;
     if (typeof max === "number" && v > max) v = max;
@@ -22,8 +38,16 @@ export default function Stepper({
     return Math.round(v * 100) / 100;
   }
 
+  // A "complete" change — button press or arrow key — always gets clamped
+  // and the visible text updated to match immediately.
+  function commit(v: number) {
+    const c = clamp(v);
+    onChange(c);
+    setText(String(c));
+  }
+
   function bump(dir: number) {
-    onChange(clamp(value + dir * step));
+    commit(value + dir * step);
   }
 
   return (
@@ -43,23 +67,29 @@ export default function Stepper({
             min={min}
             max={max}
             inputMode={step % 1 !== 0 ? "decimal" : "numeric"}
-            value={value}
+            value={text}
+            onFocus={() => setFocused(true)}
             onChange={(e) => {
               const raw = e.target.value;
-              if (raw === "") {
-                onChange(0);
-                return;
-              }
+              // Always show exactly what was typed, including a lone "-",
+              // a trailing "." or an empty field mid-edit.
+              setText(raw);
+              if (raw === "" || raw === "-") return;
               const v = parseFloat(raw);
               if (!Number.isFinite(v)) return;
-              // Only clamp once the typed number actually breaches a bound —
-              // clamping every keystroke would fight the user mid-type.
-              const bounded = v < min || (typeof max === "number" && v > max) ? clamp(v) : v;
+              // Only push the high bound live — a value that's already too
+              // large isn't something a later keystroke would fix. Leave the
+              // low bound alone until blur: typing "40" from scratch passes
+              // through "4" first, which is legitimately below a min of 5
+              // for an instant, and clamping that mid-keystroke is what
+              // corrupted every digit typed after it.
+              const bounded = typeof max === "number" && v > max ? clamp(v) : v;
               onChange(bounded);
             }}
-            onBlur={(e) => {
-              const v = parseFloat(e.target.value);
-              onChange(clamp(Number.isFinite(v) ? v : min));
+            onBlur={() => {
+              setFocused(false);
+              const v = parseFloat(text);
+              commit(Number.isFinite(v) ? v : min);
             }}
             onKeyDown={(e) => {
               // Belt-and-suspenders: some mobile/in-app browsers don't wire
