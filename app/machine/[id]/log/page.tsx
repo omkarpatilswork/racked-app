@@ -41,6 +41,15 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   const [reps, setReps] = useState(10);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<LogSetResult | null>(null);
+  // The PB shown on this page updates the instant a set is logged, rather
+  // than waiting for a refetch — so a PB you just hit is reflected right
+  // away even though you haven't left the page.
+  const [livePb, setLivePb] = useState<{ weight: number; reps: number } | null>(null);
+  // Sets logged in this visit to the page, newest last. This is what lets
+  // you log a whole exercise's worth of sets in one place — each tap of
+  // "Log set" adds to this list instead of bouncing you back to the machine
+  // screen, so you can knock out set after set without re-navigating.
+  const [sessionSets, setSessionSets] = useState<{ weight: number; reps: number; isPb: boolean }[]>([]);
 
   // Weight increment: use the machine's own override when set (e.g. Lat
   // Pulldown steps in 5kg), otherwise fall back to the unit-based default.
@@ -79,6 +88,9 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
 
   if (!machine || !view) return notFound();
 
+  const displayPb = livePb ?? (mine ? { weight: Number(mine.pb_weight), reps: mine.pb_reps } : null);
+  const sessionVolume = sessionSets.reduce((sum, s) => sum + s.weight * s.reps, 0);
+
   if (!session) {
     return (
       <>
@@ -108,7 +120,17 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
     setSaving(true);
     try {
       const res = await logSet(supabase, machine!.id, mode, weight, reps);
-      setResult(res);
+      setLivePb({ weight: res.pbWeight, reps: res.pbReps });
+      setSessionSets((prev) => [...prev, { weight: res.weight, reps: res.reps, isPb: res.isPb }]);
+      if (res.isPb) {
+        // A new PB is worth a full celebration — show the modal.
+        setResult(res);
+      } else {
+        // Anything else shouldn't interrupt the flow of a workout: a quick
+        // toast is enough, and the set drops straight into the list below
+        // so you can immediately load up the next one.
+        toast(`Logged ${res.weight}${machine!.unit} × ${res.reps} 🔥`);
+      }
     } catch (err) {
       console.error(err);
       toast("Could not save that set — try again");
@@ -130,14 +152,14 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
           <div className="eyebrow">Log your set</div>
           <h1 style={{ fontSize: 22, margin: "6px 0 0" }}>{view.label}</h1>
         </div>
-        {mine && (
+        {displayPb && (
           <div className="card center">
             <div className="eyebrow">
               <Icon name="trophy" /> Your Personal Best
             </div>
             <div className="num" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-              {mine.pb_weight}
-              {machine.unit} × {mine.pb_reps} reps
+              {displayPb.weight}
+              {machine.unit} × {displayPb.reps} reps
             </div>
           </div>
         )}
@@ -148,11 +170,66 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
           step={weightStep}
           min={weightMin}
           max={weightMax}
+          quickSets={displayPb ? [{ label: `PB ${displayPb.weight}${machine.unit}`, value: displayPb.weight }] : undefined}
         />
-        <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={repsMin} max={repsMax} />
+        <Stepper
+          label="Reps"
+          value={reps}
+          onChange={setReps}
+          step={1}
+          min={repsMin}
+          max={repsMax}
+          quickSets={displayPb ? [{ label: `PB ×${displayPb.reps}`, value: displayPb.reps }] : undefined}
+        />
         <button className="btn btn-yellow" style={{ padding: 18 }} onClick={handleSubmit} disabled={saving}>
-          {saving ? "SAVING…" : "LOG SET"}
+          {saving ? "SAVING…" : sessionSets.length > 0 ? "LOG ANOTHER SET" : "LOG SET"}
         </button>
+
+        {sessionSets.length > 0 && (
+          <div className="card">
+            <div className="row">
+              <h3 style={{ margin: 0, fontSize: 15 }}>Sets logged today</h3>
+              <span className="pill-yellow">
+                {sessionSets.length} set{sessionSets.length > 1 ? "s" : ""}
+              </span>
+            </div>
+            <div style={{ marginTop: 6 }}>
+              {sessionSets.map((s, i) => (
+                <div
+                  key={i}
+                  className="row"
+                  style={{
+                    padding: "9px 0",
+                    borderBottom: i < sessionSets.length - 1 ? "1px solid var(--border)" : "none",
+                  }}
+                >
+                  <span className="muted" style={{ fontSize: 13 }}>Set {i + 1}</span>
+                  <span className="num" style={{ fontWeight: 700 }}>
+                    {s.weight}
+                    {machine.unit} × {s.reps}
+                    {s.isPb ? " ⭐" : ""}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="row" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+              <span className="muted" style={{ fontSize: 12.5 }}>Session volume</span>
+              <span className="num" style={{ fontWeight: 700 }}>
+                {sessionVolume.toLocaleString()}
+                {machine.unit}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {sessionSets.length > 0 && (
+          <Link
+            href={`/machine/${machine.id}${modeParam ? `?mode=${modeParam}` : ""}`}
+            className="btn btn-ghost"
+          >
+            Finish session
+          </Link>
+        )}
       </div>
       {result && (
         <SetResultModal
@@ -162,6 +239,7 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
           mode={mode}
           result={result}
           onClose={() => router.push(`/machine/${machine.id}${modeParam ? `?mode=${modeParam}` : ""}`)}
+          onContinue={() => setResult(null)}
         />
       )}
     </>

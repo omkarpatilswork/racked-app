@@ -9,6 +9,7 @@ export default function Stepper({
   step,
   min,
   max,
+  quickSets,
 }: {
   label: string;
   value: number;
@@ -16,6 +17,11 @@ export default function Stepper({
   step: number;
   min: number;
   max?: number;
+  // Optional one-tap shortcuts shown as chips under the +/- row — e.g. jump
+  // straight to a saved PB — alongside a pair of auto-generated "big jump"
+  // chips (4x the normal step) so a big weight/rep change doesn't need
+  // dozens of individual taps on the small +/- buttons.
+  quickSets?: { label: string; value: number }[];
 }) {
   // The visible text is tracked separately from the numeric `value`. If the
   // <input> just displayed `value` directly, every keystroke's re-render
@@ -49,6 +55,12 @@ export default function Stepper({
   function bump(dir: number) {
     commit(value + dir * step);
   }
+
+  // A bigger jump for fast changes (chips below), 4x the normal +/- step —
+  // e.g. 5kg step -> 20kg chip, 1 rep step -> 4 rep chip.
+  const bigStep = Math.round(step * 4 * 100) / 100;
+  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100));
+  const showChips = (quickSets && quickSets.length > 0) || bigStep > 0;
 
   return (
     <div className="card">
@@ -109,6 +121,30 @@ export default function Stepper({
           +
         </button>
       </div>
+      {showChips && (
+        <div className="chip-row" style={{ justifyContent: "center", marginTop: 12 }}>
+          {bigStep > 0 && (
+            <button type="button" className="qchip" onClick={() => commit(value - bigStep)}>
+              −{fmt(bigStep)}
+            </button>
+          )}
+          {quickSets?.map((qs) => (
+            <button
+              key={qs.label}
+              type="button"
+              className="qchip qchip-accent"
+              onClick={() => commit(qs.value)}
+            >
+              {qs.label}
+            </button>
+          ))}
+          {bigStep > 0 && (
+            <button type="button" className="qchip" onClick={() => commit(value + bigStep)}>
+              +{fmt(bigStep)}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

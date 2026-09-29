@@ -7,7 +7,6 @@ import clsx from "clsx";
 
 const TABS = [
   { href: "/", label: "Home", icon: "home" as const },
-  { href: "/machines", label: "Machines", icon: "grid" as const },
   { href: "/leaderboard", label: "Ranks", icon: "trophy" as const },
   { href: "/profile", label: "Profile", icon: "user" as const },
 ];
@@ -42,7 +41,7 @@ export default function BottomNav() {
           maxWidth: 520,
           margin: "0 auto",
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: "repeat(3, 1fr)",
         }}
       >
         {TABS.map((tab) => {

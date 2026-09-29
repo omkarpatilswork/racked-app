@@ -16,6 +16,7 @@ export default function SetResultModal({
   mode,
   result,
   onClose,
+  onContinue,
 }: {
   machine: Machine;
   label: string;
@@ -23,6 +24,9 @@ export default function SetResultModal({
   mode: string | null;
   result: LogSetResult;
   onClose: () => void;
+  // Optional: lets the person dismiss a new-PB celebration and keep logging
+  // sets on the same machine, instead of always being sent back to it.
+  onContinue?: () => void;
 }) {
   const [sharing, setSharing] = useState(false);
   const cleared = checkChallengeCompletion(result.weight, result.reps, challenge);
@@ -88,6 +92,15 @@ export default function SetResultModal({
               Back to Machine
             </button>
           </div>
+          {onContinue && (
+            <button
+              className="btn"
+              style={{ marginTop: 12, background: "transparent", color: "rgba(255,255,255,.75)", border: "none" }}
+              onClick={onContinue}
+            >
+              Keep training this machine →
+            </button>
+          )}
         </div>
         {sharing && <ShareSheet data={shareData} onClose={() => setSharing(false)} />}
       </>

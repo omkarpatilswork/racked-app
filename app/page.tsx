@@ -46,7 +46,7 @@ export default function HomePage() {
             >
               Tap any machine to get started.
             </p>
-            <Link href="/demo" className="btn btn-yellow" style={{ position: "relative" }}>
+            <Link href="/machines" className="btn btn-yellow" style={{ position: "relative" }}>
               <Icon name="grid" /> Explore Machines
             </Link>
             <div
@@ -95,20 +95,8 @@ export default function HomePage() {
             Quick actions
           </div>
           <div className="stack">
-            <Link href="/demo" className="action-card">
-              <div className="glyph yellow">
-                <Icon name="wifi" />
-              </div>
-              <div className="body">
-                <div className="title">Simulate an NFC tap</div>
-                <div className="sub">Choose a machine like you tapped its sticker</div>
-              </div>
-              <div className="chev">
-                <Icon name="chev" />
-              </div>
-            </Link>
             <Link href="/leaderboard" className="action-card">
-              <div className="glyph">
+              <div className="glyph yellow">
                 <Icon name="trophy" />
               </div>
               <div className="body">
