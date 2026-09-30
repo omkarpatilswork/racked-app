@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
@@ -32,7 +32,15 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   const supabase = useMemo(() => createClient(), []);
 
   const modeParam = searchParams.get("mode");
-  const view = machine ? resolveMachineView(machine, modeParam) : null;
+  // Memoized: resolveMachineView builds a brand-new object every call, and
+  // this object used to sit directly in the fetch effect's dependency array
+  // below. That meant every render (including the one caused by moving the
+  // weight/reps stepper) produced a new `view` reference, which re-ran the
+  // effect and re-fetched your saved PB — and when that fetch resolved a
+  // moment later, it force-set weight/reps straight back to your PB,
+  // undoing whatever you'd just typed or tapped. Memoizing keeps the same
+  // object across renders unless the machine or mode actually changes.
+  const view = useMemo(() => (machine ? resolveMachineView(machine, modeParam) : null), [machine, modeParam]);
   const mode = view?.modeKey ?? null;
   const currentPath = `/machine/${params.id}/log${modeParam ? `?mode=${modeParam}` : ""}`;
 
@@ -51,9 +59,10 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   // screen, so you can knock out set after set without re-navigating.
   const [sessionSets, setSessionSets] = useState<{ weight: number; reps: number; isPb: boolean }[]>([]);
 
-  // Weight increment: use the machine's own override when set (e.g. Lat
-  // Pulldown steps in 5kg), otherwise fall back to the unit-based default.
-  const weightStep = machine?.weightStep ?? (machine?.unit === "KG" ? 2.5 : 1);
+  // Weight increment: use the machine's own override when set, otherwise
+  // fall back to 5kg steps for KG machines (matches how the weight stacks
+  // are actually loaded — every machine, not just Lat Pulldown).
+  const weightStep = machine?.weightStep ?? (machine?.unit === "KG" ? 5 : 1);
   const weightMin = machine?.minWeight ?? 0;
   const weightMax = machine?.maxWeight;
   const repsMin = machine?.minReps ?? 1;
@@ -65,8 +74,20 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
     return v;
   }
 
+  function roundToStep(v: number, step: number) {
+    if (!step) return v;
+    return Math.round(v / step) * step;
+  }
+
+  // Guards against a slower fetch resolving *after* the person has already
+  // started adjusting the stepper (e.g. on a slow connection) — without
+  // this, even a correctly-deduped effect could still land its "here's your
+  // saved weight" response on top of an in-progress edit.
+  const userEditedRef = useRef(false);
+
   useEffect(() => {
     if (!machine || !view || !session) return;
+    userEditedRef.current = false;
     supabase
       .from("machine_stats")
       .select("*")
@@ -76,15 +97,26 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
       .maybeSingle()
       .then(({ data }) => {
         setMine(data ?? null);
+        if (userEditedRef.current) return;
         const startW = data
           ? Number(data.pb_weight)
-          : machine.startWeight ?? Math.round(view.challenge.weight * 0.7);
+          : roundToStep(machine.startWeight ?? Math.round(view.challenge.weight * 0.7), weightStep);
         const startR = data ? data.pb_reps : machine.startReps ?? 10;
         setWeight(clampTo(startW, weightMin, weightMax));
         setReps(clampTo(startR, repsMin, repsMax));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [machine, view, mode, session, supabase]);
+
+  function handleWeightChange(v: number) {
+    userEditedRef.current = true;
+    setWeight(v);
+  }
+
+  function handleRepsChange(v: number) {
+    userEditedRef.current = true;
+    setReps(v);
+  }
 
   if (!machine || !view) return notFound();
 
@@ -166,7 +198,7 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
         <Stepper
           label={`Weight (${machine.unit})`}
           value={weight}
-          onChange={setWeight}
+          onChange={handleWeightChange}
           step={weightStep}
           min={weightMin}
           max={weightMax}
@@ -175,7 +207,7 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
         <Stepper
           label="Reps"
           value={reps}
-          onChange={setReps}
+          onChange={handleRepsChange}
           step={1}
           min={repsMin}
           max={repsMax}
