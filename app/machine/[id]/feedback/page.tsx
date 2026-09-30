@@ -5,10 +5,12 @@ import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import SignInSheet from "@/components/SignInSheet";
+import LockedMachine from "@/components/LockedMachine";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { submitFeedback } from "@/lib/data";
 import { toast } from "@/lib/toast";
+import { useMachineLock } from "@/lib/machineLock";
 import { MACHINE_MAP } from "@/lib/machines";
 
 const ISSUE_OPTIONS: [string, string, string][] = [
@@ -43,8 +45,11 @@ function FeedbackPageInner({ params }: { params: { id: string } }) {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
+  const lockStatus = useMachineLock(machine, searchParams.get("tap"));
 
   if (!machine) return notFound();
+  if (lockStatus === "checking") return null;
+  if (lockStatus === "locked") return <LockedMachine machine={machine} />;
 
   function toggleIssue(key: string) {
     setIssues((prev) => {

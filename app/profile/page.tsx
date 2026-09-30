@@ -6,12 +6,14 @@ import Topbar from "@/components/Topbar";
 import Icon from "@/components/Icon";
 import AttendanceCalendar from "@/components/AttendanceCalendar";
 import SignInSheet from "@/components/SignInSheet";
+import ShareSheet from "@/components/ShareSheet";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAttendance, fetchMyStats, overallFromStats, toggleAttendanceDay } from "@/lib/data";
 import { calculateMachineLevel } from "@/lib/gamification";
 import { computeStreaks, todayStr, type AttendanceMap } from "@/lib/streaks";
 import { MACHINE_MAP } from "@/lib/machines";
+import type { ShareCardData } from "@/lib/shareCard";
 import type { Database } from "@/lib/database.types";
 
 type StatsRow = Database["public"]["Tables"]["machine_stats"]["Row"];
@@ -22,6 +24,7 @@ export default function ProfilePage() {
 
   const [stats, setStats] = useState<Record<string, StatsRow>>({});
   const [attendance, setAttendance] = useState<AttendanceMap>({});
+  const [sharing, setSharing] = useState<ShareCardData | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -67,6 +70,18 @@ export default function ProfilePage() {
     }
   }
 
+  function openProgressShare() {
+    setSharing({
+      eyebrow: "My Progress",
+      big: `LEVEL ${lvl.level}`,
+      sub: `${overall.totalSets} sets · ${overall.totalVolume.toLocaleString()}KG moved`,
+      meta: `${overall.unlocked}/9 MACHINES · ${overall.pbCount} PBs`,
+      dateLabel: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+      fileTag: "progress",
+      shareText: `Level ${lvl.level} on Racked — ${overall.totalSets} sets, ${overall.totalVolume.toLocaleString()}KG moved 🔥 #RackedByBijlee`,
+    });
+  }
+
   return (
     <>
       <div className="topbar">
@@ -92,6 +107,9 @@ export default function ProfilePage() {
           <div className="pill-yellow" style={{ marginTop: 8 }}>
             LEVEL {lvl.level}
           </div>
+          <button className="btn btn-outline btn-sm" style={{ marginTop: 10 }} onClick={openProgressShare}>
+            <Icon name="bolt" /> Share Progress
+          </button>
         </div>
 
         <div className="stat-grid">
@@ -191,6 +209,7 @@ export default function ProfilePage() {
           </Link>
         )}
       </div>
+      {sharing && <ShareSheet data={sharing} onClose={() => setSharing(null)} />}
     </>
   );
 }

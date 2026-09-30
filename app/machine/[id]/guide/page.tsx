@@ -5,6 +5,8 @@ import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import ExerciseAnimation from "@/components/ExerciseAnimation";
+import LockedMachine from "@/components/LockedMachine";
+import { useMachineLock } from "@/lib/machineLock";
 import { MACHINE_MAP, resolveMachineView } from "@/lib/machines";
 
 export default function GuidePage({ params }: { params: { id: string } }) {
@@ -20,8 +22,11 @@ function GuidePageInner({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode");
   const view = machine ? resolveMachineView(machine, mode) : null;
+  const lockStatus = useMachineLock(machine, searchParams.get("tap"));
 
   if (!machine || !view) return notFound();
+  if (lockStatus === "checking") return null;
+  if (lockStatus === "locked") return <LockedMachine machine={machine} />;
 
   return (
     <>

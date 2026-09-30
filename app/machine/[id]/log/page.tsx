@@ -7,10 +7,12 @@ import Icon from "@/components/Icon";
 import Stepper from "@/components/Stepper";
 import SignInSheet from "@/components/SignInSheet";
 import SetResultModal from "@/components/SetResultModal";
+import LockedMachine from "@/components/LockedMachine";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { logSet, type LogSetResult } from "@/lib/data";
 import { toast } from "@/lib/toast";
+import { useMachineLock } from "@/lib/machineLock";
 import { MACHINE_MAP, resolveMachineView } from "@/lib/machines";
 import type { Database } from "@/lib/database.types";
 
@@ -43,6 +45,10 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   const view = useMemo(() => (machine ? resolveMachineView(machine, modeParam) : null), [machine, modeParam]);
   const mode = view?.modeKey ?? null;
   const currentPath = `/machine/${params.id}/log${modeParam ? `?mode=${modeParam}` : ""}`;
+  // A real tap lands on the machine's main page, not directly here, so this
+  // will almost always just be reading the sessionStorage unlock that page
+  // already set — see lib/machineLock.ts.
+  const lockStatus = useMachineLock(machine, searchParams.get("tap"));
 
   const [mine, setMine] = useState<StatsRow | null>(null);
   const [weight, setWeight] = useState(0);
@@ -86,7 +92,7 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   const userEditedRef = useRef(false);
 
   useEffect(() => {
-    if (!machine || !view || !session) return;
+    if (!machine || !view || !session || lockStatus !== "unlocked") return;
     userEditedRef.current = false;
     supabase
       .from("machine_stats")
@@ -106,7 +112,7 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
         setReps(clampTo(startR, repsMin, repsMax));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [machine, view, mode, session, supabase]);
+  }, [machine, view, mode, session, lockStatus, supabase]);
 
   function handleWeightChange(v: number) {
     userEditedRef.current = true;
@@ -119,6 +125,8 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   }
 
   if (!machine || !view) return notFound();
+  if (lockStatus === "checking") return null;
+  if (lockStatus === "locked") return <LockedMachine machine={machine} />;
 
   const displayPb = livePb ?? (mine ? { weight: Number(mine.pb_weight), reps: mine.pb_reps } : null);
   const sessionVolume = sessionSets.reduce((sum, s) => sum + s.weight * s.reps, 0);

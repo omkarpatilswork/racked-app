@@ -37,11 +37,17 @@ export type Machine = {
   maxWeight?: number;
   minReps?: number;
   maxReps?: number;
+  // The code this machine's physical NFC sticker must encode in its link
+  // (…/machine/<id>?tap=<tapCode>) for the app to recognize a real tap and
+  // unlock this machine — see lib/machineLock.ts. Program each of the 9
+  // tags to point at its own machine's URL with this code attached.
+  tapCode: string;
 };
 
 export const MACHINES: Machine[] = [
   {
     id: "lat-pulldown-01",
+    tapCode: "LP4K9X",
     number: "01",
     name: "Lat Pulldown",
     muscles: ["Lats", "Upper Back", "Biceps"],
@@ -71,6 +77,7 @@ export const MACHINES: Machine[] = [
   },
   {
     id: "chest-press-02",
+    tapCode: "CP7M2Q",
     number: "02",
     name: "Chest Press",
     muscles: ["Chest", "Triceps", "Front Shoulders"],
@@ -93,6 +100,7 @@ export const MACHINES: Machine[] = [
   },
   {
     id: "rowing-03",
+    tapCode: "RW3T8V",
     number: "03",
     name: "Rowing",
     muscles: ["Upper Back", "Lats", "Biceps"],
@@ -115,6 +123,7 @@ export const MACHINES: Machine[] = [
   },
   {
     id: "pec-fly-rear-delt-04",
+    tapCode: "PF9J5N",
     number: "04",
     name: "Pec Fly / Rear Delt",
     muscles: ["Chest", "Rear Delts", "Upper Back"],
@@ -163,6 +172,7 @@ export const MACHINES: Machine[] = [
   },
   {
     id: "shoulder-press-05",
+    tapCode: "SP2X6L",
     number: "05",
     name: "Shoulder Press",
     muscles: ["Shoulders", "Triceps"],
@@ -185,6 +195,7 @@ export const MACHINES: Machine[] = [
   },
   {
     id: "biceps-preacher-06",
+    tapCode: "BC8R4W",
     number: "06",
     name: "Biceps / Preacher Curl",
     muscles: ["Biceps", "Forearms"],
@@ -207,6 +218,7 @@ export const MACHINES: Machine[] = [
   },
   {
     id: "squat-07",
+    tapCode: "SQ6H1Y",
     number: "07",
     name: "Squat",
     muscles: ["Quads", "Glutes", "Hamstrings", "Core"],
@@ -229,6 +241,7 @@ export const MACHINES: Machine[] = [
   },
   {
     id: "leg-press-08",
+    tapCode: "LG5D9K",
     number: "08",
     name: "Leg Press",
     muscles: ["Quads", "Glutes", "Hamstrings"],
@@ -251,6 +264,7 @@ export const MACHINES: Machine[] = [
   },
   {
     id: "leg-extension-09",
+    tapCode: "LE1V7B",
     number: "09",
     name: "Leg Extension",
     muscles: ["Quadriceps"],

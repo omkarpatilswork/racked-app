@@ -5,11 +5,15 @@ import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import LbRow from "@/components/LbRow";
+import LockedMachine from "@/components/LockedMachine";
+import ShareSheet from "@/components/ShareSheet";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMachineLeaderboard, recordTap } from "@/lib/data";
 import { calculateMachineLevel } from "@/lib/gamification";
+import { useMachineLock } from "@/lib/machineLock";
 import { MACHINE_MAP, resolveMachineView } from "@/lib/machines";
+import type { ShareCardData } from "@/lib/shareCard";
 import type { Database } from "@/lib/database.types";
 
 type StatsRow = Database["public"]["Tables"]["machine_stats"]["Row"];
@@ -32,22 +36,27 @@ function MachinePageInner({ params }: { params: { id: string } }) {
   const modeParam = searchParams.get("mode");
   const view = machine ? resolveMachineView(machine, modeParam) : null;
   const mode = view?.modeKey ?? null;
+  const lockStatus = useMachineLock(machine, searchParams.get("tap"));
 
   const [mine, setMine] = useState<StatsRow | null>(null);
   const [board, setBoard] = useState<LbRowType[]>([]);
+  const [sharing, setSharing] = useState<ShareCardData | null>(null);
 
+  // Guarded on lockStatus === "unlocked" so a locked page (someone who
+  // clicked here from elsewhere in the app instead of tapping the sticker)
+  // doesn't record a tap, pull the leaderboard, or fetch anyone's stats.
   useEffect(() => {
-    if (!machine) return;
+    if (!machine || lockStatus !== "unlocked") return;
     recordTap(supabase, machine.id);
-  }, [machine, supabase]);
+  }, [machine, lockStatus, supabase]);
 
   useEffect(() => {
-    if (!machine) return;
+    if (!machine || lockStatus !== "unlocked") return;
     fetchMachineLeaderboard(supabase, machine.id, mode || "").then(setBoard);
-  }, [machine, mode, supabase]);
+  }, [machine, mode, lockStatus, supabase]);
 
   useEffect(() => {
-    if (!machine || !session) {
+    if (!machine || !session || lockStatus !== "unlocked") {
       setMine(null);
       return;
     }
@@ -59,13 +68,29 @@ function MachinePageInner({ params }: { params: { id: string } }) {
       .eq("mode", mode || "")
       .maybeSingle()
       .then(({ data }) => setMine(data ?? null));
-  }, [machine, mode, session, supabase]);
+  }, [machine, mode, session, lockStatus, supabase]);
 
   if (!machine || !view) return notFound();
+  if (lockStatus === "checking") return null;
+  if (lockStatus === "locked") return <LockedMachine machine={machine} />;
 
   const challenge = view.challenge;
   const gap = mine && challenge ? Math.max(0, challenge.weight - Number(mine.pb_weight)) : null;
   const top3 = board.slice(0, 3);
+
+  function openPrShare() {
+    if (!mine) return;
+    const label = machine!.name + (machine!.dual ? ` — ${view!.label}` : "");
+    setSharing({
+      eyebrow: "Personal Best",
+      big: `${mine.pb_weight}${machine!.unit} × ${mine.pb_reps}`,
+      sub: label,
+      meta: `LEVEL ${mine.level}`,
+      dateLabel: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+      fileTag: `pr-${machine!.id}`,
+      shareText: `${mine.pb_weight}${machine!.unit} × ${mine.pb_reps} on ${label} 💪 #RackedByBijlee`,
+    });
+  }
 
   return (
     <>
@@ -106,7 +131,16 @@ function MachinePageInner({ params }: { params: { id: string } }) {
 
         {mine ? (
           <div className="card dark-card" style={{ border: "none" }}>
-            <div className="eyebrow accent">Welcome back 🔥</div>
+            <div className="row">
+              <div className="eyebrow accent">Welcome back 🔥</div>
+              <button
+                className="btn-sm btn-outline"
+                style={{ borderColor: "rgba(255,255,255,.3)", color: "#fff", padding: "6px 12px", fontSize: 12 }}
+                onClick={openPrShare}
+              >
+                <Icon name="bolt" /> Share PR
+              </button>
+            </div>
             <div className="row" style={{ marginTop: 8, alignItems: "flex-end" }}>
               <div>
                 <div className="muted-on-dark" style={{ fontSize: 11.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>
@@ -297,6 +331,7 @@ function MachinePageInner({ params }: { params: { id: string } }) {
           </Link>
         </div>
       </div>
+      {sharing && <ShareSheet data={sharing} onClose={() => setSharing(null)} />}
     </>
   );
 }
