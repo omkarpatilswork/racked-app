@@ -59,7 +59,7 @@ export default function HomePage() {
                 color: "#fff",
               }}
             >
-              <Icon name="dumbbell" /> 9 interactive machines
+              <Icon name="dumbbell" /> {MACHINES.length} interactive machines
             </div>
           </div>
         ) : (
@@ -101,7 +101,7 @@ export default function HomePage() {
               </div>
               <div className="body">
                 <div className="title">Leaderboard</div>
-                <div className="sub">See who&rsquo;s on top across all 9 machines</div>
+                <div className="sub">See who&rsquo;s on top across all {MACHINES.length} machines</div>
               </div>
               <div className="chev">
                 <Icon name="chev" />

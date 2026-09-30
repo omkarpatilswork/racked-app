@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { fetchAttendance, fetchMyStats, overallFromStats, toggleAttendanceDay } from "@/lib/data";
 import { calculateMachineLevel } from "@/lib/gamification";
 import { computeStreaks, todayStr, type AttendanceMap } from "@/lib/streaks";
-import { MACHINE_MAP } from "@/lib/machines";
+import { MACHINE_MAP, MACHINES } from "@/lib/machines";
 import type { ShareCardData } from "@/lib/shareCard";
 import type { Database } from "@/lib/database.types";
 
@@ -75,7 +75,7 @@ export default function ProfilePage() {
       eyebrow: "My Progress",
       big: `LEVEL ${lvl.level}`,
       sub: `${overall.totalSets} sets · ${overall.totalVolume.toLocaleString()}KG moved`,
-      meta: `${overall.unlocked}/9 MACHINES · ${overall.pbCount} PBs`,
+      meta: `${overall.unlocked}/${MACHINES.length} MACHINES · ${overall.pbCount} PBs`,
       dateLabel: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
       fileTag: "progress",
       shareText: `Level ${lvl.level} on Racked — ${overall.totalSets} sets, ${overall.totalVolume.toLocaleString()}KG moved 🔥 #RackedByBijlee`,
@@ -114,7 +114,7 @@ export default function ProfilePage() {
 
         <div className="stat-grid">
           <div className="stat-tile">
-            <div className="v">{overall.unlocked}/9</div>
+            <div className="v">{overall.unlocked}/{MACHINES.length}</div>
             <div className="l">Unlocked</div>
           </div>
           <div className="stat-tile">
@@ -163,7 +163,7 @@ export default function ProfilePage() {
           <div className="row" style={{ marginBottom: 10 }}>
             <div className="eyebrow">Your Machines</div>
             <span className="faint" style={{ fontSize: 12 }}>
-              {overall.unlocked} / 9 unlocked
+              {overall.unlocked} / {MACHINES.length} unlocked
             </span>
           </div>
           {mine.length ? (
@@ -203,7 +203,7 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
-        {overall.unlocked < 9 && (
+        {overall.unlocked < MACHINES.length && (
           <Link href="/machines" className="btn btn-outline">
             Unlock them all <Icon name="chev" />
           </Link>

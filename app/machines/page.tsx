@@ -30,7 +30,7 @@ export default function MachinesPage() {
         <div>
           <h1 style={{ fontSize: 24, margin: "0 0 4px" }}>Machines</h1>
           <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
-            {session ? `${unlockedIds.size} / 9 machines unlocked` : "All 9 machines in this gym"}
+            {session ? `${unlockedIds.size} / ${MACHINES.length} machines unlocked` : `All ${MACHINES.length} machines in this gym`}
           </p>
         </div>
         <div className="stack">

@@ -39,8 +39,8 @@ export type Machine = {
   maxReps?: number;
   // The code this machine's physical NFC sticker must encode in its link
   // (…/machine/<id>?tap=<tapCode>) for the app to recognize a real tap and
-  // unlock this machine — see lib/machineLock.ts. Program each of the 9
-  // tags to point at its own machine's URL with this code attached.
+  // unlock this machine — see lib/machineLock.ts. Program each machine's
+  // tag to point at its own machine's URL with this code attached.
   tapCode: string;
 };
 
@@ -284,6 +284,36 @@ export const MACHINES: Machine[] = [
     tip: "Pause for a full second at the top to maximize the quad squeeze.",
     challenge: { weight: 50, reps: 12 },
     unit: "KG",
+  },
+  {
+    id: "deadlift-10",
+    tapCode: "DL3Q8Z",
+    number: "10",
+    name: "Deadlift",
+    muscles: ["Hamstrings", "Glutes", "Lower Back", "Lats", "Forearms"],
+    instructions: [
+      ["Set up", "Bar over midfoot, feet hip-width apart, shins almost touching the bar."],
+      ["Select your weight", "Start with a manageable weight."],
+      ["Grip the bar", "Hands just outside your knees, grip locked in tight."],
+      ["Brace and pull", "Brace your core, drive through the floor, keep the bar close to your legs."],
+      ["Lock out and lower", "Stand tall at the top, then hinge back down with control."],
+    ],
+    mistakes: [
+      "Rounding your lower back",
+      "Letting the bar drift away from your shins",
+      "Hyperextending at the top",
+      "Yanking the weight up instead of driving through the floor",
+    ],
+    tip: "Think \"push the floor away\" rather than \"pull the bar up\".",
+    challenge: { weight: 100, reps: 6 },
+    unit: "KG",
+    weightStep: 5,
+    startWeight: 40,
+    startReps: 8,
+    minWeight: 20,
+    maxWeight: 250,
+    minReps: 1,
+    maxReps: 20,
   },
 ];
 
