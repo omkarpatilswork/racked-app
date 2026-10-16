@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import Icon from "@/components/Icon";
 import SignInSheet from "@/components/SignInSheet";
 import { useAuth } from "@/lib/auth-context";
@@ -310,6 +311,19 @@ export default function AdminPage() {
         <p className="faint" style={{ margin: "-14px 0 0", fontSize: 12 }}>
           Staff-only view, separate from the member app.
         </p>
+
+        <Link href="/admin/photos" className="action-card">
+          <div className="glyph">
+            <Icon name="camera" />
+          </div>
+          <div className="body">
+            <div className="title">Photo reports</div>
+            <div className="sub">Review reported or hidden pump photos</div>
+          </div>
+          <div className="chev">
+            <Icon name="chev" />
+          </div>
+        </Link>
 
         <div className="chip-row">
           {PERIOD_OPTIONS.map((opt) => (

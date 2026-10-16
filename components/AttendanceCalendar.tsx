@@ -7,9 +7,12 @@ import { daysInMonthGrid, type AttendanceMap } from "@/lib/streaks";
 export default function AttendanceCalendar({
   attendance,
   onToggle,
+  photoDays,
 }: {
   attendance: AttendanceMap;
   onToggle: (dateStr: string) => void;
+  // days that have a pre/post pump photo get a small marker
+  photoDays?: Record<string, boolean>;
 }) {
   const [month, setMonth] = useState(
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1)
@@ -58,7 +61,9 @@ export default function AttendanceCalendar({
             <button
               type="button"
               key={i}
-              className={`cal-cell${cell.on ? " on" : ""}${cell.isToday ? " today" : ""}`}
+              className={`cal-cell${cell.on ? " on" : ""}${cell.isToday ? " today" : ""}${
+                cell.dateStr && photoDays?.[cell.dateStr] ? " photo" : ""
+              }`}
               disabled={cell.isFuture}
               onClick={() => cell.dateStr && onToggle(cell.dateStr)}
             >

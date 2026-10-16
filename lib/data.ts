@@ -402,3 +402,119 @@ export async function toggleKudos(supabase: Client, postId: number) {
   const r = data as unknown as { count: number; mine: boolean };
   return { count: Number(r.count), mine: !!r.mine };
 }
+
+// ---------------------------------------------------------------------------
+// Pre / post pump photos (see supabase/migrations/0007_pump_photos.sql).
+// Files live in a PRIVATE bucket, so every image is shown through a
+// short-lived signed link rather than a public URL.
+// ---------------------------------------------------------------------------
+
+export const PHOTO_BUCKET = "pump-photos";
+export type PumpKind = "pre" | "post";
+export type PumpPhoto = Database["public"]["Tables"]["pump_photos"]["Row"];
+export type FeedPhotoPost = Database["public"]["Functions"]["feed_photos"]["Returns"][number];
+export type AdminPhotoReport = Database["public"]["Functions"]["admin_pump_reports"]["Returns"][number];
+
+export async function fetchMyPumpPhotos(supabase: Client, uid: string): Promise<PumpPhoto[]> {
+  const { data, error } = await supabase
+    .from("pump_photos")
+    .select("*")
+    .eq("uid", uid)
+    .order("day", { ascending: false })
+    .limit(400);
+  if (error) throw error;
+  return (data || []).map((p) => ({ ...p, id: Number(p.id) }));
+}
+
+// Upload the (already compressed) image, then register it as that day's
+// pre/post photo. A photo of the same kind for the same day is replaced and
+// its old file removed. If registering fails, the orphaned upload is removed.
+export async function uploadPumpPhoto(
+  supabase: Client,
+  opts: { uid: string; kind: PumpKind; blob: Blob; path: string; shared: boolean; day: string }
+) {
+  const up = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .upload(opts.path, opts.blob, { contentType: "image/jpeg", upsert: false });
+  if (up.error) throw up.error;
+
+  const { data, error } = await supabase.rpc("add_pump_photo", {
+    p_kind: opts.kind,
+    p_path: opts.path,
+    p_shared: opts.shared,
+    p_day: opts.day,
+  });
+  if (error) {
+    await supabase.storage.from(PHOTO_BUCKET).remove([opts.path]).catch(() => {});
+    throw error;
+  }
+  const res = data as unknown as { id: number; old_path: string | null };
+  if (res.old_path) await supabase.storage.from(PHOTO_BUCKET).remove([res.old_path]).catch(() => {});
+  return Number(res.id);
+}
+
+export async function setPumpPhotoShared(supabase: Client, id: number, shared: boolean) {
+  const { error } = await supabase.rpc("set_pump_photo_shared", { p_id: id, p_shared: shared });
+  if (error) throw error;
+}
+
+// Used by members (their own photos) and by staff (any photo).
+export async function deletePumpPhoto(supabase: Client, id: number) {
+  const { data, error } = await supabase.rpc("delete_pump_photo", { p_id: id });
+  if (error) throw error;
+  if (data) await supabase.storage.from(PHOTO_BUCKET).remove([data as unknown as string]).catch(() => {});
+}
+
+export async function reportPhotos(supabase: Client, ids: number[], reason?: string) {
+  const { error } = await supabase.rpc("report_photos", { p_ids: ids, p_reason: reason ?? null });
+  if (error) throw error;
+}
+
+export async function fetchFeedPhotos(
+  supabase: Client,
+  opts: { limit?: number; before?: string | null } = {}
+): Promise<FeedPhotoPost[]> {
+  const { data, error } = await supabase.rpc("feed_photos", {
+    p_limit: opts.limit ?? 15,
+    p_before: opts.before ?? null,
+  });
+  if (error) throw error;
+  return (data || []).map((p) => ({
+    ...p,
+    item_id: Number(p.item_id),
+    pre_photo_id: p.pre_photo_id == null ? null : Number(p.pre_photo_id),
+    post_photo_id: p.post_photo_id == null ? null : Number(p.post_photo_id),
+  }));
+}
+
+export async function togglePhotoKudos(supabase: Client, itemId: number) {
+  const { data, error } = await supabase.rpc("toggle_photo_kudos", { p_item_id: itemId });
+  if (error) throw error;
+  const r = data as unknown as { count: number; mine: boolean };
+  return { count: Number(r.count), mine: !!r.mine };
+}
+
+// path -> temporary https link (valid for `seconds`). Missing/forbidden files
+// are simply left out of the result.
+export async function fetchSignedUrls(supabase: Client, paths: string[], seconds = 3600) {
+  const out: Record<string, string> = {};
+  const unique = [...new Set(paths.filter(Boolean))];
+  if (unique.length === 0) return out;
+  const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(unique, seconds);
+  if (error) throw error;
+  (data || []).forEach((row) => {
+    if (row.path && row.signedUrl && !row.error) out[row.path] = row.signedUrl;
+  });
+  return out;
+}
+
+export async function fetchAdminPhotoReports(supabase: Client): Promise<AdminPhotoReport[]> {
+  const { data, error } = await supabase.rpc("admin_pump_reports");
+  if (error) throw error;
+  return (data || []).map((r) => ({ ...r, id: Number(r.id), report_count: Number(r.report_count) }));
+}
+
+export async function adminSetPhotoHidden(supabase: Client, id: number, hidden: boolean) {
+  const { error } = await supabase.rpc("admin_set_photo_hidden", { p_id: id, p_hidden: hidden });
+  if (error) throw error;
+}

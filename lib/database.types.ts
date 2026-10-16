@@ -134,6 +134,21 @@ export type Database = {
         Update: NoWrite;
         Relationships: [];
       };
+      pump_photos: {
+        Row: {
+          id: number;
+          uid: string;
+          kind: "pre" | "post";
+          day: string; // yyyy-mm-dd
+          path: string; // <uid>/<file> in the private "pump-photos" bucket
+          shared: boolean; // appears in the gym feed
+          hidden: boolean; // hidden by reports / staff
+          created_at: string;
+        };
+        Insert: NoWrite; // written only via add_pump_photo()
+        Update: NoWrite;
+        Relationships: [];
+      };
     };
     Views: {
       v_overall_leaderboard: {
@@ -299,6 +314,64 @@ export type Database = {
       toggle_kudos: {
         Args: { p_post_id: number };
         Returns: { count: number; mine: boolean };
+      };
+      // Pre/post pump photos (see supabase/migrations/0007_pump_photos.sql).
+      add_pump_photo: {
+        Args: { p_kind: string; p_path: string; p_shared?: boolean; p_day?: string | null };
+        Returns: { id: number; old_path: string | null };
+      };
+      set_pump_photo_shared: {
+        Args: { p_id: number; p_shared: boolean };
+        Returns: undefined;
+      };
+      delete_pump_photo: {
+        Args: { p_id: number };
+        Returns: string;
+      };
+      report_photos: {
+        Args: { p_ids: number[]; p_reason?: string | null };
+        Returns: undefined;
+      };
+      feed_photos: {
+        Args: { p_limit?: number; p_before?: string | null };
+        Returns: {
+          item_id: number;
+          is_mine: boolean;
+          display_name: string;
+          avatar_url: string | null;
+          day: string;
+          pre_photo_id: number | null;
+          pre_path: string | null;
+          post_photo_id: number | null;
+          post_path: string | null;
+          created_at: string;
+          kudos_count: number;
+          kudos_mine: boolean;
+          kudos_names: string[];
+        }[];
+      };
+      toggle_photo_kudos: {
+        Args: { p_item_id: number };
+        Returns: { count: number; mine: boolean };
+      };
+      admin_pump_reports: {
+        Args: Record<string, never>;
+        Returns: {
+          id: number;
+          display_name: string;
+          kind: "pre" | "post";
+          day: string;
+          path: string;
+          shared: boolean;
+          hidden: boolean;
+          report_count: number;
+          reasons: string[];
+          created_at: string;
+        }[];
+      };
+      admin_set_photo_hidden: {
+        Args: { p_id: number; p_hidden: boolean };
+        Returns: undefined;
       };
       admin_delete_set_log: {
         Args: { p_id: number };

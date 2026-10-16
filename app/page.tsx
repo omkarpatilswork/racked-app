@@ -5,6 +5,7 @@ import Link from "next/link";
 import Topbar from "@/components/Topbar";
 import Icon from "@/components/Icon";
 import HomeFeed from "@/components/HomeFeed";
+import PumpCheckCard from "@/components/PumpCheckCard";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMyStats, overallFromStats } from "@/lib/data";
@@ -100,7 +101,10 @@ export default function HomePage() {
         )}
 
         {session && !loading ? (
-          <HomeFeed />
+          <>
+            <PumpCheckCard />
+            <HomeFeed />
+          </>
         ) : (
           <div className="card" style={{ textAlign: "center" }}>
             <div className="feed-glyph">

@@ -4,8 +4,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import FeedCard from "@/components/FeedCard";
+import PumpPhotoFeedCard from "@/components/PumpPhotoFeedCard";
+import { usePhotoManager } from "@/components/usePhotoManager";
 import { createClient } from "@/lib/supabase/client";
-import { fetchFeed, toggleKudos, type FeedPost } from "@/lib/data";
+import {
+  fetchFeed,
+  fetchFeedPhotos,
+  toggleKudos,
+  togglePhotoKudos,
+  type FeedPhotoPost,
+  type FeedPost,
+  type PumpKind,
+} from "@/lib/data";
+import { onPhotosChanged } from "@/lib/photoEvents";
+import { useSignedUrls } from "@/lib/useSignedUrls";
 
 const PAGE = 15;
 const REFRESH_MS = 30_000;
@@ -14,34 +26,48 @@ const REFRESH_MS = 30_000;
 const OPTIMISTIC_MS = 25_000;
 
 type KudosState = { count: number; mine: boolean; at: number };
+type Item =
+  | { type: "set"; key: string; at: string; post: FeedPost }
+  | { type: "photo"; key: string; at: string; post: FeedPhotoPost };
 
 export default function HomeFeed() {
   const supabase = useMemo(() => createClient(), []);
-  const [latest, setLatest] = useState<FeedPost[] | null>(null); // refreshed page 1
-  const [older, setOlder] = useState<FeedPost[]>([]); // pages loaded with "Load more"
-  const [hasMore, setHasMore] = useState(true);
+  // Workout posts and photo posts are two feeds merged by time. Each keeps its
+  // own newest page (refreshed) and its own older pages ("Load older").
+  const [latest, setLatest] = useState<FeedPost[] | null>(null);
+  const [older, setOlder] = useState<FeedPost[]>([]);
+  const [hasMoreSets, setHasMoreSets] = useState(true);
+  const [latestPhotos, setLatestPhotos] = useState<FeedPhotoPost[]>([]);
+  const [olderPhotos, setOlderPhotos] = useState<FeedPhotoPost[]>([]);
+  const [hasMorePhotos, setHasMorePhotos] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const [kudos, setKudos] = useState<Record<number, KudosState>>({});
-  const inflight = useRef<Set<number>>(new Set());
+  const [kudos, setKudos] = useState<Record<string, KudosState>>({});
+  const inflight = useRef<Set<string>>(new Set());
   const firstLoad = useRef(true);
+  const manager = usePhotoManager(supabase, null);
 
   const refresh = useCallback(async () => {
-    try {
-      const page = await fetchFeed(supabase, { limit: PAGE });
-      setLatest(page);
+    // Photos need migration 0007; if it hasn't been run the photo feed just
+    // comes back empty and the workout feed carries on as normal.
+    const [sets, photos] = await Promise.allSettled([
+      fetchFeed(supabase, { limit: PAGE }),
+      fetchFeedPhotos(supabase, { limit: PAGE }),
+    ]);
+    if (sets.status === "fulfilled") {
+      setLatest(sets.value);
       setError(false);
-      setNow(Date.now());
-      // On the very first load, a page shorter than full means nothing is
-      // further back. After that "Load older" owns hasMore.
-      if (firstLoad.current) {
-        firstLoad.current = false;
-        setHasMore(page.length >= PAGE);
-      }
-    } catch {
+    } else {
       setError(true);
       setLatest((cur) => cur ?? []);
+    }
+    if (photos.status === "fulfilled") setLatestPhotos(photos.value);
+    setNow(Date.now());
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      if (sets.status === "fulfilled") setHasMoreSets(sets.value.length >= PAGE);
+      setHasMorePhotos(photos.status === "fulfilled" && photos.value.length >= PAGE);
     }
   }, [supabase]);
 
@@ -50,64 +76,116 @@ export default function HomeFeed() {
     const t = setInterval(refresh, REFRESH_MS);
     const onVis = () => document.visibilityState === "visible" && refresh();
     document.addEventListener("visibilitychange", onVis);
+    const offPhotos = onPhotosChanged(refresh);
     return () => {
       clearInterval(t);
       document.removeEventListener("visibilitychange", onVis);
+      offPhotos();
     };
   }, [refresh]);
 
+  const withKudos = useCallback(
+    <T extends { kudos_count: number; kudos_mine: boolean }>(key: string, p: T): T => {
+      const k = kudos[key];
+      return k && now - k.at < OPTIMISTIC_MS ? { ...p, kudos_count: k.count, kudos_mine: k.mine } : p;
+    },
+    [kudos, now]
+  );
+
   // newest page wins over anything already loaded further back
-  const posts = useMemo(() => {
-    const byId = new Map<number, FeedPost>();
-    older.forEach((p) => byId.set(p.post_id, p));
-    (latest || []).forEach((p) => byId.set(p.post_id, p));
-    return [...byId.values()]
-      .map((p) => {
-        const k = kudos[p.post_id];
-        return k && now - k.at < OPTIMISTIC_MS
-          ? { ...p, kudos_count: k.count, kudos_mine: k.mine }
-          : p;
-      })
-      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
-  }, [latest, older, kudos, now]);
+  const items = useMemo<Item[]>(() => {
+    const sets = new Map<number, FeedPost>();
+    older.forEach((p) => sets.set(p.post_id, p));
+    (latest || []).forEach((p) => sets.set(p.post_id, p));
+    const photos = new Map<number, FeedPhotoPost>();
+    olderPhotos.forEach((p) => photos.set(p.item_id, p));
+    latestPhotos.forEach((p) => photos.set(p.item_id, p));
+    const all: Item[] = [
+      ...[...sets.values()].map((p): Item => ({ type: "set", key: `set:${p.post_id}`, at: p.created_at, post: withKudos(`set:${p.post_id}`, p) })),
+      ...[...photos.values()].map((p): Item => ({ type: "photo", key: `photo:${p.item_id}`, at: p.created_at, post: withKudos(`photo:${p.item_id}`, p) })),
+    ];
+    return all.sort((a, b) => +new Date(b.at) - +new Date(a.at));
+  }, [latest, older, latestPhotos, olderPhotos, withKudos]);
+
+  const photoPaths = useMemo(
+    () =>
+      items.flatMap((i) => (i.type === "photo" ? [i.post.pre_path, i.post.post_path] : [])).filter(Boolean) as string[],
+    [items]
+  );
+  const urls = useSignedUrls(supabase, photoPaths);
+
+  const hasMore = hasMoreSets || hasMorePhotos;
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || posts.length === 0) return;
+    if (loadingMore) return;
     setLoadingMore(true);
     try {
-      const before = posts[posts.length - 1].created_at;
-      const page = await fetchFeed(supabase, { limit: PAGE, before });
-      setOlder((o) => [...o, ...page]);
-      if (page.length < PAGE) setHasMore(false);
-    } catch {
-      setError(true);
+      const setsOldest = [...(latest || []), ...older].map((p) => p.created_at).sort().at(0);
+      const photosOldest = [...latestPhotos, ...olderPhotos].map((p) => p.created_at).sort().at(0);
+      const [sets, photos] = await Promise.allSettled([
+        hasMoreSets && setsOldest ? fetchFeed(supabase, { limit: PAGE, before: setsOldest }) : Promise.resolve([] as FeedPost[]),
+        hasMorePhotos && photosOldest
+          ? fetchFeedPhotos(supabase, { limit: PAGE, before: photosOldest })
+          : Promise.resolve([] as FeedPhotoPost[]),
+      ]);
+      if (sets.status === "fulfilled") {
+        setOlder((o) => [...o, ...sets.value]);
+        if (sets.value.length < PAGE) setHasMoreSets(false);
+      } else setError(true);
+      if (photos.status === "fulfilled") {
+        setOlderPhotos((o) => [...o, ...photos.value]);
+        if (photos.value.length < PAGE) setHasMorePhotos(false);
+      } else setHasMorePhotos(false);
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, posts, supabase]);
+  }, [loadingMore, latest, older, latestPhotos, olderPhotos, hasMoreSets, hasMorePhotos, supabase]);
 
   const onKudos = useCallback(
-    async (post: FeedPost) => {
-      if (inflight.current.has(post.post_id)) return;
-      inflight.current.add(post.post_id);
-      const mine = !post.kudos_mine;
-      const optimistic = Math.max(0, post.kudos_count + (mine ? 1 : -1));
-      setKudos((k) => ({ ...k, [post.post_id]: { count: optimistic, mine, at: Date.now() } }));
+    async (key: string, current: { kudos_count: number; kudos_mine: boolean }, send: () => Promise<{ count: number; mine: boolean }>) => {
+      if (inflight.current.has(key)) return;
+      inflight.current.add(key);
+      const mine = !current.kudos_mine;
+      const optimistic = Math.max(0, current.kudos_count + (mine ? 1 : -1));
+      setKudos((k) => ({ ...k, [key]: { count: optimistic, mine, at: Date.now() } }));
       setNow(Date.now());
       try {
-        const res = await toggleKudos(supabase, post.post_id);
-        setKudos((k) => ({ ...k, [post.post_id]: { count: res.count, mine: res.mine, at: Date.now() } }));
+        const res = await send();
+        setKudos((k) => ({ ...k, [key]: { count: res.count, mine: res.mine, at: Date.now() } }));
       } catch {
         // put it back the way it was
-        setKudos((k) => ({
-          ...k,
-          [post.post_id]: { count: post.kudos_count, mine: post.kudos_mine, at: Date.now() },
-        }));
+        setKudos((k) => ({ ...k, [key]: { count: current.kudos_count, mine: current.kudos_mine, at: Date.now() } }));
       } finally {
-        inflight.current.delete(post.post_id);
+        inflight.current.delete(key);
       }
     },
-    [supabase]
+    []
+  );
+
+  const openPhoto = useCallback(
+    (post: FeedPhotoPost, kind: PumpKind) => {
+      const id = kind === "pre" ? post.pre_photo_id : post.post_photo_id;
+      const path = kind === "pre" ? post.pre_path : post.post_path;
+      if (id == null) return;
+      const url = path ? urls[path] ?? null : null;
+      if (post.is_mine) {
+        // your own post: full controls (share / replace / delete)
+        manager.viewOwn(
+          { id, uid: "", kind, day: post.day, path: path || "", shared: true, hidden: false, created_at: post.created_at },
+          url
+        );
+        return;
+      }
+      manager.viewOther(
+        { id, kind, day: post.day, url },
+        {
+          title: `${post.display_name}'s pump check`,
+          // report both photos of the post
+          reportIds: [post.pre_photo_id, post.post_photo_id].filter((x): x is number => x != null),
+        }
+      );
+    },
+    [manager, urls]
   );
 
   return (
@@ -126,7 +204,7 @@ export default function HomeFeed() {
           <div className="feed-skel" />
           <div className="feed-skel" />
         </div>
-      ) : posts.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="card feed-empty">
           <div className="feed-glyph">
             <Icon name="dumbbell" />
@@ -143,9 +221,25 @@ export default function HomeFeed() {
         </div>
       ) : (
         <div className="stack">
-          {posts.map((p) => (
-            <FeedCard key={p.post_id} post={p} now={now} onKudos={onKudos} />
-          ))}
+          {items.map((it) =>
+            it.type === "set" ? (
+              <FeedCard
+                key={it.key}
+                post={it.post}
+                now={now}
+                onKudos={(p) => onKudos(it.key, p, () => toggleKudos(supabase, p.post_id))}
+              />
+            ) : (
+              <PumpPhotoFeedCard
+                key={it.key}
+                post={it.post}
+                now={now}
+                urls={urls}
+                onKudos={(p) => onKudos(it.key, p, () => togglePhotoKudos(supabase, p.item_id))}
+                onOpen={openPhoto}
+              />
+            )
+          )}
           {hasMore ? (
             <button type="button" className="btn btn-outline" onClick={loadMore} disabled={loadingMore}>
               {loadingMore ? "Loading…" : "Load older activity"}
@@ -157,6 +251,7 @@ export default function HomeFeed() {
           )}
         </div>
       )}
+      {manager.ui}
     </section>
   );
 }

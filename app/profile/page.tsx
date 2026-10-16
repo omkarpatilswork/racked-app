@@ -5,6 +5,7 @@ import Link from "next/link";
 import Topbar from "@/components/Topbar";
 import Icon from "@/components/Icon";
 import AttendanceCalendar from "@/components/AttendanceCalendar";
+import ProgressPhotos from "@/components/ProgressPhotos";
 import SignInSheet from "@/components/SignInSheet";
 import ShareSheet from "@/components/ShareSheet";
 import { useAuth } from "@/lib/auth-context";
@@ -25,6 +26,7 @@ export default function ProfilePage() {
   const [stats, setStats] = useState<Record<string, StatsRow>>({});
   const [attendance, setAttendance] = useState<AttendanceMap>({});
   const [sharing, setSharing] = useState<ShareCardData | null>(null);
+  const [photoDays, setPhotoDays] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!session) return;
@@ -155,9 +157,16 @@ export default function ProfilePage() {
             Best streak: {streaks.best} day{streaks.best === 1 ? "" : "s"} · tap a day to mark it
           </div>
           <div style={{ marginTop: 14 }}>
-            <AttendanceCalendar attendance={attendance} onToggle={handleToggleAttendance} />
+            <AttendanceCalendar attendance={attendance} onToggle={handleToggleAttendance} photoDays={photoDays} />
           </div>
+          {Object.keys(photoDays).length > 0 && (
+            <div className="faint" style={{ fontSize: 11.5, marginTop: 10 }}>
+              <span className="cal-legend-dot" /> = a day with progress photos
+            </div>
+          )}
         </div>
+
+        <ProgressPhotos uid={uid} onPhotoDays={setPhotoDays} />
 
         <div>
           <div className="row" style={{ marginBottom: 10 }}>
