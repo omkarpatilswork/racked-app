@@ -10,11 +10,12 @@ import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMachineLeaderboard, fetchOverallLeaderboard } from "@/lib/data";
 import { MACHINE_MAP, MACHINES, resolveMachineView } from "@/lib/machines";
+import { PERIOD_OPTIONS, type Period } from "@/lib/period";
 import type { ShareCardData } from "@/lib/shareCard";
 import type { Database } from "@/lib/database.types";
 
-type OverallRow = Database["public"]["Views"]["v_overall_leaderboard"]["Row"];
-type MachineRow = Database["public"]["Views"]["v_machine_leaderboard"]["Row"];
+type OverallRow = Database["public"]["Functions"]["leaderboard_overall"]["Returns"][number];
+type MachineRow = Database["public"]["Functions"]["leaderboard_machine"]["Returns"][number];
 
 export default function LeaderboardPage() {
   return (
@@ -35,6 +36,7 @@ function LeaderboardInner() {
   const selM = MACHINE_MAP[machineSel];
   const view = selM ? resolveMachineView(selM, searchParams.get("mode")) : null;
   const mode = view?.modeKey ?? "";
+  const period = (searchParams.get("period") as Period) || "all";
 
   const [overallList, setOverallList] = useState<OverallRow[]>([]);
   const [machineList, setMachineList] = useState<MachineRow[]>([]);
@@ -44,13 +46,16 @@ function LeaderboardInner() {
     let active = true;
     function load() {
       if (tab === "overall") {
-        fetchOverallLeaderboard(supabase).then((rows) => active && setOverallList(rows));
+        fetchOverallLeaderboard(supabase, period).then((rows) => active && setOverallList(rows));
       } else if (selM) {
-        fetchMachineLeaderboard(supabase, machineSel, mode).then((rows) => active && setMachineList(rows));
+        fetchMachineLeaderboard(supabase, machineSel, mode, period).then((rows) => active && setMachineList(rows));
       }
     }
     load();
 
+    // machine_stats only tracks all-time totals, but any write to it means a
+    // set was just logged, so it's still the right signal to refetch a
+    // period-scoped leaderboard on, too.
     const channel = supabase
       .channel("leaderboard-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "machine_stats" }, load)
@@ -60,7 +65,7 @@ function LeaderboardInner() {
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [tab, machineSel, mode, selM, supabase]);
+  }, [tab, machineSel, mode, period, selM, supabase]);
 
   const myUid = session?.user.id ?? null;
   const mineRow = machineList.find((x) => x.uid === myUid);
@@ -104,6 +109,19 @@ function LeaderboardInner() {
           <button className={`tab${tab === "machines" ? " active" : ""}`} onClick={() => setQuery({ tab: "machines", machine: machineSel })}>
             Machines
           </button>
+        </div>
+
+        <div className="chip-row">
+          {PERIOD_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              className={`issue-chip${period === opt.key ? " on" : ""}`}
+              onClick={() => setQuery({ period: opt.key === "all" ? undefined : opt.key })}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
 
         {tab === "overall" ? (

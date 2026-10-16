@@ -28,6 +28,9 @@ const PATHS: Record<string, string> = {
   medal:
     '<circle cx="12" cy="14" r="6"/><path d="M9.5 8 6.5 2.5M14.5 8l3-5.5M9 14l2 2 4-4"/>',
   wifi: '<path d="M4 9a13 13 0 0 1 16 0"/><path d="M7.2 12.6a8.5 8.5 0 0 1 9.6 0"/><path d="M10.3 16a4 4 0 0 1 3.4 0"/><circle cx="12" cy="19" r="1"/>',
+  trash:
+    '<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/>',
+  download: '<path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/>',
 };
 
 export type IconName = keyof typeof PATHS;

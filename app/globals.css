@@ -1129,3 +1129,43 @@ a.link {
   opacity: 0.9;
   animation: fall linear forwards;
 }
+
+/* ---- admin: danger zone + row-level delete ---- */
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1.5px solid var(--danger);
+}
+.danger-zone {
+  border: 1.5px solid var(--danger);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.danger-zone .row + .row {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+.icon-trash-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--danger);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.icon-trash-btn[disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.icon-trash-btn .icon {
+  width: 16px;
+  height: 16px;
+}
