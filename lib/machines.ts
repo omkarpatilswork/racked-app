@@ -42,12 +42,20 @@ export type Machine = {
   // unlock this machine — see lib/machineLock.ts. Program each machine's
   // tag to point at its own machine's URL with this code attached.
   tapCode: string;
+  // The code printed into this machine's QR sticker
+  // (…/machine/<id>?tap=<qrCode>). Deliberately a DIFFERENT code from
+  // tapCode: the code that matched is how the app knows whether a visit came
+  // from the NFC tag or the QR code (so the source can't be faked by editing
+  // a URL parameter), and a leaked/shared QR can be rotated here without
+  // having to reprogram any NFC tags.
+  qrCode: string;
 };
 
 export const MACHINES: Machine[] = [
   {
     id: "lat-pulldown-01",
     tapCode: "LP4K9X",
+    qrCode: "U9GHY4",
     number: "01",
     name: "Lat Pulldown",
     muscles: ["Lats", "Upper Back", "Biceps"],
@@ -78,6 +86,7 @@ export const MACHINES: Machine[] = [
   {
     id: "chest-press-02",
     tapCode: "CP7M2Q",
+    qrCode: "4HZJZH",
     number: "02",
     name: "Chest Press",
     muscles: ["Chest", "Triceps", "Front Shoulders"],
@@ -101,6 +110,7 @@ export const MACHINES: Machine[] = [
   {
     id: "rowing-03",
     tapCode: "RW3T8V",
+    qrCode: "XR9WQX",
     number: "03",
     name: "Rowing",
     muscles: ["Upper Back", "Lats", "Biceps"],
@@ -124,6 +134,7 @@ export const MACHINES: Machine[] = [
   {
     id: "pec-fly-rear-delt-04",
     tapCode: "PF9J5N",
+    qrCode: "DH6C3Y",
     number: "04",
     name: "Pec Fly / Rear Delt",
     muscles: ["Chest", "Rear Delts", "Upper Back"],
@@ -173,6 +184,7 @@ export const MACHINES: Machine[] = [
   {
     id: "shoulder-press-05",
     tapCode: "SP2X6L",
+    qrCode: "49GPTH",
     number: "05",
     name: "Shoulder Press",
     muscles: ["Shoulders", "Triceps"],
@@ -196,6 +208,7 @@ export const MACHINES: Machine[] = [
   {
     id: "biceps-preacher-06",
     tapCode: "BC8R4W",
+    qrCode: "PK9T49",
     number: "06",
     name: "Biceps / Preacher Curl",
     muscles: ["Biceps", "Forearms"],
@@ -219,6 +232,7 @@ export const MACHINES: Machine[] = [
   {
     id: "squat-07",
     tapCode: "SQ6H1Y",
+    qrCode: "22MLZQ",
     number: "07",
     name: "Squat",
     muscles: ["Quads", "Glutes", "Hamstrings", "Core"],
@@ -242,6 +256,7 @@ export const MACHINES: Machine[] = [
   {
     id: "leg-press-08",
     tapCode: "LG5D9K",
+    qrCode: "49ERA7",
     number: "08",
     name: "Leg Press",
     muscles: ["Quads", "Glutes", "Hamstrings"],
@@ -265,6 +280,7 @@ export const MACHINES: Machine[] = [
   {
     id: "leg-extension-09",
     tapCode: "LE1V7B",
+    qrCode: "A9NWPG",
     number: "09",
     name: "Leg Extension",
     muscles: ["Quadriceps"],
@@ -288,6 +304,7 @@ export const MACHINES: Machine[] = [
   {
     id: "deadlift-10",
     tapCode: "DL3Q8Z",
+    qrCode: "RFNGPV",
     number: "10",
     name: "Deadlift",
     muscles: ["Hamstrings", "Glutes", "Lower Back", "Lats", "Forearms"],

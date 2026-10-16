@@ -14,7 +14,10 @@ export type ShareCardData = {
 };
 
 async function ensureShareFonts() {
-  try {
+  // Never let a slow or stalled font download block the share card forever:
+  // after 2.5s we draw with whatever is loaded (falling back to system fonts)
+  // instead of leaving the share sheet stuck on its loading skeleton.
+  const loadAll = (async () => {
     await Promise.all([
       document.fonts.load("900 100px Unbounded"),
       document.fonts.load("800 40px Unbounded"),
@@ -24,6 +27,9 @@ async function ensureShareFonts() {
       document.fonts.load('600 20px "JetBrains Mono"'),
     ]);
     await document.fonts.ready;
+  })();
+  try {
+    await Promise.race([loadAll, new Promise((resolve) => setTimeout(resolve, 2500))]);
   } catch {
     // Fonts API unavailable or a face failed to load -- draw with fallback fonts.
   }

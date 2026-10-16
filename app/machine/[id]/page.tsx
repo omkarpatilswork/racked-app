@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMachineLeaderboard, recordTap } from "@/lib/data";
 import { calculateMachineLevel } from "@/lib/gamification";
-import { useMachineLock } from "@/lib/machineLock";
+import { claimTapRecord, resolveTapSource, useMachineLock } from "@/lib/machineLock";
 import { MACHINE_MAP, resolveMachineView } from "@/lib/machines";
 import type { ShareCardData } from "@/lib/shareCard";
 import type { Database } from "@/lib/database.types";
@@ -45,10 +45,16 @@ function MachinePageInner({ params }: { params: { id: string } }) {
   // Guarded on lockStatus === "unlocked" so a locked page (someone who
   // clicked here from elsewhere in the app instead of tapping the sticker)
   // doesn't record a tap, pull the leaderboard, or fetch anyone's stats.
+  // Only an actual scan counts as a tap: the URL carries the machine's NFC or
+  // QR code, which also tells us *which* one it was. Coming back to this page
+  // from the Log/Guide pages (no code in the URL) is not a new tap, and
+  // claimTapRecord drops a refresh or double-fire of the same scan.
+  const tapSource = resolveTapSource(machine, searchParams.get("tap"));
   useEffect(() => {
-    if (!machine || lockStatus !== "unlocked") return;
-    recordTap(supabase, machine.id);
-  }, [machine, lockStatus, supabase]);
+    if (!machine || lockStatus !== "unlocked" || !tapSource) return;
+    if (!claimTapRecord(machine.id)) return;
+    recordTap(supabase, machine.id, tapSource);
+  }, [machine, lockStatus, tapSource, supabase]);
 
   useEffect(() => {
     if (!machine || lockStatus !== "unlocked") return;

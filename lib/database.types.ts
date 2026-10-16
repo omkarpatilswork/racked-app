@@ -125,6 +125,9 @@ export type Database = {
           id: number;
           machine_id: string;
           uid: string | null;
+          // How the person got into the machine: tapped its NFC sticker, scanned
+          // its QR code, or "unknown" for scans recorded before this was tracked.
+          source: "nfc" | "qr" | "unknown";
           created_at: string;
         };
         Insert: NoWrite; // written only via the record_tap() RPC
@@ -170,6 +173,23 @@ export type Database = {
         Row: { feedback_count: number; avg_rating: number | null; open_count: number };
         Relationships: [];
       };
+      v_admin_set_logs: {
+        Row: {
+          id: number;
+          uid: string;
+          display_name: string;
+          avatar_url: string | null;
+          machine_id: string;
+          mode: string | null;
+          weight: number;
+          reps: number;
+          volume: number;
+          is_pb: boolean;
+          xp_gain: number;
+          created_at: string;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       log_set: {
@@ -193,7 +213,58 @@ export type Database = {
         };
       };
       record_tap: {
+        Args: { p_machine_id: string; p_source?: string };
+        Returns: undefined;
+      };
+      // Period-scoped leaderboards (see supabase/migrations/0003_admin_tools.sql).
+      // p_period is "today" | "week" | "month" | "all".
+      leaderboard_overall: {
+        Args: { p_period?: string };
+        Returns: {
+          uid: string;
+          display_name: string;
+          avatar_url: string | null;
+          total_xp: number;
+          total_sets: number;
+          total_volume: number;
+          pb_count: number;
+          unlocked: number;
+        }[];
+      };
+      leaderboard_machine: {
+        Args: { p_machine_id: string; p_mode?: string; p_period?: string };
+        Returns: {
+          machine_id: string;
+          mode: string;
+          uid: string;
+          display_name: string;
+          avatar_url: string | null;
+          pb_weight: number;
+          pb_reps: number;
+          xp: number;
+          level: number;
+          sets: number;
+          rank: number;
+        }[];
+      };
+      admin_delete_set_log: {
+        Args: { p_id: number };
+        Returns: undefined;
+      };
+      admin_delete_feedback: {
+        Args: { p_id: number };
+        Returns: undefined;
+      };
+      admin_clear_feedback: {
+        Args: { p_machine_id?: string | null };
+        Returns: undefined;
+      };
+      admin_reset_machine: {
         Args: { p_machine_id: string };
+        Returns: undefined;
+      };
+      admin_reset_all_data: {
+        Args: Record<string, never>;
         Returns: undefined;
       };
     };
