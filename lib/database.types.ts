@@ -247,6 +247,31 @@ export type Database = {
           rank: number;
         }[];
       };
+      // Public gym-TV feeds (see supabase/migrations/0005_tv_display.sql).
+      // Callable without logging in; return first names / anonymous counts only.
+      tv_boards: {
+        Args: { p_period?: string; p_limit?: number };
+        Returns: {
+          machine_id: string;
+          mode: string;
+          rank: number;
+          name: string;
+          pb_weight: number;
+          pb_reps: number;
+          sets: number;
+        }[];
+      };
+      tv_activity: {
+        Args: { p_period?: string };
+        Returns: {
+          person: number;
+          machine_id: string;
+          mode: string;
+          sets: number;
+          volume: number;
+          pbs: number;
+        }[];
+      };
       admin_delete_set_log: {
         Args: { p_id: number };
         Returns: undefined;

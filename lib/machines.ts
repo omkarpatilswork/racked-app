@@ -2,8 +2,24 @@
 // static content, not user data, so it lives in code rather than a database
 // table; if you add/rename a machine, this is the only place to edit.
 
+// The five buckets the gym TV groups training into ("how many people are
+// hitting chest / back / legs today"). Which bucket each machine belongs to
+// is set by the `group` field on that machine below -- change it there if you
+// disagree (e.g. deadlift: "back" -> "legs").
+export type MuscleGroup = "chest" | "back" | "shoulders" | "arms" | "legs";
+
+export const MUSCLE_GROUPS: { id: MuscleGroup; label: string }[] = [
+  { id: "chest", label: "Chest" },
+  { id: "back", label: "Back" },
+  { id: "shoulders", label: "Shoulders" },
+  { id: "arms", label: "Arms" },
+  { id: "legs", label: "Legs" },
+];
+
 export type MachineMode = {
   label: string;
+  // Overrides the machine's group for this mode (Pec Fly = chest, Rear Delt = shoulders).
+  group?: MuscleGroup;
   muscles: string[];
   instructions: [string, string][];
   mistakes: string[];
@@ -13,6 +29,8 @@ export type MachineMode = {
 
 export type Machine = {
   id: string;
+  // Which muscle group this machine counts toward on the gym TV.
+  group: MuscleGroup;
   number: string;
   name: string;
   muscles: string[];
@@ -56,6 +74,7 @@ export const MACHINES: Machine[] = [
     id: "lat-pulldown-01",
     tapCode: "LP4K9X",
     qrCode: "U9GHY4",
+    group: "back",
     number: "01",
     name: "Lat Pulldown",
     muscles: ["Lats", "Upper Back", "Biceps"],
@@ -87,6 +106,7 @@ export const MACHINES: Machine[] = [
     id: "chest-press-02",
     tapCode: "CP7M2Q",
     qrCode: "4HZJZH",
+    group: "chest",
     number: "02",
     name: "Chest Press",
     muscles: ["Chest", "Triceps", "Front Shoulders"],
@@ -111,6 +131,7 @@ export const MACHINES: Machine[] = [
     id: "rowing-03",
     tapCode: "RW3T8V",
     qrCode: "XR9WQX",
+    group: "back",
     number: "03",
     name: "Rowing",
     muscles: ["Upper Back", "Lats", "Biceps"],
@@ -135,6 +156,7 @@ export const MACHINES: Machine[] = [
     id: "pec-fly-rear-delt-04",
     tapCode: "PF9J5N",
     qrCode: "DH6C3Y",
+    group: "chest",
     number: "04",
     name: "Pec Fly / Rear Delt",
     muscles: ["Chest", "Rear Delts", "Upper Back"],
@@ -142,6 +164,7 @@ export const MACHINES: Machine[] = [
     modes: {
       "pec-fly": {
         label: "Pec Fly",
+        group: "chest",
         muscles: ["Chest", "Front Shoulders"],
         instructions: [
           ["Set the seat", "Handles should sit at chest height."],
@@ -161,6 +184,7 @@ export const MACHINES: Machine[] = [
       },
       "rear-delt": {
         label: "Rear Delt",
+        group: "shoulders",
         muscles: ["Rear Delts", "Upper Back"],
         instructions: [
           ["Face the pad", "Sit with your chest against the pad."],
@@ -185,6 +209,7 @@ export const MACHINES: Machine[] = [
     id: "shoulder-press-05",
     tapCode: "SP2X6L",
     qrCode: "49GPTH",
+    group: "shoulders",
     number: "05",
     name: "Shoulder Press",
     muscles: ["Shoulders", "Triceps"],
@@ -209,6 +234,7 @@ export const MACHINES: Machine[] = [
     id: "biceps-preacher-06",
     tapCode: "BC8R4W",
     qrCode: "PK9T49",
+    group: "arms",
     number: "06",
     name: "Biceps / Preacher Curl",
     muscles: ["Biceps", "Forearms"],
@@ -233,6 +259,7 @@ export const MACHINES: Machine[] = [
     id: "squat-07",
     tapCode: "SQ6H1Y",
     qrCode: "22MLZQ",
+    group: "legs",
     number: "07",
     name: "Squat",
     muscles: ["Quads", "Glutes", "Hamstrings", "Core"],
@@ -257,6 +284,7 @@ export const MACHINES: Machine[] = [
     id: "leg-press-08",
     tapCode: "LG5D9K",
     qrCode: "49ERA7",
+    group: "legs",
     number: "08",
     name: "Leg Press",
     muscles: ["Quads", "Glutes", "Hamstrings"],
@@ -281,6 +309,7 @@ export const MACHINES: Machine[] = [
     id: "leg-extension-09",
     tapCode: "LE1V7B",
     qrCode: "A9NWPG",
+    group: "legs",
     number: "09",
     name: "Leg Extension",
     muscles: ["Quadriceps"],
@@ -305,6 +334,7 @@ export const MACHINES: Machine[] = [
     id: "deadlift-10",
     tapCode: "DL3Q8Z",
     qrCode: "RFNGPV",
+    group: "back",
     number: "10",
     name: "Deadlift",
     muscles: ["Hamstrings", "Glutes", "Lower Back", "Lats", "Forearms"],
@@ -361,4 +391,13 @@ export function resolveMachineView(m: Machine, mode?: string | null) {
     tip: m.tip!,
     challenge: m.challenge!,
   };
+}
+
+// Which muscle group a logged set counts toward on the TV. Falls back to the
+// machine's own group when the mode has no override.
+export function muscleGroupFor(machineId: string, mode?: string | null): MuscleGroup | null {
+  const m = MACHINE_MAP[machineId];
+  if (!m) return null;
+  if (m.dual && mode && m.modes?.[mode]?.group) return m.modes[mode].group!;
+  return m.group;
 }

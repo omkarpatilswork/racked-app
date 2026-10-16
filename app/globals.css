@@ -1169,3 +1169,438 @@ a.link {
   width: 16px;
   height: 16px;
 }
+
+/* ==========================================================================
+   Gym TV (/tv). A full-screen, always-dark overlay that covers the normal
+   app shell, sized in "u" units (1u = 1% of screen width on a 16:9 TV) so the
+   same layout scales from a laptop to a 4K TV without any media queries.
+   ========================================================================== */
+.tv {
+  --u: min(1vw, 1.7778vh);
+  --tv-bg: #0a0a0b;
+  --tv-card: #17171a;
+  --tv-card-2: #212125;
+  --tv-line: #2c2c31;
+  --tv-ink: #f7f7f4;
+  --tv-soft: #a3a2a8;
+  --tv-accent: #ff6a46;
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(90% 60% at 85% -10%, rgba(255, 106, 70, 0.14), transparent 60%),
+    radial-gradient(70% 50% at 0% 110%, rgba(255, 106, 70, 0.08), transparent 60%),
+    var(--tv-bg);
+  color: var(--tv-ink);
+  font-size: var(--u);
+  line-height: 1.2;
+  user-select: none;
+}
+.tv.tv-idle {
+  cursor: none;
+}
+.tv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2.4em 4em 0;
+}
+.tv-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9em;
+  font-family: "Unbounded", system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-size: 2.1em;
+}
+.tv-brand b {
+  color: var(--tv-accent);
+  font-weight: 800;
+}
+.tv-brand span {
+  font-size: 0.55em;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  color: var(--tv-soft);
+}
+.tv-head-right {
+  display: flex;
+  align-items: center;
+  gap: 2em;
+}
+.tv-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.6em 1.3em;
+  border-radius: 99em;
+  border: 0.12em solid rgba(255, 106, 70, 0.55);
+  background: rgba(255, 106, 70, 0.1);
+  font-weight: 800;
+  font-size: 1.25em;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.tv-live i {
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 50%;
+  background: var(--tv-accent);
+  animation: tvPulse 1.6s ease-in-out infinite;
+}
+.tv-live.off {
+  border-color: rgba(235, 171, 73, 0.6);
+  background: rgba(235, 171, 73, 0.1);
+  color: #ebab49;
+}
+.tv-live.off i {
+  background: #ebab49;
+  animation: none;
+}
+.tv-clock {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 2em;
+  font-weight: 600;
+  color: var(--tv-soft);
+  min-width: 4.4em;
+  text-align: right;
+}
+.tv-stage {
+  flex: 1;
+  min-height: 0;
+  padding: 1.6em 4em 0;
+  display: flex;
+}
+.tv-slide {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 4em;
+  align-items: stretch;
+  animation: tvIn 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.tv-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3em;
+  padding: 1.6em 4em 2em;
+  color: var(--tv-soft);
+  font-size: 1.15em;
+}
+.tv-dots {
+  display: flex;
+  gap: 0.6em;
+  align-items: center;
+}
+.tv-dots i {
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 50%;
+  background: var(--tv-line);
+  transition: all 0.3s;
+}
+.tv-dots i.on {
+  width: 2.2em;
+  border-radius: 99em;
+  background: var(--tv-accent);
+}
+.tv-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 0.5em;
+  width: 100%;
+  background: transparent;
+}
+.tv-progress i {
+  display: block;
+  height: 100%;
+  background: var(--tv-accent);
+  transform-origin: left center;
+  animation-name: tvProgress;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+/* ---- leaderboard slide ---- */
+.tv-side {
+  width: 34%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.2em;
+}
+.tv-eyebrow {
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  font-size: 1.35em;
+  color: var(--tv-accent);
+}
+.tv-machine-no {
+  font-family: "Unbounded", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 11em;
+  line-height: 0.85;
+  color: transparent;
+  -webkit-text-stroke: 0.04em rgba(255, 255, 255, 0.16);
+}
+.tv-machine-name {
+  font-family: "Unbounded", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 3.7em;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.tv-rows {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.1em;
+}
+.tv-row {
+  display: grid;
+  grid-template-columns: 4.6em 1fr auto auto;
+  align-items: center;
+  gap: 1.6em;
+  padding: 1.15em 2em;
+  border-radius: 1.4em;
+  background: var(--tv-card);
+  border: 0.1em solid var(--tv-line);
+  animation: tvRow 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.tv-row .rk {
+  font-family: "Unbounded", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 2.6em;
+  color: var(--tv-soft);
+  display: flex;
+  align-items: center;
+}
+.tv-row .nm {
+  font-family: "Unbounded", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 2.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tv-row .lift {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 2.9em;
+  white-space: nowrap;
+}
+.tv-row .lift small {
+  font-size: 0.5em;
+  font-weight: 600;
+  color: var(--tv-soft);
+  margin-left: 0.25em;
+}
+.tv-row .st {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 1.5em;
+  color: var(--tv-soft);
+  min-width: 5.6em;
+  text-align: right;
+}
+.tv-row.first {
+  background: linear-gradient(100deg, #ff6a46, #e3421f);
+  border-color: transparent;
+  color: #1a0906;
+  box-shadow: 0 1.2em 3.5em rgba(255, 106, 70, 0.28);
+}
+.tv-row.first .rk,
+.tv-row.first .lift small,
+.tv-row.first .st {
+  color: rgba(26, 9, 6, 0.72);
+}
+.tv-row.first .rk svg {
+  width: 1.1em;
+  height: 1.1em;
+  stroke-width: 2;
+}
+.tv-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.8em;
+  border: 0.14em dashed var(--tv-line);
+  border-radius: 1.8em;
+  color: var(--tv-soft);
+}
+.tv-empty b {
+  font-family: "Unbounded", system-ui, sans-serif;
+  font-size: 3.2em;
+  color: var(--tv-ink);
+}
+.tv-empty span {
+  font-size: 1.8em;
+}
+
+/* ---- "who's hitting what" slide ---- */
+.tv-acts {
+  flex: 1.55;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5em;
+}
+.tv-title {
+  font-family: "Unbounded", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 3.4em;
+  line-height: 1.05;
+}
+.tv-sub {
+  font-size: 1.9em;
+  color: var(--tv-soft);
+}
+.tv-bar {
+  display: grid;
+  grid-template-columns: 11.5em 1fr 13em;
+  align-items: center;
+  gap: 1.5em;
+}
+.tv-bar .lb {
+  font-family: "Unbounded", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1.7em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.tv-bar .track {
+  height: 3.1em;
+  border-radius: 99em;
+  background: var(--tv-card);
+  border: 0.1em solid var(--tv-line);
+  overflow: hidden;
+}
+.tv-bar .fill {
+  height: 100%;
+  min-width: 3.1em;
+  border-radius: 99em;
+  background: #5a5a62;
+  transform-origin: left center;
+  animation: tvGrow 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.tv-bar.top .fill {
+  background: linear-gradient(90deg, #e3421f, #ff6a46);
+  box-shadow: 0 0 2.5em rgba(255, 106, 70, 0.45);
+}
+.tv-bar .ct {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 2.4em;
+  text-align: right;
+}
+.tv-bar .ct small {
+  display: block;
+  font-size: 0.45em;
+  font-weight: 500;
+  color: var(--tv-soft);
+  margin-top: 0.1em;
+  white-space: nowrap;
+}
+.tv-facts {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.3em;
+}
+.tv-callout {
+  border-radius: 1.6em;
+  padding: 1.6em 1.8em;
+  background: linear-gradient(135deg, #ff6a46, #e3421f);
+  color: #1a0906;
+}
+.tv-callout small {
+  display: block;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-size: 1.15em;
+  opacity: 0.75;
+  margin-bottom: 0.5em;
+}
+.tv-callout b {
+  font-family: "Unbounded", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 2.1em;
+  line-height: 1.12;
+  display: block;
+}
+.tv-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.1em;
+}
+.tv-tile {
+  border-radius: 1.4em;
+  padding: 1.2em 1.5em;
+  background: var(--tv-card);
+  border: 0.1em solid var(--tv-line);
+}
+.tv-tile b {
+  display: block;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 3.4em;
+  line-height: 1;
+}
+.tv-tile span {
+  display: block;
+  margin-top: 0.5em;
+  font-size: 1.25em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tv-soft);
+}
+.tv-splash {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Unbounded", system-ui, sans-serif;
+  font-size: 3em;
+  color: var(--tv-soft);
+}
+
+@keyframes tvPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+@keyframes tvIn {
+  from { opacity: 0; transform: translateY(1.2em); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes tvRow {
+  from { opacity: 0; transform: translateX(3em); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes tvGrow {
+  from { transform: scaleX(0.02); }
+  to { transform: scaleX(1); }
+}
+@keyframes tvProgress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tv-slide, .tv-row, .tv-bar .fill { animation: none; }
+}

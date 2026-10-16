@@ -19,7 +19,7 @@ export default function BottomNav() {
   // hide it on the deeper, focused sub-pages (guide/log/feedback) where the
   // full-width "back" flow matters more than cross-app navigation.
   const isMachineSubpage = segments[0] === "machine" && segments.length > 2;
-  const hidden = pathname.startsWith("/admin") || isMachineSubpage;
+  const hidden = pathname.startsWith("/admin") || pathname.startsWith("/tv") || isMachineSubpage;
 
   if (hidden) return null;
 

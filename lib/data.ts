@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import type { Period } from "@/lib/period";
 import { periodSince } from "@/lib/period";
+import { MACHINES, MUSCLE_GROUPS, muscleGroupFor, type MuscleGroup } from "@/lib/machines";
 
 type Client = SupabaseClient<Database>;
 type MachineStatsRow = Database["public"]["Tables"]["machine_stats"]["Row"];
@@ -254,4 +255,118 @@ export function overallFromStats(stats: Record<string, MachineStatsRow>) {
   const pbCount = all.length;
   const unlocked = new Set(all.map((x) => x.machine_id)).size;
   return { totalXp, totalSets, totalVolume, pbCount, unlocked };
+}
+
+// ---------------------------------------------------------------------------
+// Gym TV (/tv). Public, so it only ever sees what tv_boards()/tv_activity()
+// hand back: first names, best lifts and anonymous counts.
+// ---------------------------------------------------------------------------
+
+export type TvEntry = { rank: number; name: string; weight: number; reps: number; sets: number };
+
+export type TvBoard = {
+  key: string; // machineId__mode
+  machineId: string;
+  mode: string;
+  machineNumber: string;
+  title: string; // "Lat Pulldown" or "Pec Fly" for a dual machine's mode
+  unit: string;
+  entries: TvEntry[];
+};
+
+export type TvGroupStat = {
+  id: MuscleGroup;
+  label: string;
+  lifters: number; // distinct people who trained this group
+  sets: number;
+};
+
+export type TvActivity = {
+  groups: TvGroupStat[];
+  lifters: number; // distinct people in the gym
+  sets: number;
+  volume: number; // kg moved
+  pbs: number;
+};
+
+export type TvData = { boards: TvBoard[]; activity: TvActivity; fetchedAt: number };
+
+export async function fetchTvData(supabase: Client, period: Period, limit = 5): Promise<TvData> {
+  const [boardsRes, activityRes] = await Promise.all([
+    supabase.rpc("tv_boards", { p_period: period, p_limit: limit }),
+    supabase.rpc("tv_activity", { p_period: period }),
+  ]);
+  if (boardsRes.error) throw boardsRes.error;
+  if (activityRes.error) throw activityRes.error;
+  return buildTvData(boardsRes.data || [], activityRes.data || []);
+}
+
+type BoardRow = Database["public"]["Functions"]["tv_boards"]["Returns"][number];
+type ActivityRow = Database["public"]["Functions"]["tv_activity"]["Returns"][number];
+
+// Pure (no network) so it can be unit-tested: turns the two RPC payloads into
+// ordered boards (machine order, then mode order) and the muscle-group tally.
+export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[]): TvData {
+  const byKey = new Map<string, TvEntry[]>();
+  boardRows.forEach((r) => {
+    const key = `${r.machine_id}__${r.mode || ""}`;
+    const list = byKey.get(key) || [];
+    list.push({
+      rank: Number(r.rank),
+      name: r.name,
+      weight: Number(r.pb_weight),
+      reps: Number(r.pb_reps),
+      sets: Number(r.sets),
+    });
+    byKey.set(key, list);
+  });
+
+  // One board per machine / mode, in the order of the gym floor (01, 02, ...).
+  const boards: TvBoard[] = [];
+  MACHINES.forEach((m) => {
+    const modes: (string | null)[] = m.dual ? Object.keys(m.modes || {}) : [null];
+    modes.forEach((mode) => {
+      const key = `${m.id}__${mode || ""}`;
+      boards.push({
+        key,
+        machineId: m.id,
+        mode: mode || "",
+        machineNumber: m.number,
+        title: mode ? m.modes![mode].label : m.name,
+        unit: m.unit,
+        entries: (byKey.get(key) || []).sort((a, b) => a.rank - b.rank),
+      });
+    });
+  });
+
+  const people = new Set<number>();
+  const groupPeople = new Map<MuscleGroup, Set<number>>();
+  const groupSets = new Map<MuscleGroup, number>();
+  let sets = 0;
+  let volume = 0;
+  let pbs = 0;
+  activityRows.forEach((r) => {
+    people.add(r.person);
+    sets += Number(r.sets);
+    volume += Number(r.volume);
+    pbs += Number(r.pbs);
+    const g = muscleGroupFor(r.machine_id, r.mode);
+    if (!g) return;
+    if (!groupPeople.has(g)) groupPeople.set(g, new Set());
+    groupPeople.get(g)!.add(r.person);
+    groupSets.set(g, (groupSets.get(g) || 0) + Number(r.sets));
+  });
+
+  const groups = MUSCLE_GROUPS.map((g) => ({
+    id: g.id,
+    label: g.label,
+    lifters: groupPeople.get(g.id)?.size || 0,
+    sets: groupSets.get(g.id) || 0,
+  }));
+
+  return {
+    boards,
+    activity: { groups, lifters: people.size, sets, volume, pbs },
+    fetchedAt: Date.now(),
+  };
 }

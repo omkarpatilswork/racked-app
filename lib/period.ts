@@ -17,13 +17,10 @@ export const PERIOD_OPTIONS: { key: Period; label: string }[] = [
 //
 // The leaderboard RPCs (leaderboard_overall / leaderboard_machine) compute
 // their own period boundary inside Postgres and don't call this — so
-// there's a real caveat: this runs in the visitor's browser timezone, while
-// the DB function runs in the Postgres server's timezone (Supabase
-// defaults to UTC). For "This Week"/"This Month" that's very unlikely to
-// matter; for "Today" it means the admin dashboard's midnight and the
-// leaderboard's midnight can be several hours apart depending on where the
-// gym actually is. If that skew matters, pin the DB function to the gym's
-// timezone explicitly instead of `now()`.
+// there's a caveat: this runs in the visitor's browser timezone, while the DB
+// function runs on the gym's clock (public.app_timezone(), set in
+// supabase/migrations/0005_tv_display.sql). They agree whenever the admin is
+// in the same timezone as the gym, which is the normal case.
 export function periodSince(period: Period): string | null {
   const now = new Date();
   if (period === "today") {
