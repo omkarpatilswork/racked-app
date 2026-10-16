@@ -1604,3 +1604,215 @@ a.link {
 @media (prefers-reduced-motion: reduce) {
   .tv-slide, .tv-row, .tv-bar .fill { animation: none; }
 }
+
+/* ==========================================================================
+   Home feed (Instagram-style activity posts)
+   ========================================================================== */
+.feed-card {
+  padding: 14px 14px 12px;
+  overflow: hidden;
+}
+.feed-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.feed-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 15px;
+}
+.feed-who {
+  flex: 1;
+  min-width: 0;
+}
+.feed-name {
+  font-weight: 800;
+  font-size: 14.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.feed-badge {
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 99px;
+  background: var(--yellow);
+  color: var(--yellow-ink);
+}
+.feed-sub {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.feed-group {
+  font-size: 11px;
+  padding: 4px 10px;
+  flex: none;
+}
+.feed-lift-box {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.feed-card.pb .feed-lift-box {
+  position: relative;
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(255, 106, 70, 0.35), transparent 60%),
+    var(--dark-surface);
+  color: var(--on-dark);
+}
+.feed-pbline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-on-dark);
+  margin-bottom: 6px;
+}
+.feed-pbline svg {
+  width: 15px;
+  height: 15px;
+}
+.feed-lift {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.feed-weight {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+}
+.feed-unit {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.6;
+  margin-right: 2px;
+}
+.feed-x {
+  font-size: 18px;
+  opacity: 0.5;
+  margin: 0 2px;
+}
+.feed-meta {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+.feed-card.pb .feed-meta {
+  color: var(--on-dark-soft);
+}
+.feed-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  min-height: 36px;
+}
+.feed-kudos {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s, background 0.15s, border-color 0.15s;
+}
+.feed-kudos:active {
+  transform: scale(0.94);
+}
+.feed-kudos svg {
+  width: 17px;
+  height: 17px;
+}
+.feed-kudos b {
+  font-size: 12.5px;
+}
+.feed-kudos.on {
+  background: var(--yellow);
+  border-color: transparent;
+  color: var(--yellow-ink);
+}
+.feed-kudos-line {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--ink-faint);
+  min-width: 0;
+}
+.feed-head-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.feed-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-faint);
+}
+.feed-live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--good);
+  animation: feedPulse 2s ease-in-out infinite;
+}
+.feed-empty {
+  text-align: center;
+  padding: 28px 18px;
+}
+.feed-empty h3 {
+  margin: 10px 0 4px;
+  font-size: 17px;
+}
+.feed-skel {
+  height: 190px;
+  border-radius: 20px;
+  background: linear-gradient(100deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%);
+  background-size: 300% 100%;
+  border: 1px solid var(--border);
+  animation: feedShimmer 1.4s linear infinite;
+}
+@keyframes feedPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes feedShimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+.feed-glyph {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--yellow);
+  color: var(--yellow-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}

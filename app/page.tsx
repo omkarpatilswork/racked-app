@@ -4,14 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Topbar from "@/components/Topbar";
 import Icon from "@/components/Icon";
-import MachineCard from "@/components/MachineCard";
+import HomeFeed from "@/components/HomeFeed";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMyStats, overallFromStats } from "@/lib/data";
 import { MACHINES } from "@/lib/machines";
 
 export default function HomePage() {
-  const { session, profile, loading } = useAuth();
+  const { session, profile, loading, signInWithGoogle } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const [overall, setOverall] = useState<ReturnType<typeof overallFromStats> | null>(null);
 
@@ -84,45 +84,37 @@ export default function HomePage() {
                 </div>
               </div>
             )}
-            <Link href="/profile" className="btn btn-yellow" style={{ position: "relative", marginTop: 16 }}>
-              Continue your progress <Icon name="chev" />
-            </Link>
+            <div className="btn-row" style={{ position: "relative", marginTop: 16 }}>
+              <Link href="/profile" className="btn btn-yellow">
+                Your progress <Icon name="chev" />
+              </Link>
+              <Link
+                href="/machines"
+                className="btn"
+                style={{ background: "rgba(255,255,255,.12)", color: "#fff", border: "1px solid rgba(255,255,255,.18)" }}
+              >
+                <Icon name="grid" /> Machines
+              </Link>
+            </div>
           </div>
         )}
 
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 10 }}>
-            Quick actions
+        {session && !loading ? (
+          <HomeFeed />
+        ) : (
+          <div className="card" style={{ textAlign: "center" }}>
+            <div className="feed-glyph">
+              <Icon name="flame" />
+            </div>
+            <h3 style={{ margin: "10px 0 4px", fontSize: 17 }}>See what the gym is lifting</h3>
+            <p className="muted" style={{ margin: "0 0 14px", fontSize: 14 }}>
+              Sign in to follow your gym&rsquo;s feed &mdash; every set and personal best, with kudos.
+            </p>
+            <button type="button" className="btn btn-primary" onClick={() => signInWithGoogle("/")}>
+              <Icon name="google" /> Continue with Google
+            </button>
           </div>
-          <div className="stack">
-            <Link href="/leaderboard" className="action-card">
-              <div className="glyph yellow">
-                <Icon name="trophy" />
-              </div>
-              <div className="body">
-                <div className="title">Leaderboard</div>
-                <div className="sub">See who&rsquo;s on top across all {MACHINES.length} machines</div>
-              </div>
-              <div className="chev">
-                <Icon name="chev" />
-              </div>
-            </Link>
-          </div>
-        </div>
-
-        <div>
-          <div className="row" style={{ marginBottom: 10 }}>
-            <div className="eyebrow">Machines</div>
-            <Link href="/machines" className="faint" style={{ fontSize: 12.5, fontWeight: 700 }}>
-              See all
-            </Link>
-          </div>
-          <div className="stack">
-            {MACHINES.slice(0, 3).map((m) => (
-              <MachineCard key={m.id} machine={m} />
-            ))}
-          </div>
-        </div>
+        )}
       </div>
     </>
   );

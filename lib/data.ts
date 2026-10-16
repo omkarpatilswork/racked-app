@@ -370,3 +370,35 @@ export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[]):
     fetchedAt: Date.now(),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Home feed. Each post is one member's visit to one machine (their sets there
+// grouped together), built by feed_posts() -- see 0006_home_feed.sql.
+// ---------------------------------------------------------------------------
+
+export type FeedPost = Database["public"]["Functions"]["feed_posts"]["Returns"][number];
+
+export async function fetchFeed(
+  supabase: Client,
+  opts: { limit?: number; before?: string | null } = {}
+): Promise<FeedPost[]> {
+  const { data, error } = await supabase.rpc("feed_posts", {
+    p_limit: opts.limit ?? 15,
+    p_before: opts.before ?? null,
+  });
+  if (error) throw error;
+  // numeric columns can arrive as strings from PostgREST
+  return (data || []).map((p) => ({
+    ...p,
+    post_id: Number(p.post_id),
+    weight: Number(p.weight),
+    volume: Number(p.volume),
+  }));
+}
+
+export async function toggleKudos(supabase: Client, postId: number) {
+  const { data, error } = await supabase.rpc("toggle_kudos", { p_post_id: postId });
+  if (error) throw error;
+  const r = data as unknown as { count: number; mine: boolean };
+  return { count: Number(r.count), mine: !!r.mine };
+}

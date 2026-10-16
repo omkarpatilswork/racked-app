@@ -272,6 +272,34 @@ export type Database = {
           pbs: number;
         }[];
       };
+      // Home feed + kudos (see supabase/migrations/0006_home_feed.sql).
+      // Signed-in members only.
+      feed_posts: {
+        Args: { p_limit?: number; p_before?: string | null };
+        Returns: {
+          post_id: number;
+          is_mine: boolean;
+          display_name: string;
+          avatar_url: string | null;
+          machine_id: string;
+          mode: string;
+          sets: number;
+          weight: number;
+          reps: number;
+          volume: number;
+          xp: number;
+          has_pb: boolean;
+          started_at: string;
+          created_at: string;
+          kudos_count: number;
+          kudos_mine: boolean;
+          kudos_names: string[];
+        }[];
+      };
+      toggle_kudos: {
+        Args: { p_post_id: number };
+        Returns: { count: number; mine: boolean };
+      };
       admin_delete_set_log: {
         Args: { p_id: number };
         Returns: undefined;

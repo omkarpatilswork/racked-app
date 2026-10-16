@@ -1,0 +1,45 @@
+RACKED HOME FEED (about 10 minutes)
+
+WHAT'S NEW
+The Home tab is now a gym activity feed, like Instagram:
+  - Welcome card stays at the top (now with "Your progress" and "Machines").
+  - Below it: a live feed of what members did - every set and every personal
+    best. Sets one person does on the same machine in one visit are grouped
+    into ONE post ("4 sets"), so it isn't spammy. PBs get a dark "NEW
+    PERSONAL BEST" card.
+  - Tap the flame "Kudos" button to cheer someone on; tap again to undo.
+    Posts show who gave kudos ("Priya, Rahul and 3 others").
+  - Updates every 30 seconds and when you come back to the app. "Load older
+    activity" goes back up to 30 days.
+  - The old Quick actions and Machines list are gone from Home (Ranks is in
+    the bottom bar; Machines is a button in the welcome card).
+  - Visitors who aren't signed in see a "Continue with Google" card instead
+    of the feed. The feed is for signed-in members only.
+
+STEP 1 - Run the SQL (Supabase)
+1. Supabase > SQL Editor > New query.
+2. Open 0006_home_feed.sql in Notepad, Ctrl+A, Ctrl+C, paste, click Run.
+   "Success. No rows returned." is correct. Safe to run again.
+   (0001-0005 must already be run.)
+
+STEP 2 - Copy the files into your racked-app folder (choose Replace)
+   app/page.tsx
+   app/globals.css
+   components/FeedCard.tsx      (new)
+   components/HomeFeed.tsx      (new)
+   lib/time.ts                  (new)
+   lib/data.ts
+   lib/database.types.ts
+   supabase/migrations/0006_home_feed.sql
+Do NOT copy this text file into the project.
+GitHub Desktop: summary "Add Home activity feed" > Commit to main > Push
+origin. Vercel redeploys in 1-2 minutes.
+
+STEP 3 - Check it
+Sign in on your phone, open Home. If there are sets from the last 30 days
+you'll see them. To test: log a set on a machine, go back to Home - you
+should see your post as "You". Tap Kudos on it.
+Ask a friend to sign in, log a set, and kudos each other's posts.
+
+Privacy: the feed shows member name + profile photo to signed-in members only
+(an email address is never shown). Only sets from the last 30 days appear.
