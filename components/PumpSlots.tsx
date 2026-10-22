@@ -4,8 +4,8 @@ import Icon from "@/components/Icon";
 import type { PumpKind, PumpPhoto } from "@/lib/data";
 
 const COPY: Record<PumpKind, { label: string; hint: string }> = {
-  pre: { label: "Pre", hint: "Before you start" },
-  post: { label: "Post", hint: "After your workout" },
+  pre: { label: "Pre", hint: "Before you start (optional)" },
+  post: { label: "Post", hint: "After your workout (optional)" },
 };
 
 // Today's two photo slots: Pre and Post.
@@ -22,19 +22,17 @@ export default function PumpSlots({
   onAdd: (kind: PumpKind) => void;
   onOpen: (photo: PumpPhoto) => void;
 }) {
-  const hasPre = photos.some((p) => p.day === day && p.kind === "pre");
   return (
     <div className="pump-slots">
       {(["pre", "post"] as PumpKind[]).map((kind) => {
         const photo = photos.find((p) => p.day === day && p.kind === kind);
         const url = photo ? urls[photo.path] : undefined;
         if (!photo) {
-          const nudge = kind === "post" && hasPre;
           return (
             <button
               key={kind}
               type="button"
-              className={`pump-slot empty${nudge ? " nudge" : ""}`}
+              className="pump-slot empty"
               onClick={() => onAdd(kind)}
               data-testid={`slot-${kind}-empty`}
             >

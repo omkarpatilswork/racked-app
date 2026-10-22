@@ -23,17 +23,19 @@ export default function PumpCheckCard() {
   // Photos need migration 0007; until it's been run, show nothing at all.
   if (!uid || status !== "ready") return null;
 
-  const done = todays.length === 2;
+  // Every photo is optional: before, after, both, or none -- all fine.
+  const sub =
+    todays.length === 0
+      ? "Add a photo before, after, or both — whatever suits you. Totally optional."
+      : todays.length === 1
+        ? "Photo saved. Add another any time today, or leave it at that."
+        : "Both photos in — nice work. Check your progress on Profile.";
   return (
     <section className="card pump-card" data-testid="pump-card">
       <div className="pump-head">
         <div>
           <div className="eyebrow">Today&rsquo;s pump check</div>
-          <div className="pump-sub">
-            {done
-              ? "Both photos in — nice work. Check your progress on Profile."
-              : "Snap a before and after to track your progress."}
-          </div>
+          <div className="pump-sub">{sub}</div>
         </div>
       </div>
       <PumpSlots

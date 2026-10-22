@@ -1,6 +1,7 @@
 "use client";
 
 import Icon from "@/components/Icon";
+import IgHandle from "@/components/IgHandle";
 import { MACHINE_MAP, MUSCLE_GROUPS, muscleGroupFor } from "@/lib/machines";
 import { timeAgo } from "@/lib/time";
 import type { FeedPost } from "@/lib/data";
@@ -59,7 +60,8 @@ export default function FeedCard({
         </div>
         <div className="feed-who">
           <div className="feed-name">
-            {name}
+            <span className="feed-name-text">{name}</span>
+            <IgHandle handle={post.instagram_handle} />
             {post.has_pb && <span className="feed-badge">PB</span>}
           </div>
           <div className="feed-sub">

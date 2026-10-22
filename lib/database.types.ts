@@ -16,6 +16,7 @@ export type Database = {
           id: string;
           display_name: string;
           avatar_url: string | null;
+          instagram_handle: string | null;
           is_staff: boolean;
           created_at: string;
         };
@@ -23,6 +24,7 @@ export type Database = {
           id: string;
           display_name?: string;
           avatar_url?: string | null;
+          instagram_handle?: string | null;
           is_staff?: boolean;
           created_at?: string;
         };
@@ -30,6 +32,7 @@ export type Database = {
           id?: string;
           display_name?: string;
           avatar_url?: string | null;
+          instagram_handle?: string | null;
           is_staff?: boolean;
           created_at?: string;
         };
@@ -296,6 +299,7 @@ export type Database = {
           is_mine: boolean;
           display_name: string;
           avatar_url: string | null;
+          instagram_handle: string | null;
           machine_id: string;
           mode: string;
           sets: number;
@@ -310,6 +314,10 @@ export type Database = {
           kudos_mine: boolean;
           kudos_names: string[];
         }[];
+      };
+      set_instagram_handle: {
+        Args: { p_handle: string };
+        Returns: string | null;
       };
       toggle_kudos: {
         Args: { p_post_id: number };
@@ -339,6 +347,7 @@ export type Database = {
           is_mine: boolean;
           display_name: string;
           avatar_url: string | null;
+          instagram_handle: string | null;
           day: string;
           pre_photo_id: number | null;
           pre_path: string | null;

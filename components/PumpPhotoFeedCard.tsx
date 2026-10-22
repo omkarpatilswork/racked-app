@@ -1,6 +1,7 @@
 "use client";
 
 import Icon from "@/components/Icon";
+import IgHandle from "@/components/IgHandle";
 import { kudosLine } from "@/components/FeedCard";
 import { timeAgo } from "@/lib/time";
 import type { FeedPhotoPost, PumpKind } from "@/lib/data";
@@ -39,7 +40,10 @@ export default function PumpPhotoFeedCard({
           )}
         </div>
         <div className="feed-who">
-          <div className="feed-name">{name}</div>
+          <div className="feed-name">
+            <span className="feed-name-text">{name}</span>
+            <IgHandle handle={post.instagram_handle} />
+          </div>
           <div className="feed-sub">Pump check · {timeAgo(post.created_at, now)}</div>
         </div>
         <span className="pill feed-group">

@@ -87,7 +87,7 @@ export default function ProgressPhotos({
         </span>
       </div>
       <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>
-        Add a pre and post photo each workout day and watch the change.
+        Add a before photo, an after photo, or both — every one is optional. Watch the change over time.
       </div>
 
       <div style={{ marginTop: 14 }}>
@@ -139,7 +139,8 @@ export default function ProgressPhotos({
                 <div className="pump-day-imgs">
                   {(["pre", "post"] as PumpKind[]).map((kind) => {
                     const p = r[kind];
-                    return p ? (
+                    if (!p) return null;
+                    return (
                       <button key={kind} type="button" className="pump-thumb" onClick={() => open(p)}>
                         {urls[p.path] ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -154,10 +155,6 @@ export default function ProgressPhotos({
                           </span>
                         )}
                       </button>
-                    ) : (
-                      <div key={kind} className="pump-thumb none">
-                        <span>{kind === "pre" ? "No pre" : "No post"}</span>
-                      </div>
                     );
                   })}
                 </div>

@@ -6,11 +6,12 @@ import Topbar from "@/components/Topbar";
 import Icon from "@/components/Icon";
 import AttendanceCalendar from "@/components/AttendanceCalendar";
 import ProgressPhotos from "@/components/ProgressPhotos";
+import InstagramField from "@/components/InstagramField";
 import SignInSheet from "@/components/SignInSheet";
 import ShareSheet from "@/components/ShareSheet";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
-import { fetchAttendance, fetchMyStats, overallFromStats, toggleAttendanceDay } from "@/lib/data";
+import { fetchAttendance, fetchMyStats, overallFromStats, setInstagramHandle, toggleAttendanceDay } from "@/lib/data";
 import { calculateMachineLevel } from "@/lib/gamification";
 import { computeStreaks, todayStr, type AttendanceMap } from "@/lib/streaks";
 import { MACHINE_MAP, MACHINES } from "@/lib/machines";
@@ -20,7 +21,7 @@ import type { Database } from "@/lib/database.types";
 type StatsRow = Database["public"]["Tables"]["machine_stats"]["Row"];
 
 export default function ProfilePage() {
-  const { session, profile, signOut } = useAuth();
+  const { session, profile, signOut, refreshProfile } = useAuth();
   const supabase = useMemo(() => createClient(), []);
 
   const [stats, setStats] = useState<Record<string, StatsRow>>({});
@@ -106,6 +107,13 @@ export default function ProfilePage() {
             )}
           </div>
           <h1 style={{ fontSize: 22, margin: 0 }}>{name}</h1>
+          <InstagramField
+            handle={profile?.instagram_handle}
+            onSave={async (h) => {
+              await setInstagramHandle(supabase, h);
+              await refreshProfile();
+            }}
+          />
           <div className="pill-yellow" style={{ marginTop: 8 }}>
             LEVEL {lvl.level}
           </div>

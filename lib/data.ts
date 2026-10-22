@@ -396,6 +396,14 @@ export async function fetchFeed(
   }));
 }
 
+// Save (or clear, with empty text) the member's optional Instagram handle.
+// The database cleans it up and returns the stored value.
+export async function setInstagramHandle(supabase: Client, handle: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("set_instagram_handle", { p_handle: handle });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
 export async function toggleKudos(supabase: Client, postId: number) {
   const { data, error } = await supabase.rpc("toggle_kudos", { p_post_id: postId });
   if (error) throw error;

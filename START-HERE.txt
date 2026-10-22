@@ -1,0 +1,60 @@
+RACKED UPDATE - Instagram handle + optional photos
+===================================================
+Takes about 5 minutes. Two parts: Supabase first, then your files.
+
+WHAT YOU GET
+- Photos are optional: members can post a before photo, an after photo,
+  or both. Nothing nags them to add the second one.
+- Optional Instagram handle: Profile -> "+ Add Instagram". It shows as
+  @handle next to the member's name on the Home feed (lifts, PBs, photos).
+  Only signed-in members see it. The gym TV screen never shows it.
+
+
+PART 1 - SUPABASE (do this first)
+---------------------------------
+1. Go to supabase.com and open your project.
+2. Left menu -> SQL Editor -> New query.
+3. In this folder open:  supabase\migrations\0008_instagram_handle.sql
+   (right-click -> Open with -> Notepad).
+4. Press Ctrl+A, then Ctrl+C to copy everything.
+5. Click in the Supabase query box, press Ctrl+V to paste.
+6. Click Run (bottom right).
+   You should see "Success. No rows returned". If you run it twice
+   that is fine too.
+
+
+PART 2 - YOUR FILES + GITHUB + VERCEL
+-------------------------------------
+1. Unzip this download. Open the unzipped folder.
+2. Select these 4 folders:  app, components, lib, supabase
+   (do NOT drag the START-HERE.txt file).
+3. Copy them (Ctrl+C), open  D:\Racked\racked-app  and paste (Ctrl+V).
+4. Windows asks about existing files -> click "Replace the files in
+   the destination".
+5. Open GitHub Desktop. You should see 13 changed files
+   (9 edited + 4 new).
+6. Bottom-left, "Summary" box: type
+      Add Instagram handle and optional photos
+7. Click "Commit to main".
+8. Click "Push origin" (top bar).
+9. Vercel deploys automatically. Wait ~1 minute, then open
+   https://racked-app-liard.vercel.app and refresh (on your phone,
+   close and reopen the page).
+
+
+CHECK IT WORKED
+- Profile -> "+ Add Instagram" -> type your handle -> Save.
+  "@yourhandle" appears under your name.
+- Log a set on any machine, then look at the Home feed: your post shows
+  @yourhandle next to your name.
+- Home -> "Today's pump check" says "Totally optional". Add just one
+  photo; it should save without asking for the other.
+
+IF SOMETHING LOOKS WRONG
+- No handle in the feed: Part 1 (the SQL) was probably skipped. Run it,
+  then refresh.
+- Vercel shows a red "Failed" deployment: send me a screenshot.
+
+OPTIONAL CLEANUP
+- If there is a file named START-HERE-HOME-FEED.txt in the root of
+  racked-app, you can delete it. It is just an old note.
