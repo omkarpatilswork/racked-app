@@ -1,84 +1,148 @@
 <div align="center">
 
-# 🏋️ Racked by Bijlee
+<img src="docs/assets/hero.svg" alt="Racked by Bijlee: tap a machine, log your set, climb the live leaderboard" width="100%"/>
 
-**Tap a machine. Log your set. Keep your streak.**<br>
-An NFC-powered gym companion that turns every machine in the gym into a leaderboard.
+<br/>
 
-[![Live](https://img.shields.io/badge/Live-racked--app--liard.vercel.app-EF4444?style=for-the-badge)](https://racked-app-liard.vercel.app)
-![Next.js](https://img.shields.io/badge/Next.js_14-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)
-![NFC](https://img.shields.io/badge/NFC-10_tagged_machines-374151?style=for-the-badge)
+[![Live app](https://img.shields.io/badge/live%20app-racked--app--liard.vercel.app-EF4444?style=for-the-badge)](https://racked-app-liard.vercel.app)
+[![Bijlee](https://img.shields.io/badge/runs%20at-Bijlee-111111?style=for-the-badge)](https://bijlee.run)
 
-<img src="docs/screenshots/machines.webp" width="220" alt="Machines">&nbsp;
-<img src="docs/screenshots/ranks.webp" width="220" alt="Leaderboard">&nbsp;
-<img src="docs/screenshots/tapin.webp" width="220" alt="Tap in to unlock a machine">
+![Next.js](https://img.shields.io/badge/Next.js-14-000000?style=flat-square&logo=nextdotjs)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%C2%B7%20Realtime-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
+![NFC](https://img.shields.io/badge/NFC-10%20tagged%20machines-374151?style=flat-square)
+
+**[Why](#01--why-it-exists)** ·
+**[The product](#02--the-product)** ·
+**[How it works](#03--how-it-works)** ·
+**[Built in public](#04--built-in-public)** ·
+**[Where it stands](#05--where-it-stands)** ·
+**[Run it](#07--run-it-yourself)**
 
 </div>
 
 ---
 
-## Why I built it
+## 01 · Why it exists
 
-Gym progress lives in people's heads, or in notes apps nobody opens twice. **Racked** puts a small NFC sticker on each machine. Tap it with your phone and you see your history and best lift for that machine, log the set in seconds, and watch where you rank against everyone else in the gym.
+Gym progress lives in people's heads, or in a notes app nobody opens twice. **Racked** puts a small NFC sticker on each machine. Tap it and you see your history and best lift on that machine, log the set in seconds, and see where you rank against everyone else in the gym.
 
-It is also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-bill1)**. EZZ BILL's restaurant flow depends on people being willing to tap an NFC tag to get something, so Racked tests that habit cheaply, with real people, before EZZ BILL bets on it. Racked runs at [Bijlee](https://bijlee.run), my Pune community for runners, founders and builders.
+It's also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-bill1)**. EZZ BILL's restaurant flow depends on people being willing to tap an NFC tag to get something. Racked tests that habit cheaply, with real people, before EZZ BILL bets on it. It runs at **[Bijlee](https://bijlee.run)**, a Pune community for runners, founders and builders.
 
-## Features
+## 02 · The product
+
+<table>
+<tr>
+<td width="33%"><img src="docs/screenshots/machines.webp" alt="Machines list with the ten tagged machines"/><br/><sub><b>Machines.</b> All ten tagged machines, each with its muscle groups.</sub></td>
+<td width="33%"><img src="docs/screenshots/ranks.webp" alt="Leaderboard for today, the week, the month or all time"/><br/><sub><b>Leaderboard.</b> Overall or per machine, for today, the week, the month or all time.</sub></td>
+<td width="33%"><img src="docs/screenshots/tapin.webp" alt="Tap in to unlock a machine"/><br/><sub><b>Tap in.</b> A machine unlocks when you tap its sticker.</sub></td>
+</tr>
+</table>
 
 | | |
 |---|---|
-| 📲 **Tap to log** | Each machine's NFC tag (or QR code) opens that machine: your history, your best lift and a quick set logger |
-| 🏆 **Live leaderboards** | Overall and per-machine rankings for today, the week, the month or all time, updated in real time when anyone logs a set |
-| 🔥 **XP, levels and streaks** | XP per set, levels per machine, attendance streaks and a calendar of the days you trained |
-| 🆕 **Home feed** | An Instagram-style feed of sets and new best lifts, grouped by visit, with 🔥 kudos |
-| 📸 **Progress photos** | Optional before and after photos, with kudos and reporting for moderation |
-| 📺 **Gym TV mode** | `/tv` cycles through leaderboards full screen on the gym's TV, showing first names only |
-| 📖 **Machine guides** | Form guides with animations for each machine, plus feedback on the machine itself |
-| 🛠️ **Admin tools** | A staff-only dashboard for machines, tap analytics and photo moderation |
-| 🔗 **Share cards** | Strava-style cards for a new best lift or leaderboard rank |
+| **Tap to log** | Each machine's NFC tag (or QR code) opens that machine: your history, your best lift and a quick set logger |
+| **Live leaderboards** | Overall and per-machine rankings for today, the week, the month or all time, updated the moment anyone logs a set |
+| **XP, levels and streaks** | XP per set, a level per machine, attendance streaks and a calendar of the days you trained |
+| **Home feed** | A feed of sets and new best lifts, grouped by visit, with kudos |
+| **Progress photos** | Optional before-and-after photos, with kudos and reporting for moderation |
+| **Gym TV mode** | `/tv` cycles through the leaderboards full screen on the gym's TV, first names only |
+| **Machine guides** | A form guide with animation for each machine, and a way to report problems with the machine |
+| **Share cards** | Strava-style cards for a new best lift or a leaderboard rank |
+| **Admin tools** | A staff dashboard for machines, tap analytics and photo moderation |
 
-## How it works
+## 03 · How it works
 
-```mermaid
-flowchart LR
-  T[📲 NFC tap on a machine] --> M[Machine page<br/>history · best lift]
-  M --> L[Log a set]
-  L --> F["Postgres function log_set()<br/>atomic: best lift + XP + level"]
-  F --> DB[(Supabase Postgres + RLS)]
-  DB -- Realtime --> LB[Leaderboard]
-  DB -- Realtime --> TV[Gym TV /tv]
-  DB --> Feed[Home feed + kudos]
-```
+<div align="center">
+<img src="docs/assets/loop.svg" alt="Tap the NFC tag, see your history, log the set, the log_set function updates best lift and XP atomically, and the leaderboard, gym TV and feed update in realtime" width="100%"/>
+</div>
 
 **Design decisions**
-- **Server-side truth.** Best lifts, XP and levels are written by a single atomic Postgres function, `log_set`. Two phones can't race each other, and no client can fake a best lift by writing to the database directly.
+
+- **Server-side truth.** Best lifts, XP and levels are written by one atomic Postgres function, `log_set`. Two phones can't race each other, and no client can fake a best lift by writing to the database directly.
 - **Realtime, not refresh.** The leaderboard subscribes to Postgres changes, so everyone watching sees a new set within a second or two.
-- **Privacy by default.** Row Level Security is on every table. The TV screen shows first names and anonymous counts only, and Instagram handles are visible only to signed-in members.
-- **Real accounts.** Google sign-in via Supabase Auth, and admin rights come from a flag on the account rather than a shared passcode.
+- **Privacy by default.** Row-level security is on every table. The TV shows first names and anonymous counts only, and Instagram handles are visible only to signed-in members.
+- **Real accounts.** Google sign-in through Supabase Auth. Admin rights come from a flag on the account, not a shared passcode.
 
-## Built in public
+<details>
+<summary><b>Stack</b></summary>
+<br/>
 
-Racked began as a Claude Artifact prototype. It became this deployable app in **Sept–Oct 2026**, and new features shipped as numbered database migrations:
+| Layer | What's used |
+|---|---|
+| **Web** | Next.js 14 (App Router), TypeScript, Tailwind CSS |
+| **Data** | Supabase Postgres with row-level security, Realtime and Storage (photos) |
+| **Auth** | Supabase Auth with Google sign-in |
+| **Hardware** | An NFC sticker on each machine, with a QR code fallback |
+| **Hosting** | Vercel |
 
-`0001` core schema → `0002` leaderboards → `0003` admin tools → `0004` NFC vs QR tap tracking → `0005` gym TV → `0006` home feed and kudos → `0007` progress photos → `0008` Instagram handles
+</details>
 
-## Tech stack
+## 04 · Built in public
 
-Next.js 14 (App Router, TypeScript) · Supabase (Postgres, Auth with Google OAuth, Realtime, Storage, RLS) · Tailwind CSS · Vercel
+Racked began as a Claude Artifact prototype and became this deployable app in **September and October 2026**. Every feature shipped as a numbered database migration:
 
-## Run it yourself
+<div align="center">
+<img src="docs/assets/timeline.svg" alt="Eight migrations: core schema, leaderboards, admin tools, tap source, gym TV, home feed, photos, Instagram handles" width="100%"/>
+</div>
 
-The full setup takes about 20 minutes: Supabase project, Google sign-in, Vercel deploy and NFC stickers. It's in **[docs/SETUP.md](docs/SETUP.md)**.
+The notes written for each update are kept in [`docs/updates/`](docs/updates).
+
+## 05 · Where it stands
+
+|  |  |
+|---|---|
+| **Status** | Live at [racked-app-liard.vercel.app](https://racked-app-liard.vercel.app), used at Bijlee. |
+| **Coverage** | 10 machines, defined in [`lib/machines.ts`](lib/machines.ts) |
+| **Database** | 8 migrations in [`supabase/migrations/`](supabase/migrations) |
+| **Tests** | None automated yet. Changes are checked with a production build and by hand on real phones. |
+| **Demo data** | `npm run seed` fills the leaderboards with demo members so a fresh install doesn't look empty. |
+
+## 06 · What it does not do
+
+- **It doesn't count reps for you.** Sets are logged by hand after the tap.
+- **One gym.** Machines and leaderboards are set up for a single location.
+- **NFC needs a phone that reads it.** Most Android phones and iPhones do; the QR code covers the rest.
+- **The leaderboard trusts what people log.** `log_set` stops clients writing results directly, but it can't check that the weight on the stack matches what was entered.
+
+## 07 · Run it yourself
+
+The full setup takes about 20 minutes (Supabase project, Google sign-in, Vercel deploy and NFC stickers) and is written up in **[docs/SETUP.md](docs/SETUP.md)**.
 
 ```bash
 git clone https://github.com/omkarpatilswork/racked-app.git
 cd racked-app
 npm install
 cp .env.example .env.local   # add your Supabase URL and anon key
-npm run dev
+npm run dev                  # http://localhost:3000
+```
+
+```bash
+npm run seed                 # optional: demo members and sets
+npm run build
+```
+
+## Repository map
+
+```
+racked-app/
+├── app/
+│   ├── machines/            the list of tagged machines
+│   ├── machine/[id]/        one machine: history, log, guide, feedback
+│   ├── leaderboard/         overall and per-machine ranks
+│   ├── profile/             streaks, calendar, progress photos
+│   ├── tv/                  full-screen gym TV mode
+│   └── admin/               staff dashboard and photo moderation
+├── components/              feed cards, share sheet, photo upload, …
+├── lib/                     machines, gamification, streaks, share cards
+├── supabase/migrations/     0001–0008
+├── scripts/seed.ts          demo data
+└── docs/                    setup guide, update notes, screenshots
 ```
 
 ---
 
-Built by **[Omkar Patil](https://github.com/omkarpatilswork)** for [Bijlee](https://bijlee.run) · Founder, [EZZ BILL](https://ezzbill.com)
+<div align="center">
+<sub>Built by <a href="https://www.omkarpatil.in">Omkar Patil</a> for <a href="https://bijlee.run">Bijlee</a> · Founder, <a href="https://ezzbill.com">EZZ BILL</a></sub>
+</div>
