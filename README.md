@@ -1,137 +1,84 @@
-# Racked by Bijlee
+<div align="center">
 
-The real, deployable version of the Racked NFC-gym companion — Next.js 14 (App Router) + Supabase (Postgres, Auth, Realtime), replacing the Claude Artifact prototype so real members with real Google accounts can use it from anywhere, not just people in your Claude org.
+# 🏋️ Racked by Bijlee
 
-Tap a machine's NFC sticker → see your history and PB → log a set → keep a streak → share a Strava-style card of your PB or leaderboard rank.
+**Tap a machine. Log your set. Keep your streak.**<br>
+An NFC-powered gym companion that turns every machine in the gym into a leaderboard.
 
-## What's different from the Artifact prototype
+[![Live](https://img.shields.io/badge/Live-racked--app--liard.vercel.app-EF4444?style=for-the-badge)](https://racked-app-liard.vercel.app)
+![Next.js](https://img.shields.io/badge/Next.js_14-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)
+![NFC](https://img.shields.io/badge/NFC-10_tagged_machines-374151?style=for-the-badge)
 
-- **Real accounts.** Google sign-in via Supabase Auth (no more "enter a guest name" fallback) — every member's history is tied to their real Google account, and it works for anyone, not just people in your Claude org.
-- **Real, tamper-resistant data.** PBs/XP/levels are written by a single atomic Postgres function (`log_set`, see `supabase/migrations/0001_init.sql`) instead of a client-side read-modify-write, so two devices logging at once can't race, and a client can't fabricate a PB by calling the database directly.
-- **Live leaderboards.** The leaderboard subscribes to Postgres realtime changes — when anyone logs a set, everyone watching the leaderboard sees it update within a second or two.
-- **A real admin dashboard.** Gated by an `is_staff` flag on the signed-in Google account (set once from the Supabase dashboard) instead of a shared passcode baked into the client-side JavaScript.
-- **Downloads just work.** Share cards save with a plain browser download — no special capability needed, unlike inside the sandboxed Artifact viewer.
+<img src="docs/screenshots/machines.webp" width="220" alt="Machines">&nbsp;
+<img src="docs/screenshots/ranks.webp" width="220" alt="Leaderboard">&nbsp;
+<img src="docs/screenshots/tapin.webp" width="220" alt="Tap in to unlock a machine">
 
-## Stack
+</div>
 
-- **Next.js 14** (App Router, TypeScript, mostly client components — this app is highly interactive)
-- **Supabase**: Postgres (schema in `supabase/migrations/`), Auth (Google OAuth), Realtime
-- **Tailwind CSS** for utility classes, plus the Bijlee design tokens in `app/globals.css` (ported 1:1 from the Artifact prototype's CSS custom properties)
-- **Vercel** for hosting (or any Next.js host)
+---
 
-No other backend services are required.
+## Why I built it
 
-## One-time setup
+Gym progress lives in people's heads, or in notes apps nobody opens twice. **Racked** puts a small NFC sticker on each machine. Tap it with your phone and you see your history and best lift for that machine, log the set in seconds, and watch where you rank against everyone else in the gym.
 
-You'll create two free accounts if you don't already have them: **Supabase** and **Vercel**. Budget about 20 minutes.
+It is also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-bill1)**. EZZ BILL's restaurant flow depends on people being willing to tap an NFC tag to get something, so Racked tests that habit cheaply, with real people, before EZZ BILL bets on it. Racked runs at [Bijlee](https://bijlee.run), my Pune community for runners, founders and builders.
 
-### 1. Create the Supabase project
+## Features
 
-1. Go to [supabase.com](https://supabase.com), sign up, and create a new project. Pick a strong database password and save it somewhere.
-2. Once the project is ready, open **SQL Editor** and run the two migration files in order — paste the contents of each and click Run:
-   - `supabase/migrations/0001_init.sql`
-   - `supabase/migrations/0002_leaderboard_views.sql`
-3. Open **Project Settings → API**. You'll need three values from this page in a minute: **Project URL**, the **`anon` `public`** key, and the **`service_role`** key (keep the service role key secret — never put it in `NEXT_PUBLIC_*`).
+| | |
+|---|---|
+| 📲 **Tap to log** | Each machine's NFC tag (or QR code) opens that machine: your history, your best lift and a quick set logger |
+| 🏆 **Live leaderboards** | Overall and per-machine rankings for today, the week, the month or all time, updated in real time when anyone logs a set |
+| 🔥 **XP, levels and streaks** | XP per set, levels per machine, attendance streaks and a calendar of the days you trained |
+| 🆕 **Home feed** | An Instagram-style feed of sets and new best lifts, grouped by visit, with 🔥 kudos |
+| 📸 **Progress photos** | Optional before and after photos, with kudos and reporting for moderation |
+| 📺 **Gym TV mode** | `/tv` cycles through leaderboards full screen on the gym's TV, showing first names only |
+| 📖 **Machine guides** | Form guides with animations for each machine, plus feedback on the machine itself |
+| 🛠️ **Admin tools** | A staff-only dashboard for machines, tap analytics and photo moderation |
+| 🔗 **Share cards** | Strava-style cards for a new best lift or leaderboard rank |
 
-### 2. Turn on Google sign-in
+## How it works
 
-1. In the Supabase dashboard, go to **Authentication → Providers → Google** and toggle it on.
-2. You need a Google OAuth Client ID/Secret. In the [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
-   - Create a project (or use an existing one), then **Create Credentials → OAuth client ID → Web application**.
-   - Under **Authorized redirect URIs**, add the callback URL Supabase shows you on that same Google provider settings page (it looks like `https://<your-project-ref>.supabase.co/auth/v1/callback`).
-   - Copy the generated **Client ID** and **Client Secret** back into the Supabase Google provider settings and save.
-3. In **Authentication → URL Configuration**, set the **Site URL** to your production URL once you have it (step 4 below) — you can leave it as `http://localhost:3000` for now and come back to update it after deploying.
-
-### 3. Configure the app locally
-
-```bash
-cp .env.example .env.local
+```mermaid
+flowchart LR
+  T[📲 NFC tap on a machine] --> M[Machine page<br/>history · best lift]
+  M --> L[Log a set]
+  L --> F["Postgres function log_set()<br/>atomic: best lift + XP + level"]
+  F --> DB[(Supabase Postgres + RLS)]
+  DB -- Realtime --> LB[Leaderboard]
+  DB -- Realtime --> TV[Gym TV /tv]
+  DB --> Feed[Home feed + kudos]
 ```
 
-Fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from Project Settings → API. Then:
+**Design decisions**
+- **Server-side truth.** Best lifts, XP and levels are written by a single atomic Postgres function, `log_set`. Two phones can't race each other, and no client can fake a best lift by writing to the database directly.
+- **Realtime, not refresh.** The leaderboard subscribes to Postgres changes, so everyone watching sees a new set within a second or two.
+- **Privacy by default.** Row Level Security is on every table. The TV screen shows first names and anonymous counts only, and Instagram handles are visible only to signed-in members.
+- **Real accounts.** Google sign-in via Supabase Auth, and admin rights come from a flag on the account rather than a shared passcode.
+
+## Built in public
+
+Racked began as a Claude Artifact prototype. It became this deployable app in **Sept–Oct 2026**, and new features shipped as numbered database migrations:
+
+`0001` core schema → `0002` leaderboards → `0003` admin tools → `0004` NFC vs QR tap tracking → `0005` gym TV → `0006` home feed and kudos → `0007` progress photos → `0008` Instagram handles
+
+## Tech stack
+
+Next.js 14 (App Router, TypeScript) · Supabase (Postgres, Auth with Google OAuth, Realtime, Storage, RLS) · Tailwind CSS · Vercel
+
+## Run it yourself
+
+The full setup takes about 20 minutes: Supabase project, Google sign-in, Vercel deploy and NFC stickers. It's in **[docs/SETUP.md](docs/SETUP.md)**.
 
 ```bash
+git clone https://github.com/omkarpatilswork/racked-app.git
+cd racked-app
 npm install
+cp .env.example .env.local   # add your Supabase URL and anon key
 npm run dev
 ```
 
-Open http://localhost:3000 — you should see the home screen. Sign in with Google to confirm auth works end to end.
+---
 
-**Optional — seed demo data** so the leaderboard/admin dashboard aren't empty on day one:
-
-```bash
-# also fill in SUPABASE_SERVICE_ROLE_KEY in .env.local first
-npm run seed
-```
-
-This creates ~15 fake members with realistic PBs, streaks, and some sample feedback/tap analytics. It only ever touches accounts it creates itself (emails ending in `@demo.rackedbybijlee.test`) — safe to run even after real members have signed up.
-
-### 4. Deploy to Vercel
-
-1. Push this folder to a GitHub repo (or use `vercel` CLI directly from this folder).
-2. Go to [vercel.com](https://vercel.com), **Add New → Project**, import the repo.
-3. Add the same two `NEXT_PUBLIC_*` environment variables from step 3 (Vercel project → Settings → Environment Variables). You don't need the service-role key on Vercel — that's only for the local seed script.
-4. Deploy. Vercel gives you a URL like `https://racked-by-bijlee.vercel.app` (or point a custom domain like `app.bijlee.run` at it from Vercel's Domains settings).
-5. Back in Supabase → **Authentication → URL Configuration**, set **Site URL** to that production URL, and add it (plus `http://localhost:3000` for local dev) under **Redirect URLs**.
-
-That's it — the app is live. Anyone can open the URL, sign in with their own Google account, and start logging sets.
-
-### 5. Make yourself (and other staff) admins
-
-The first admin has to be set directly in the database — there's no self-serve "become staff" button by design (so a member can't just grant themselves admin access):
-
-1. Sign in to the live app once with the Google account that should be staff.
-2. In Supabase → **SQL Editor**, run:
-   ```sql
-   update public.profiles set is_staff = true where id = '<that account's user id>';
-   ```
-   Find the user id in **Authentication → Users**, or in the `profiles` table by matching `display_name`.
-3. That account can now open `/admin` on the live site. From then on, any existing staff member can promote another member to staff the same way (or you can keep doing it from SQL Editor).
-
-### 6. Point your NFC stickers here
-
-Write each machine's sticker with a URL like:
-
-```
-https://your-domain.com/machine/lat-pulldown-01
-```
-
-The 9 machine ids are in `lib/machines.ts` (`MACHINE_IDS`). The dual-mode Pec Fly / Rear Delt machine also takes a `?mode=pec-fly` or `?mode=rear-delt` query param if you want a sticker to default to one side.
-
-## Project structure
-
-```
-app/                    Next.js App Router pages (mostly client components)
-  machine/[id]/         machine detail, guide, log-set, feedback
-  leaderboard/          overall + per-machine leaderboards (realtime)
-  profile/              attendance calendar, streaks, your machines
-  admin/                staff-gated dashboard
-  auth/callback/        Google OAuth redirect handler
-components/             shared UI (icons, cards, calendar, share sheet, ...)
-lib/
-  machines.ts           the 9-machine catalog (static content, edit here)
-  gamification.ts       XP/PB/level math (client-side preview copy)
-  streaks.ts            attendance streak + calendar-grid math
-  shareCard.ts           canvas-drawn Strava-style share card
-  data.ts               typed Supabase queries used by the pages
-  supabase/              browser / server / middleware Supabase clients
-supabase/migrations/     the whole Postgres schema, RLS policies, and the
-                         log_set()/record_tap() functions — the source of
-                         truth for the database. Re-run in order on a fresh
-                         project.
-scripts/seed.ts          optional demo-data seeder (npm run seed)
-```
-
-## Editing the machine catalog
-
-Machine names, instructions, mistakes, tips, and challenge targets all live in `lib/machines.ts` as plain data — no database migration needed to add a machine or tweak copy. If you add a new machine id, update any physical NFC stickers to match.
-
-## Notes on the gamification math
-
-`log_set()` in `supabase/migrations/0001_init.sql` is the single source of truth for PBs, XP, and levels — it's what actually gets called, atomically, every time someone logs a set. `lib/gamification.ts` has a client-side copy of the same math (used for lightweight UI previews); if you ever change the XP table or leveling curve, change both, or the copies will drift.
-
-## Known simplifications vs. a bespoke build
-
-- Admin identity is a boolean flag on a Google account rather than a separate staff-invite flow — fine for a single gym, less so for a multi-location chain (that would want a `staff` join table scoped per location).
-- Feedback status has three states (open/dismissed/resolved) rather than the original demo's four — merge in an `in_progress` status if you want that distinction back.
-- No push notifications for streak reminders yet — everything is pull-based (open the app to see your streak).
+Built by **[Omkar Patil](https://github.com/omkarpatilswork)** for [Bijlee](https://bijlee.run) · Founder, [EZZ BILL](https://ezzbill.com)
