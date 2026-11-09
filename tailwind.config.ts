@@ -4,7 +4,7 @@ import type { Config } from "tailwindcss";
 // Colors are CSS custom properties (see app/globals.css) so light/dark
 // theming and the "always-dark" surfaces work exactly as they did there.
 const config: Config = {
-  darkMode: ["selector", '[data-theme="dark"]'],
+  darkMode: ["selector", ':root:not([data-theme="light"])'],
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
@@ -27,9 +27,9 @@ const config: Config = {
         "accent-on-dark": "var(--accent-on-dark)",
       },
       fontFamily: {
-        display: ["Unbounded", "system-ui", "sans-serif"],
-        sans: ["Manrope", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        display: ["var(--font-display)"],
+        sans: ["var(--font-sans)"],
+        mono: ["var(--font-mono)"],
       },
       borderRadius: {
         card: "20px",

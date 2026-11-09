@@ -307,10 +307,12 @@ export default function AdminPage() {
         </button>
       </div>
       <div className="stack-lg">
-        <h1 style={{ fontSize: 22, margin: 0 }}>Gym Dashboard</h1>
-        <p className="faint" style={{ margin: "-14px 0 0", fontSize: 12 }}>
-          Staff-only view, separate from the member app.
-        </p>
+        <div>
+          <h1 style={{ fontSize: 22, margin: 0 }}>Gym Dashboard</h1>
+          <p className="faint" style={{ margin: "6px 0 0", fontSize: 12 }}>
+            Staff-only view, separate from the member app.
+          </p>
+        </div>
 
         <Link href="/admin/photos" className="action-card">
           <div className="glyph">

@@ -1,3 +1,5 @@
+import Avatar from "@/components/Avatar";
+
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 export default function LbRow({
@@ -15,15 +17,10 @@ export default function LbRow({
 }) {
   return (
     <div className={`lb-row${isMe ? " me" : ""}`}>
-      <div className="rank">{rank <= 3 ? MEDALS[rank - 1] : rank}</div>
-      <div className="avatar">
-        {avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : (
-          (name || "?").slice(0, 1).toUpperCase()
-        )}
+      <div className="rank" aria-label={`Rank ${rank}`}>
+        {rank <= 3 ? MEDALS[rank - 1] : rank}
       </div>
+      <Avatar name={name} url={avatarUrl} />
       <div className="name">{isMe ? "You" : name}</div>
       <div className="best num">{best}</div>
     </div>

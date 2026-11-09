@@ -6,29 +6,37 @@ export default function MachineCard({
   machine,
   unlocked,
   showLock,
+  pb,
 }: {
   machine: Machine;
+  // "unlocked" = you've logged at least one set on it
   unlocked?: boolean;
   showLock?: boolean;
+  pb?: string | null;
 }) {
   return (
-    <Link href={`/machine/${machine.id}`} className="machine-card">
-      <div className="thumb">
-        <Icon name="dumbbell" />
-        {showLock && (
+    <Link href={`/machine/${machine.id}`} className="machine-card" data-testid="machine-card">
+      <div className={`thumb${unlocked ? " done" : ""}`} aria-hidden="true">
+        {machine.number}
+        {showLock && unlocked && (
           <div className="lockdot">
-            <Icon name={unlocked ? "unlock" : "lock"} />
+            <Icon name="check" />
           </div>
         )}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="num">Machine #{machine.number}</div>
         <div className="title">{machine.name}</div>
-        <div className="sub">{machine.muscles.slice(0, 3).join(" • ")}</div>
+        <div className="sub">{machine.muscles.slice(0, 3).join(" · ")}</div>
       </div>
-      <div className="chev">
-        <Icon name="chev" />
-      </div>
+      {pb ? (
+        <span className="pill" style={{ fontFamily: "var(--font-mono)" }}>
+          {pb}
+        </span>
+      ) : (
+        <div className="chev">
+          <Icon name="chev" />
+        </div>
+      )}
     </Link>
   );
 }

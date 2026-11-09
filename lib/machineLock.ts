@@ -40,6 +40,12 @@ function readUnlock(): UnlockRecord | null {
   }
 }
 
+// The machine this tab is currently "at" (tapped within the last 4 hours),
+// so Home can offer a one-tap way back to logging on it.
+export function getActiveMachineId(): string | null {
+  return readUnlock()?.machineId ?? null;
+}
+
 function writeUnlock(machineId: string, source: TapSource) {
   if (typeof window === "undefined") return;
   try {

@@ -10,7 +10,10 @@ import SetResultModal from "@/components/SetResultModal";
 import LockedMachine from "@/components/LockedMachine";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
-import { logSet, type LogSetResult } from "@/lib/data";
+import { fetchLastSet, logSet, type LastSet, type LogSetResult } from "@/lib/data";
+import RestTimer from "@/components/RestTimer";
+import { haptic } from "@/lib/haptics";
+import { timeAgo } from "@/lib/time";
 import { toast } from "@/lib/toast";
 import { useMachineLock } from "@/lib/machineLock";
 import { MACHINE_MAP, resolveMachineView } from "@/lib/machines";
@@ -31,6 +34,7 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { session } = useAuth();
+  const uid = session?.user.id ?? null;
   const supabase = useMemo(() => createClient(), []);
 
   const modeParam = searchParams.get("mode");
@@ -64,6 +68,10 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   // "Log set" adds to this list instead of bouncing you back to the machine
   // screen, so you can knock out set after set without re-navigating.
   const [sessionSets, setSessionSets] = useState<{ weight: number; reps: number; isPb: boolean }[]>([]);
+  // What you did last time on this machine -- the log screen starts there.
+  const [lastSet, setLastSet] = useState<LastSet | null>(null);
+  // bumps after every logged set to (re)start the rest timer
+  const [restSignal, setRestSignal] = useState(0);
 
   // Weight increment: use the machine's own override when set, otherwise
   // fall back to 5kg steps for KG machines (matches how the weight stacks
@@ -92,27 +100,40 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   const userEditedRef = useRef(false);
 
   useEffect(() => {
-    if (!machine || !view || !session || lockStatus !== "unlocked") return;
+    if (!machine || !view || !uid || lockStatus !== "unlocked") return;
     userEditedRef.current = false;
-    supabase
-      .from("machine_stats")
-      .select("*")
-      .eq("uid", session.user.id)
-      .eq("machine_id", machine.id)
-      .eq("mode", mode || "")
-      .maybeSingle()
-      .then(({ data }) => {
-        setMine(data ?? null);
-        if (userEditedRef.current) return;
-        const startW = data
+    let active = true;
+    Promise.all([
+      supabase
+        .from("machine_stats")
+        .select("*")
+        .eq("uid", uid)
+        .eq("machine_id", machine.id)
+        .eq("mode", mode || "")
+        .maybeSingle()
+        .then(({ data }) => data ?? null, () => null),
+      fetchLastSet(supabase, uid, machine.id, mode).catch(() => null),
+    ]).then(([data, last]) => {
+      if (!active) return;
+      setMine(data);
+      setLastSet(last);
+      if (userEditedRef.current) return;
+      // Start from what you did last time; otherwise your PB; otherwise a
+      // sensible starting weight for this machine.
+      const startW = last
+        ? last.weight
+        : data
           ? Number(data.pb_weight)
           : roundToStep(machine.startWeight ?? Math.round(view.challenge.weight * 0.7), weightStep);
-        const startR = data ? data.pb_reps : machine.startReps ?? 10;
-        setWeight(clampTo(startW, weightMin, weightMax));
-        setReps(clampTo(startR, repsMin, repsMax));
-      });
+      const startR = last ? last.reps : data ? data.pb_reps : machine.startReps ?? 10;
+      setWeight(clampTo(startW, weightMin, weightMax));
+      setReps(clampTo(startR, repsMin, repsMax));
+    });
+    return () => {
+      active = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [machine, view, mode, session, lockStatus, supabase]);
+  }, [machine, view, mode, uid, lockStatus, supabase]);
 
   function handleWeightChange(v: number) {
     userEditedRef.current = true;
@@ -138,23 +159,34 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
           <Link href={`/machine/${machine.id}${modeParam ? `?mode=${modeParam}` : ""}`} className="iconbtn" aria-label="Back">
             <Icon name="back" />
           </Link>
-          <div style={{ width: 38 }} />
+          <div className="topbar-title">{view.label}</div>
+          <div style={{ width: 42 }} />
         </div>
-        <div className="stack-lg center" style={{ paddingTop: 40 }}>
-          <div style={{ color: "var(--ink-faint)" }}>
+        <div className="page stack-lg center" style={{ paddingTop: 36 }}>
+          <div className="tapin-icons" style={{ margin: "0 auto", width: 56, height: 56 }}>
             <Icon name="lock" />
           </div>
-          <h2 style={{ margin: "10px 0 4px" }}>Sign in to log your set</h2>
-          <p className="muted" style={{ margin: 0 }}>Save your weight, reps and Personal Best.</p>
+          <h2 style={{ margin: "6px 0 0" }}>Sign in to log your set</h2>
+          <p className="muted" style={{ margin: 0 }}>Your weight, reps and personal bests are saved to your account.</p>
         </div>
-        <SignInSheet open onClose={() => router.push(`/machine/${machine.id}`)} next={currentPath} />
+        <SignInSheet
+          open
+          title="Sign in to log this set"
+          onClose={() => router.push(`/machine/${machine.id}${modeParam ? `?mode=${modeParam}` : ""}`)}
+          next={currentPath}
+        />
       </>
     );
   }
 
   async function handleSubmit() {
+    if (saving) return;
     if (weight <= 0 || reps <= 0) {
       toast("Enter a weight and reps first");
+      return;
+    }
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      toast("You're offline — connect to save this set");
       return;
     }
     setSaving(true);
@@ -162,114 +194,155 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
       const res = await logSet(supabase, machine!.id, mode, weight, reps);
       setLivePb({ weight: res.pbWeight, reps: res.pbReps });
       setSessionSets((prev) => [...prev, { weight: res.weight, reps: res.reps, isPb: res.isPb }]);
+      setLastSet({ weight: res.weight, reps: res.reps, created_at: new Date().toISOString() });
+      setRestSignal((n) => n + 1);
       if (res.isPb) {
         // A new PB is worth a full celebration — show the modal.
+        haptic("pb");
         setResult(res);
       } else {
         // Anything else shouldn't interrupt the flow of a workout: a quick
         // toast is enough, and the set drops straight into the list below
         // so you can immediately load up the next one.
-        toast(`Logged ${res.weight}${machine!.unit} × ${res.reps} 🔥`);
+        haptic("success");
+        toast(`Set ${sessionSets.length + 1} logged · ${res.weight}${machine!.unit} × ${res.reps} · +${res.xpGain} XP`);
       }
     } catch (err) {
       console.error(err);
-      toast("Could not save that set — try again");
+      toast("Couldn't save that set — check your connection and tap Log again");
     } finally {
       setSaving(false);
     }
   }
 
+  function finish() {
+    if (sessionSets.length) {
+      toast(`Nice work — ${sessionSets.length} set${sessionSets.length > 1 ? "s" : ""}, ${sessionVolume.toLocaleString()}${machine!.unit} moved`);
+    }
+    router.push(`/machine/${machine!.id}${modeParam ? `?mode=${modeParam}` : ""}`);
+  }
+
+  const lastChip =
+    lastSet && (!displayPb || lastSet.weight !== displayPb.weight)
+      ? [{ label: `Last ${lastSet.weight}${machine.unit}`, value: lastSet.weight }]
+      : [];
+  const lastRepsChip =
+    lastSet && (!displayPb || lastSet.reps !== displayPb.reps) ? [{ label: `Last ×${lastSet.reps}`, value: lastSet.reps }] : [];
+
   return (
     <>
       <div className="topbar">
-        <Link href={`/machine/${machine.id}${modeParam ? `?mode=${modeParam}` : ""}`} className="iconbtn" aria-label="Back">
+        <Link href={`/machine/${machine.id}${modeParam ? `?mode=${modeParam}` : ""}`} className="iconbtn" aria-label="Back to machine">
           <Icon name="back" />
         </Link>
-        <div style={{ width: 38 }} />
+        <div className="topbar-title">Log a set</div>
+        <div style={{ width: 42 }} />
       </div>
-      <div className="stack-lg">
+      <div className="page stack-lg">
         <div>
-          <div className="eyebrow">Log your set</div>
-          <h1 style={{ fontSize: 22, margin: "6px 0 0" }}>{view.label}</h1>
-        </div>
-        {displayPb && (
-          <div className="card center">
-            <div className="eyebrow">
-              <Icon name="trophy" /> Your Personal Best
-            </div>
-            <div className="num" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-              {displayPb.weight}
-              {machine.unit} × {displayPb.reps} reps
-            </div>
+          <div className="eyebrow">
+            Machine {String(machine.number).padStart(2, "0")}
           </div>
-        )}
+          <h1 style={{ fontSize: 24, margin: "6px 0 10px" }}>{view.label}</h1>
+          <div className="chip-row">
+            {displayPb ? (
+              <span className="pill-yellow" data-testid="pb-pill">
+                <Icon name="trophy" /> PB {displayPb.weight}
+                {machine.unit} × {displayPb.reps}
+              </span>
+            ) : (
+              <span className="pill">
+                <Icon name="target" /> First set here — set your PB
+              </span>
+            )}
+            {lastSet && (
+              <span className="pill" data-testid="last-pill">
+                Last {lastSet.weight}
+                {machine.unit} × {lastSet.reps} · {timeAgo(lastSet.created_at)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <RestTimer startSignal={restSignal} />
+
         <Stepper
-          label={`Weight (${machine.unit})`}
+          label="Weight"
+          unit={machine.unit}
+          testId="weight"
           value={weight}
           onChange={handleWeightChange}
           step={weightStep}
           min={weightMin}
           max={weightMax}
-          quickSets={displayPb ? [{ label: `PB ${displayPb.weight}${machine.unit}`, value: displayPb.weight }] : undefined}
+          quickSets={[
+            ...lastChip,
+            ...(displayPb ? [{ label: `PB ${displayPb.weight}${machine.unit}`, value: displayPb.weight }] : []),
+          ]}
         />
         <Stepper
           label="Reps"
+          unit="reps"
+          testId="reps"
           value={reps}
           onChange={handleRepsChange}
           step={1}
           min={repsMin}
           max={repsMax}
-          quickSets={displayPb ? [{ label: `PB ×${displayPb.reps}`, value: displayPb.reps }] : undefined}
+          quickSets={[...lastRepsChip, ...(displayPb ? [{ label: `PB ×${displayPb.reps}`, value: displayPb.reps }] : [])]}
         />
-        <button className="btn btn-yellow" style={{ padding: 18 }} onClick={handleSubmit} disabled={saving}>
-          {saving ? "SAVING…" : sessionSets.length > 0 ? "LOG ANOTHER SET" : "LOG SET"}
-        </button>
 
         {sessionSets.length > 0 && (
-          <div className="card">
+          <section className="card" data-testid="session-sets">
             <div className="row">
-              <h3 style={{ margin: 0, fontSize: 15 }}>Sets logged today</h3>
+              <h3 style={{ margin: 0, fontSize: 15 }}>This session</h3>
               <span className="pill-yellow">
                 {sessionSets.length} set{sessionSets.length > 1 ? "s" : ""}
               </span>
             </div>
-            <div style={{ marginTop: 6 }}>
+            <ol style={{ listStyle: "none", margin: "8px 0 0", padding: 0 }}>
               {sessionSets.map((s, i) => (
-                <div
+                <li
                   key={i}
                   className="row"
-                  style={{
-                    padding: "9px 0",
-                    borderBottom: i < sessionSets.length - 1 ? "1px solid var(--border)" : "none",
-                  }}
+                  style={{ padding: "9px 0", borderBottom: i < sessionSets.length - 1 ? "1px solid var(--border)" : "none" }}
                 >
                   <span className="muted" style={{ fontSize: 13 }}>Set {i + 1}</span>
                   <span className="num" style={{ fontWeight: 700 }}>
                     {s.weight}
                     {machine.unit} × {s.reps}
-                    {s.isPb ? " ⭐" : ""}
+                    {s.isPb ? <span className="accent"> · PB</span> : null}
                   </span>
-                </div>
+                </li>
               ))}
-            </div>
+            </ol>
             <div className="row" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
-              <span className="muted" style={{ fontSize: 12.5 }}>Session volume</span>
+              <span className="muted" style={{ fontSize: 12.5 }}>Volume</span>
               <span className="num" style={{ fontWeight: 700 }}>
                 {sessionVolume.toLocaleString()}
                 {machine.unit}
               </span>
             </div>
-          </div>
+          </section>
         )}
 
-        {sessionSets.length > 0 && (
-          <Link
-            href={`/machine/${machine.id}${modeParam ? `?mode=${modeParam}` : ""}`}
-            className="btn btn-ghost"
-          >
-            Finish session
-          </Link>
-        )}
+        <div className="sticky-cta">
+          <button className="btn btn-yellow btn-lg" onClick={handleSubmit} disabled={saving} data-testid="log-submit">
+            {saving ? (
+              "Saving…"
+            ) : (
+              <>
+                <Icon name="check" /> {sessionSets.length > 0 ? "Log another" : "Log set"} · {weight}
+                {machine.unit} × {reps}
+              </>
+            )}
+          </button>
+          {sessionSets.length > 0 && (
+            <button type="button" className="btn btn-ghost" style={{ marginTop: 10 }} onClick={finish} data-testid="finish">
+              Done with this machine
+            </button>
+          )}
+        </div>
       </div>
       {result && (
         <SetResultModal
@@ -280,6 +353,8 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
           result={result}
           onClose={() => router.push(`/machine/${machine.id}${modeParam ? `?mode=${modeParam}` : ""}`)}
           onContinue={() => setResult(null)}
+          continueLabel="Keep going — log the next set"
+
         />
       )}
     </>

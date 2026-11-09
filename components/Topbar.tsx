@@ -1,39 +1,35 @@
 import Link from "next/link";
+import Icon from "@/components/Icon";
 
 export function BrandMark() {
   return (
-    <div className="brand">
+    <Link href="/" className="brand" aria-label="Racked home">
       <span className="dot" />
       RACKED <span className="brand-sub">× BIJLEE</span>
-    </div>
+    </Link>
   );
 }
 
 export default function Topbar({
   right,
   back,
+  title,
 }: {
   right?: React.ReactNode;
   back?: string;
+  title?: string;
 }) {
   return (
     <div className="topbar">
       {back ? (
         <Link href={back} className="iconbtn" aria-label="Back">
-          <BackIcon />
+          <Icon name="back" />
         </Link>
       ) : (
         <BrandMark />
       )}
-      {right ?? <div style={{ width: 38 }} />}
+      {title && <div className="topbar-title">{title}</div>}
+      {right ?? <div style={{ width: 42 }} />}
     </div>
-  );
-}
-
-function BackIcon() {
-  return (
-    <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 6l-6 6 6 6" />
-    </svg>
   );
 }

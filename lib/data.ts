@@ -396,6 +396,88 @@ export async function fetchFeed(
   }));
 }
 
+// ---------------------------------------------------------------------------
+// Account basics (0009_account_basics.sql)
+// ---------------------------------------------------------------------------
+
+// Change your display name and/or mark the welcome as done. The database
+// validates the name (2-40 chars, no @ < >) and returns the saved profile.
+export async function updateMyProfile(
+  supabase: Client,
+  input: { displayName?: string | null; onboarded?: boolean }
+) {
+  const { data, error } = await supabase.rpc("update_my_profile", {
+    p_display_name: input.displayName ?? null,
+    p_onboarded: !!input.onboarded,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// Permanently delete the signed-in member. Photo FILES live in storage and
+// can't be removed from SQL, so they're deleted first through the storage
+// API (members can delete their own folder); then the database function
+// removes the login, which cascades to every row that belongs to them.
+export async function deleteMyAccount(supabase: Client, uid: string) {
+  const bucket = supabase.storage.from(PHOTO_BUCKET);
+  // Any storage error stops here, BEFORE the account is touched, so the
+  // member can simply try again (nothing is left half-deleted).
+  for (let round = 0; round < 50; round++) {
+    const { data: files, error } = await bucket.list(uid, { limit: 100 });
+    if (error) throw error;
+    if (!Array.isArray(files) || files.length === 0) break;
+    const paths = files.filter((f) => f.name && f.id !== null).map((f) => `${uid}/${f.name}`);
+    if (paths.length === 0) break;
+    const { error: rmError } = await bucket.remove(paths);
+    if (rmError) throw rmError;
+  }
+  const { error } = await supabase.rpc("delete_my_account");
+  if (error) throw error;
+}
+
+// The most recent set you logged on this machine (and side, for dual
+// machines) -- used to start the log screen at what you did last time.
+export type LastSet = { weight: number; reps: number; created_at: string };
+export async function fetchLastSet(
+  supabase: Client,
+  uid: string,
+  machineId: string,
+  mode: string | null
+): Promise<LastSet | null> {
+  let q = supabase
+    .from("set_logs")
+    .select("weight, reps, created_at")
+    .eq("uid", uid)
+    .eq("machine_id", machineId);
+  q = mode ? q.eq("mode", mode) : q.is("mode", null);
+  const { data, error } = await q.order("created_at", { ascending: false }).limit(1);
+  if (error || !data || data.length === 0) return null;
+  const r = data[0];
+  return { weight: Number(r.weight), reps: Number(r.reps), created_at: r.created_at };
+}
+
+// Your last 7 days at a glance, for the Home screen.
+export type WeekSummary = { sets: number; volume: number; pbs: number; days: number };
+export async function fetchWeekSummary(supabase: Client, uid: string): Promise<WeekSummary> {
+  const since = new Date(Date.now() - 7 * 86400000).toISOString();
+  const { data, error } = await supabase
+    .from("set_logs")
+    .select("weight, reps, is_pb, created_at")
+    .eq("uid", uid)
+    .gte("created_at", since)
+    .limit(2000);
+  if (error) throw error;
+  const days = new Set<string>();
+  let volume = 0;
+  let pbs = 0;
+  (data || []).forEach((r) => {
+    volume += Number(r.weight) * Number(r.reps);
+    if (r.is_pb) pbs++;
+    days.add(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(r.created_at)));
+  });
+  return { sets: (data || []).length, volume: Math.round(volume), pbs, days: days.size };
+}
+
 // Save (or clear, with empty text) the member's optional Instagram handle.
 // The database cleans it up and returns the stored value.
 export async function setInstagramHandle(supabase: Client, handle: string): Promise<string | null> {

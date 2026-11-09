@@ -1,67 +1,58 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "@/components/Icon";
-import clsx from "clsx";
 
 const TABS = [
-  { href: "/", label: "Home", icon: "home" as const },
-  { href: "/leaderboard", label: "Ranks", icon: "trophy" as const },
-  { href: "/profile", label: "Profile", icon: "user" as const },
-];
+  { href: "/", label: "Home", icon: "home" },
+  { href: "/machines", label: "Machines", icon: "grid" },
+  { href: "/leaderboard", label: "Ranks", icon: "trophy" },
+  { href: "/profile", label: "You", icon: "user" },
+] as const;
+
+// Paths where the floating nav is hidden: focused flows (logging a set,
+// guide, feedback), the welcome screens, staff tools and the gym TV.
+export function navHidden(pathname: string) {
+  const segments = pathname.split("/").filter(Boolean);
+  const isMachineSubpage = segments[0] === "machine" && segments.length > 2;
+  return (
+    isMachineSubpage ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/tv") ||
+    pathname.startsWith("/welcome")
+  );
+}
 
 export default function BottomNav() {
-  const pathname = usePathname();
-  const segments = pathname.split("/").filter(Boolean);
-  // Show the nav on the main machine screen (what you land on after an NFC
-  // tap: /machine/<id>) so Ranks/Profile/Home are always one tap away. Still
-  // hide it on the deeper, focused sub-pages (guide/log/feedback) where the
-  // full-width "back" flow matters more than cross-app navigation.
-  const isMachineSubpage = segments[0] === "machine" && segments.length > 2;
-  const hidden = pathname.startsWith("/admin") || pathname.startsWith("/tv") || isMachineSubpage;
+  const pathname = usePathname() || "/";
+  const hidden = navHidden(pathname);
+
+  useEffect(() => {
+    document.body.classList.toggle("no-nav", hidden);
+  }, [hidden]);
 
   if (hidden) return null;
 
   return (
-    <nav
-      style={{
-        position: "fixed",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 30,
-        background: "var(--surface)",
-        borderTop: "1px solid var(--border)",
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 520,
-          margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-        }}
-      >
-        {TABS.map((tab) => {
-          const active =
-            tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={clsx(
-                "flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold"
-              )}
-              style={{ color: active ? "var(--yellow)" : "var(--ink-faint)" }}
-            >
-              <Icon name={tab.icon} className="icon" />
-              {tab.label}
-            </Link>
-          );
-        })}
-      </div>
+    <nav className="bottom-nav" aria-label="Main">
+      {TABS.map((tab) => {
+        const active =
+          tab.href === "/"
+            ? pathname === "/"
+            : tab.href === "/machines"
+              ? pathname.startsWith("/machines") || pathname.startsWith("/machine/")
+              : tab.href === "/profile"
+                ? pathname.startsWith("/profile") || pathname.startsWith("/settings")
+                : pathname.startsWith(tab.href);
+        return (
+          <Link key={tab.href} href={tab.href} aria-current={active ? "page" : undefined}>
+            <Icon name={tab.icon} />
+            {tab.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { haptic } from "@/lib/haptics";
 
 export default function Stepper({
   label,
@@ -10,8 +11,12 @@ export default function Stepper({
   min,
   max,
   quickSets,
+  unit,
+  testId,
 }: {
   label: string;
+  unit?: string;
+  testId?: string;
   value: number;
   onChange: (v: number) => void;
   step: number;
@@ -63,16 +68,17 @@ export default function Stepper({
   const showChips = (quickSets && quickSets.length > 0) || bigStep > 0;
 
   return (
-    <div className="card">
-      <div className="eyebrow center" style={{ display: "block", marginBottom: 10 }}>
+    <div className="card" data-testid={testId}>
+      <div className="eyebrow center" style={{ display: "block", marginBottom: 10 }} id={`${testId || label}-label`}>
         {label}
       </div>
       <div className="stepper">
-        <button type="button" onClick={() => bump(-1)} aria-label={`Decrease ${label}`}>
+        <button type="button" onClick={() => { haptic("tap"); bump(-1); }} aria-label={`Decrease ${label}`}>
           −
         </button>
         <div className="value">
           <input
+            aria-labelledby={`${testId || label}-label`}
             className="num"
             type="number"
             step={step}
@@ -116,8 +122,9 @@ export default function Stepper({
               }
             }}
           />
+          {unit && <div className="unit">{unit}</div>}
         </div>
-        <button type="button" onClick={() => bump(1)} aria-label={`Increase ${label}`}>
+        <button type="button" onClick={() => { haptic("tap"); bump(1); }} aria-label={`Increase ${label}`}>
           +
         </button>
       </div>

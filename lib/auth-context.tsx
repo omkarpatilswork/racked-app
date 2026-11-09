@@ -17,7 +17,10 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type AuthState = {
   session: Session | null;
   profile: Profile | null;
+  // true while we don't yet know if someone is signed in (first load)
   loading: boolean;
+  // replace the cached profile after a save, without another round trip
+  setProfileData: (p: Profile | null) => void;
   signInWithGoogle: (next?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -45,17 +48,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    let lastUid: string | null = null;
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
-      setSession(data.session);
-      if (data.session) loadProfile(data.session.user.id);
+      setSession((prev) => prev ?? data.session);
+      if (data.session && data.session.user.id !== lastUid) {
+        lastUid = data.session.user.id;
+        loadProfile(lastUid);
+      }
       setLoading(false);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      if (newSession) loadProfile(newSession.user.id);
-      else setProfile(null);
+    // auth-js re-emits SIGNED_IN with a fresh object every time the tab
+    // becomes visible again. Keep the existing session object (and skip the
+    // profile reload) unless something actually changed, so screens don't
+    // reset what you were typing when you come back to the app.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
+      setSession((prev) =>
+        prev && newSession && prev.user.id === newSession.user.id && prev.access_token === newSession.access_token
+          ? prev
+          : newSession
+      );
+      const uid = newSession?.user.id ?? null;
+      if (!uid) {
+        lastUid = null;
+        setProfile(null);
+      } else if (uid !== lastUid || event === "USER_UPDATED") {
+        lastUid = uid;
+        loadProfile(uid);
+      }
     });
 
     return () => {
@@ -77,9 +98,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setProfile(null);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      setSession(null);
+      setProfile(null);
+    }
   }, [supabase]);
 
   const refreshProfile = useCallback(async () => {
@@ -88,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, loading, signInWithGoogle, signOut, refreshProfile }}
+      value={{ session, profile, loading, setProfileData: setProfile, signInWithGoogle, signOut, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>

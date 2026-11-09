@@ -1,75 +1,58 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import Icon from "@/components/Icon";
+import Sheet from "@/components/Sheet";
+import Link from "next/link";
 
 export default function SignInSheet({
   open,
   onClose,
   next,
+  title = "Track every set, PB & streak",
 }: {
   open: boolean;
   onClose: () => void;
   next?: string;
+  title?: string;
 }) {
   const { signInWithGoogle } = useAuth();
-  if (!open) return null;
+  const [busy, setBusy] = useState(false);
 
   return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,.45)",
-        display: "flex",
-        alignItems: "flex-end",
-        zIndex: 50,
-      }}
-    >
-      <div
-        className="card animate-slide-up"
-        style={{
-          width: "100%",
-          maxWidth: 520,
-          margin: "0 auto",
-          borderBottomLeftRadius: 0,
-          borderBottomRightRadius: 0,
-          paddingBottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
+    <Sheet open={open} onClose={onClose} title={title} testId="signin-sheet">
+      <p className="muted center" style={{ margin: "0 0 18px", fontSize: 14 }}>
+        One tap with Google — no password. Your sets, personal bests and streak are saved to your account.
+      </p>
+      <button
+        type="button"
+        className="btn"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            await signInWithGoogle(next);
+          } finally {
+            // the page navigates away to Google; if it didn't, let them retry
+            setTimeout(() => setBusy(false), 4000);
+          }
         }}
+        style={{ background: "#fff", color: "#1f1f1f", border: "1px solid #dadce0" }}
       >
-        <div
-          style={{
-            width: 40,
-            height: 4,
-            borderRadius: 999,
-            background: "var(--border)",
-            margin: "0 auto 16px",
-          }}
-        />
-        <div className="eyebrow" style={{ textAlign: "center" }}>
-          Sign in to continue
-        </div>
-        <h2 style={{ textAlign: "center", margin: "6px 0 4px" }}>
-          Track your sets, PBs & streaks
-        </h2>
-        <p className="faint center" style={{ margin: "0 0 20px", fontSize: 13.5 }}>
-          One tap with Google — no password to remember.
-        </p>
-        <button
-          className="btn btn-primary"
-          onClick={() => signInWithGoogle(next)}
-          style={{ background: "#fff", color: "#1f1f1f", border: "1px solid var(--border)" }}
-        >
-          <Icon name="google" className="icon" />
-          Continue with Google
-        </button>
-        <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={onClose}>
-          Not now
-        </button>
-      </div>
-    </div>
+        <Icon name="google" />
+        {busy ? "Opening Google…" : "Continue with Google"}
+      </button>
+      <button type="button" className="btn btn-ghost" style={{ marginTop: 10 }} onClick={onClose}>
+        Not now
+      </button>
+      <p className="faint center" style={{ fontSize: 12, margin: "14px 0 0" }}>
+        By continuing you agree to how we handle your data —{" "}
+        <Link href="/privacy" className="link" onClick={onClose}>
+          privacy
+        </Link>
+        .
+      </p>
+    </Sheet>
   );
 }

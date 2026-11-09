@@ -65,6 +65,8 @@ export default function AttendanceCalendar({
                 cell.dateStr && photoDays?.[cell.dateStr] ? " photo" : ""
               }`}
               disabled={cell.isFuture}
+              aria-pressed={!!cell.on}
+              aria-label={`${cell.dateStr}${cell.on ? ", at the gym" : ""}${cell.isToday ? ", today" : ""}`}
               onClick={() => cell.dateStr && onToggle(cell.dateStr)}
             >
               {cell.day}

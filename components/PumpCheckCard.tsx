@@ -26,7 +26,7 @@ export default function PumpCheckCard() {
   // Every photo is optional: before, after, both, or none -- all fine.
   const sub =
     todays.length === 0
-      ? "Add a photo before, after, or both — whatever suits you. Totally optional."
+      ? "Before, after, both or neither — totally optional."
       : todays.length === 1
         ? "Photo saved. Add another any time today, or leave it at that."
         : "Both photos in — nice work. Check your progress on Profile.";
@@ -34,7 +34,7 @@ export default function PumpCheckCard() {
     <section className="card pump-card" data-testid="pump-card">
       <div className="pump-head">
         <div>
-          <div className="eyebrow">Today&rsquo;s pump check</div>
+          <h2 style={{ fontSize: 16, margin: 0 }}>Today&rsquo;s pump check</h2>
           <div className="pump-sub">{sub}</div>
         </div>
       </div>

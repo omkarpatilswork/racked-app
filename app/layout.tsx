@@ -1,17 +1,18 @@
 import type { Metadata, Viewport } from "next";
+// Self-hosted variable fonts (bundled at build time from npm -- no request to
+// Google Fonts, works in any build environment, no layout shift from a
+// late-loading third-party stylesheet).
+import "@fontsource-variable/unbounded";
+import "@fontsource-variable/manrope";
+import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import BottomNav from "@/components/BottomNav";
 import ToastHost from "@/components/ToastHost";
-
-// Loaded via a <link> tag below rather than next/font/google: next/font
-// fetches the font files from Google at BUILD time, which fails in
-// network-restricted build environments (sandboxes, some self-hosted CI
-// runners with an egress allowlist). The <link> tag fetches at request time
-// in the visitor's own browser instead, which works everywhere Google Fonts
-// itself is reachable. Swap to next/font/google (see git history / the
-// Racked Artifact prototype notes) if your build environment allows the
-// fetch and you want self-hosted, layout-shift-free fonts.
+import NetworkStatus from "@/components/NetworkStatus";
+import OnboardingGate from "@/components/OnboardingGate";
+import AppEffects from "@/components/AppEffects";
+import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 
 // The whole app is behind client-side Google auth and reads live/realtime
 // Supabase data, so there's no useful static HTML to precompute — and
@@ -21,44 +22,58 @@ import ToastHost from "@/components/ToastHost";
 // not be the real ones yet) and just renders them per-request instead.
 export const dynamic = "force-dynamic";
 
+const DESCRIPTION =
+  "Tap a gym machine, log your set, beat your PB. Racked turns your gym's equipment into a live, social training log — by Bijlee.";
+
 export const metadata: Metadata = {
-  title: "Racked by Bijlee",
-  description:
-    "Tap a machine, see your history, log your set. An NFC-powered layer for gym equipment, by Bijlee.",
+  title: { default: "Racked by Bijlee", template: "%s · Racked" },
+  description: DESCRIPTION,
+  applicationName: "Racked",
+  appleWebApp: { capable: true, title: "Racked", statusBarStyle: "black-translucent" },
+  formatDetection: { telephone: false },
+  openGraph: {
+    title: "Racked by Bijlee",
+    description: DESCRIPTION,
+    type: "website",
+    siteName: "Racked",
+  },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#E3421F" },
-    { media: "(prefers-color-scheme: dark)", color: "#FF6A46" },
-  ],
+  themeColor: "#0a0a0c",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
+  colorScheme: "dark light",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      {/* eslint-disable-next-line @next/next/no-page-custom-font -- see note above on next/font/google vs <link> */}
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800;900&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap"
-          rel="stylesheet"
-        />
+        {/* Sets light/dark before first paint so the page never flashes. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body>
+        <a href="#main" className="skip-link">
+          Skip to content
+        </a>
         <AuthProvider>
+          <OnboardingGate />
           <div id="app">
-            {children}
+            <main id="main">{children}</main>
             <BottomNav />
           </div>
           <ToastHost />
+          <NetworkStatus />
+          <AppEffects />
         </AuthProvider>
       </body>
     </html>

@@ -17,6 +17,7 @@ import {
   type PumpKind,
 } from "@/lib/data";
 import { onPhotosChanged } from "@/lib/photoEvents";
+import { haptic } from "@/lib/haptics";
 import { useSignedUrls } from "@/lib/useSignedUrls";
 
 const PAGE = 15;
@@ -145,6 +146,7 @@ export default function HomeFeed() {
     async (key: string, current: { kudos_count: number; kudos_mine: boolean }, send: () => Promise<{ count: number; mine: boolean }>) => {
       if (inflight.current.has(key)) return;
       inflight.current.add(key);
+      haptic("tap");
       const mine = !current.kudos_mine;
       const optimistic = Math.max(0, current.kudos_count + (mine ? 1 : -1));
       setKudos((k) => ({ ...k, [key]: { count: optimistic, mine, at: Date.now() } }));
@@ -191,9 +193,7 @@ export default function HomeFeed() {
   return (
     <section data-testid="home-feed">
       <div className="feed-head-row">
-        <div>
-          <div className="eyebrow">Gym feed</div>
-        </div>
+        <h2 style={{ fontSize: 17, margin: 0 }}>Gym feed</h2>
         <span className="feed-live">
           <i /> Live
         </span>
@@ -212,12 +212,18 @@ export default function HomeFeed() {
           <h3>{error ? "Couldn't load the feed" : "No activity yet"}</h3>
           <p className="muted" style={{ margin: "0 0 14px", fontSize: 14 }}>
             {error
-              ? "Check your connection — it'll try again in a few seconds."
+              ? "Check your connection and try again."
               : "Tap a machine, log a set and be the first post on the feed."}
           </p>
-          <Link href="/machines" className="btn btn-primary">
-            <Icon name="grid" /> Explore machines
-          </Link>
+          {error ? (
+            <button type="button" className="btn btn-primary" onClick={() => refresh()}>
+              <Icon name="refresh" /> Try again
+            </button>
+          ) : (
+            <Link href="/machines" className="btn btn-primary">
+              <Icon name="grid" /> Explore machines
+            </Link>
+          )}
         </div>
       ) : (
         <div className="stack">

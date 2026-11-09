@@ -19,6 +19,9 @@ export type Database = {
           instagram_handle: string | null;
           is_staff: boolean;
           created_at: string;
+          // 0009: null = hasn't finished the welcome yet. Missing entirely
+          // (undefined) if 0009 hasn't been run -- treat that as onboarded.
+          onboarded_at?: string | null;
         };
         Insert: {
           id: string;
@@ -314,6 +317,15 @@ export type Database = {
           kudos_mine: boolean;
           kudos_names: string[];
         }[];
+      };
+      // Account basics (see supabase/migrations/0009_account_basics.sql).
+      update_my_profile: {
+        Args: { p_display_name?: string | null; p_onboarded?: boolean };
+        Returns: Database["public"]["Tables"]["profiles"]["Row"];
+      };
+      delete_my_account: {
+        Args: Record<string, never>;
+        Returns: undefined;
       };
       set_instagram_handle: {
         Args: { p_handle: string };

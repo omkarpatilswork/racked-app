@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/Icon";
 import Confetti from "@/components/Confetti";
 import ShareSheet from "@/components/ShareSheet";
@@ -17,6 +17,7 @@ export default function SetResultModal({
   result,
   onClose,
   onContinue,
+  continueLabel = "Keep training this machine",
 }: {
   machine: Machine;
   label: string;
@@ -27,7 +28,17 @@ export default function SetResultModal({
   // Optional: lets the person dismiss a new-PB celebration and keep logging
   // sets on the same machine, instead of always being sent back to it.
   onContinue?: () => void;
+  continueLabel?: string;
 }) {
+  const primaryRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    primaryRef.current?.focus({ preventScroll: true });
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") (onContinue || onClose)();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onContinue, onClose]);
   const [sharing, setSharing] = useState(false);
   const cleared = checkChallengeCompletion(result.weight, result.reps, challenge);
   const dateLabel = new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -53,54 +64,71 @@ export default function SetResultModal({
       };
 
   if (result.isPb) {
+    const gain = result.previousPb ? result.weight - result.previousPb.weight : null;
     return (
       <>
-        <div className="celebrate">
+        <div className="celebrate" role="dialog" aria-modal="true" aria-labelledby="pb-title" data-testid="pb-celebration">
           <Confetti />
-          <h1>New Personal Best!</h1>
+          <div className="pb-badge" aria-hidden="true">
+            <Icon name="trophy" />
+          </div>
+          <h1 id="pb-title">New personal best</h1>
           <div className="big">
             {result.weight}
-            {machine.unit} × {result.reps}
+            <span style={{ fontSize: "0.45em", marginLeft: 4 }}>{machine.unit}</span> × {result.reps}
           </div>
-          {result.previousPb ? (
-            <>
-              <div className="pill" style={{ background: "rgba(255,255,255,.1)", borderColor: "rgba(255,255,255,.18)", color: "#fff" }}>
-                Previous PB: {result.previousPb.weight}
-                {machine.unit} × {result.previousPb.reps}
-              </div>
-              <div className="pill-yellow" style={{ marginTop: 10 }}>
-                +{(result.weight - result.previousPb.weight).toFixed(1).replace(/\.0$/, "")}
-                {machine.unit} improvement
-              </div>
-            </>
-          ) : (
-            <div className="pill-yellow">First PB on {label}</div>
-          )}
-          <div className="num accent" style={{ fontWeight: 700, marginTop: 16, fontSize: 18 }}>
-            +{result.xpGain} XP
+          <div className="chip-row" style={{ justifyContent: "center" }}>
+            {result.previousPb ? (
+              <>
+                <span className="pill" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.16)", color: "#fff" }}>
+                  Was {result.previousPb.weight}
+                  {machine.unit} × {result.previousPb.reps}
+                </span>
+                {gain !== null && gain > 0 && (
+                  <span className="pill" style={{ background: "rgba(255,90,54,.2)", borderColor: "rgba(255,122,85,.4)", color: "#ffb39e" }}>
+                    +{gain.toFixed(1).replace(/\.0$/, "")}
+                    {machine.unit}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="pill" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.16)", color: "#fff" }}>
+                First PB on {label}
+              </span>
+            )}
+            <span className="pill" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.16)", color: "#fff" }}>
+              +{result.xpGain} XP
+            </span>
           </div>
           {cleared && (
-            <div className="pill" style={{ marginTop: 14, background: "rgba(255,255,255,.1)", borderColor: "rgba(255,255,255,.18)", color: "#fff" }}>
-              <Icon name="bolt" /> Challenge cleared
+            <div className="pill" style={{ marginTop: 12, background: "rgba(63,208,127,.16)", borderColor: "rgba(63,208,127,.4)", color: "#9ff0c1" }}>
+              <Icon name="bolt" /> Machine challenge cleared
             </div>
           )}
-          <div className="btn-row" style={{ marginTop: 28, maxWidth: 320 }}>
-            <button className="btn btn-outline" style={{ borderColor: "rgba(255,255,255,.3)", color: "#fff" }} onClick={() => setSharing(true)}>
-              <Icon name="bolt" /> Share
-            </button>
-            <button className="btn btn-yellow" onClick={onClose}>
-              Back to Machine
-            </button>
+          <div style={{ width: "100%", maxWidth: 340, marginTop: 30 }} className="stack">
+            {onContinue ? (
+              <button ref={primaryRef} className="btn btn-yellow btn-lg" onClick={onContinue} data-testid="pb-continue">
+                {continueLabel}
+              </button>
+            ) : null}
+            <div className="btn-row">
+              <button
+                ref={onContinue ? undefined : primaryRef}
+                className="btn"
+                style={{ background: "rgba(255,255,255,.1)", color: "#fff", border: "1px solid rgba(255,255,255,.16)" }}
+                onClick={() => setSharing(true)}
+              >
+                <Icon name="share" /> Share
+              </button>
+              <button
+                className="btn"
+                style={{ background: "transparent", color: "rgba(255,255,255,.8)", border: "1px solid rgba(255,255,255,.16)" }}
+                onClick={onClose}
+              >
+                Back to machine
+              </button>
+            </div>
           </div>
-          {onContinue && (
-            <button
-              className="btn"
-              style={{ marginTop: 12, background: "transparent", color: "rgba(255,255,255,.75)", border: "none" }}
-              onClick={onContinue}
-            >
-              Keep training this machine →
-            </button>
-          )}
         </div>
         {sharing && <ShareSheet data={shareData} onClose={() => setSharing(false)} />}
       </>
@@ -131,7 +159,7 @@ export default function SetResultModal({
             <button className="btn btn-ghost" onClick={() => setSharing(true)}>
               <Icon name="bolt" /> Share
             </button>
-            <button className="btn btn-primary" onClick={onClose}>
+            <button ref={primaryRef} className="btn btn-primary" onClick={onClose}>
               Back to Machine
             </button>
           </div>

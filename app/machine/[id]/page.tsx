@@ -31,6 +31,7 @@ function MachinePageInner({ params }: { params: { id: string } }) {
   const machine = MACHINE_MAP[params.id];
   const searchParams = useSearchParams();
   const { session } = useAuth();
+  const uid = session?.user.id ?? null;
   const supabase = useMemo(() => createClient(), []);
 
   const modeParam = searchParams.get("mode");
@@ -39,7 +40,8 @@ function MachinePageInner({ params }: { params: { id: string } }) {
   const lockStatus = useMachineLock(machine, searchParams.get("tap"));
 
   const [mine, setMine] = useState<StatsRow | null>(null);
-  const [board, setBoard] = useState<LbRowType[]>([]);
+  const [board, setBoard] = useState<LbRowType[] | null>(null);
+  const [mineLoaded, setMineLoaded] = useState(false);
   const [sharing, setSharing] = useState<ShareCardData | null>(null);
 
   // Guarded on lockStatus === "unlocked" so a locked page (someone who
@@ -58,31 +60,53 @@ function MachinePageInner({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (!machine || lockStatus !== "unlocked") return;
-    fetchMachineLeaderboard(supabase, machine.id, mode || "").then(setBoard);
+    let active = true;
+    setBoard(null);
+    fetchMachineLeaderboard(supabase, machine.id, mode || "")
+      .then((rows) => active && setBoard(rows))
+      .catch(() => active && setBoard([]));
+    return () => {
+      active = false;
+    };
   }, [machine, mode, lockStatus, supabase]);
 
   useEffect(() => {
-    if (!machine || !session || lockStatus !== "unlocked") {
+    if (!machine || !uid || lockStatus !== "unlocked") {
       setMine(null);
+      setMineLoaded(!uid);
       return;
     }
+    let active = true;
+    setMineLoaded(false);
     supabase
       .from("machine_stats")
       .select("*")
-      .eq("uid", session.user.id)
+      .eq("uid", uid)
       .eq("machine_id", machine.id)
       .eq("mode", mode || "")
       .maybeSingle()
-      .then(({ data }) => setMine(data ?? null));
-  }, [machine, mode, session, lockStatus, supabase]);
+      .then(
+        ({ data }) => {
+          if (!active) return;
+          setMine(data ?? null);
+          setMineLoaded(true);
+        },
+        () => active && setMineLoaded(true)
+      );
+    return () => {
+      active = false;
+    };
+  }, [machine, mode, uid, lockStatus, supabase]);
 
   if (!machine || !view) return notFound();
-  if (lockStatus === "checking") return null;
+  if (lockStatus === "checking") return <MachineSkeleton />;
   if (lockStatus === "locked") return <LockedMachine machine={machine} />;
 
   const challenge = view.challenge;
   const gap = mine && challenge ? Math.max(0, challenge.weight - Number(mine.pb_weight)) : null;
-  const top3 = board.slice(0, 3);
+  const top3 = (board || []).slice(0, 3);
+  const logHref = `/machine/${machine.id}/log${mode ? `?mode=${mode}` : ""}`;
+  const lvl = mine ? calculateMachineLevel(mine.xp) : null;
 
   function openPrShare() {
     if (!mine) return;
@@ -101,213 +125,154 @@ function MachinePageInner({ params }: { params: { id: string } }) {
   return (
     <>
       <div className="topbar">
-        <Link href="/machines" className="iconbtn" aria-label="Back">
+        <Link href="/machines" className="iconbtn" aria-label="All machines">
           <Icon name="back" />
         </Link>
-        <div className="pill">
-          <Icon name="bolt" /> Machine #{machine.number}
-        </div>
-        <div style={{ width: 38 }} />
+        <div className="topbar-title">Machine {String(machine.number).padStart(2, "0")}</div>
+        {mine ? (
+          <button type="button" className="iconbtn" onClick={openPrShare} aria-label="Share your PB">
+            <Icon name="share" />
+          </button>
+        ) : (
+          <div style={{ width: 42 }} />
+        )}
       </div>
 
-      <div className="stack-lg">
-        <div className="hero-machine" style={{ padding: "18px 16px" }}>
-          <div className="glyph-lg" style={{ width: 36, height: 36 }}>
-            <Icon name="dumbbell" />
+      <div className="page stack-lg">
+        <section className="hero-machine" data-testid="machine-hero">
+          <div className="row" style={{ alignItems: "flex-start" }}>
+            <div className="eyebrow">You&rsquo;re at</div>
+            {lvl && <span className="pill" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.14)", color: "#fff" }}>Level {lvl.level}</span>}
           </div>
-          <div className="eyebrow" style={{ color: "rgba(255,255,255,.55)", fontSize: 10.5 }}>
-            You are at
+          <h1 style={{ fontSize: 28, margin: "6px 0 6px" }}>{view.label}</h1>
+          <p style={{ margin: 0, fontSize: 13 }}>{view.muscles.join(" · ")}</p>
+          <div className="hero-pb">
+            {mine ? (
+              <>
+                <div>
+                  <div className="eyebrow">Your best</div>
+                  <div className="big-num" style={{ fontSize: 34, marginTop: 6 }} data-testid="machine-pb">
+                    {mine.pb_weight}
+                    <span style={{ fontSize: 15, marginLeft: 3, opacity: 0.7 }}>{machine.unit}</span>
+                    <span style={{ opacity: 0.5, margin: "0 6px" }}>×</span>
+                    {mine.pb_reps}
+                  </div>
+                </div>
+                {challenge && gap !== null && (
+                  <div style={{ textAlign: "right" }}>
+                    <div className="eyebrow">Challenge</div>
+                    <div className="num" style={{ fontWeight: 700, marginTop: 6, color: gap > 0 ? "var(--accent-on-dark)" : "#9ff0c1" }}>
+                      {gap > 0 ? `${gap}${machine.unit} to go` : "Cleared ✓"}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : mineLoaded ? (
+              <div>
+                <div className="eyebrow">No PB yet</div>
+                <div style={{ marginTop: 6, fontWeight: 700 }}>Your first set here sets it.</div>
+              </div>
+            ) : (
+              <div className="skeleton" style={{ height: 40, width: "60%", opacity: 0.3 }} />
+            )}
           </div>
-          <h1 style={{ fontSize: 19, margin: "2px 0 3px" }}>{machine.name}</h1>
-          <div className="muted-on-dark" style={{ fontSize: 11.5, opacity: 0.75 }}>
-            {view.muscles.join(" · ")}
-          </div>
-        </div>
+        </section>
 
         {machine.dual && (
-          <div className="tabs">
-            <Link href={`/machine/${machine.id}?mode=pec-fly`} className={`tab${mode === "pec-fly" ? " active" : ""}`}>
+          <div className="tabs" role="tablist" aria-label="Side">
+            <Link role="tab" aria-selected={mode === "pec-fly"} href={`/machine/${machine.id}?mode=pec-fly`} className={`tab${mode === "pec-fly" ? " active" : ""}`}>
               Pec Fly
             </Link>
-            <Link href={`/machine/${machine.id}?mode=rear-delt`} className={`tab${mode === "rear-delt" ? " active" : ""}`}>
+            <Link role="tab" aria-selected={mode === "rear-delt"} href={`/machine/${machine.id}?mode=rear-delt`} className={`tab${mode === "rear-delt" ? " active" : ""}`}>
               Rear Delt
             </Link>
           </div>
         )}
 
-        {mine ? (
-          <div className="card dark-card" style={{ border: "none" }}>
-            <div className="row">
-              <div className="eyebrow accent">Welcome back 🔥</div>
-              <button
-                className="btn-sm btn-outline"
-                style={{ borderColor: "rgba(255,255,255,.3)", color: "#fff", padding: "6px 12px", fontSize: 12 }}
-                onClick={openPrShare}
-              >
-                <Icon name="bolt" /> Share PR
-              </button>
-            </div>
-            <div className="row" style={{ marginTop: 8, alignItems: "flex-end" }}>
-              <div>
-                <div className="muted-on-dark" style={{ fontSize: 11.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>
-                  Your PB
-                </div>
-                <div className="num" style={{ fontSize: 26, fontWeight: 700, color: "#fff" }}>
-                  {mine.pb_weight}
-                  {machine.unit} × {mine.pb_reps}
-                </div>
-              </div>
-              {challenge &&
-                (gap && gap > 0 ? (
-                  <div style={{ textAlign: "right" }}>
-                    <div className="muted-on-dark" style={{ fontSize: 11.5 }}>to challenge</div>
-                    <div className="num accent" style={{ fontWeight: 700 }}>
-                      {gap}
-                      {machine.unit}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="pill-yellow">Challenge cleared</div>
-                ))}
-            </div>
-          </div>
-        ) : (
-          <div className="empty" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20 }}>
-            <div className="glyph" style={{ width: 44, height: 44, margin: "0 auto 12px", color: "var(--ink-faint)" }}>
-              <Icon name="target" />
-            </div>
-            <div style={{ fontWeight: 700, color: "var(--ink)" }}>No PB yet</div>
-            <div style={{ fontSize: 13, marginTop: 2 }}>Your first set could change that. 🔥</div>
-          </div>
-        )}
-
-        <Link
-          href={`/machine/${machine.id}/log${mode ? `?mode=${mode}` : ""}`}
-          className="btn btn-yellow"
-          style={{ padding: 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 16 }}
-        >
-          <Icon name="flame" /> LOG YOUR SET
+        <Link href={logHref} className="btn btn-yellow btn-lg" data-testid="log-cta">
+          <Icon name="flame" /> Log a set
         </Link>
 
-        <div className="card">
-          <div className="row">
-            <h3 style={{ margin: 0, fontSize: 15 }}>
-              <Icon name="trophy" /> Top Performers
-            </h3>
-            <Link
-              href={`/leaderboard?tab=machines&machine=${machine.id}${mode ? `&mode=${mode}` : ""}`}
-              className="faint"
-              style={{ fontSize: 12, fontWeight: 700 }}
-            >
-              See all
-            </Link>
-          </div>
-          <div style={{ marginTop: 6 }}>
-            {top3.length ? (
-              top3.map((u) => (
-                <LbRow
-                  key={u.uid}
-                  rank={u.rank}
-                  name={u.display_name}
-                  avatarUrl={u.avatar_url}
-                  best={`${u.pb_weight}${machine.unit}×${u.pb_reps}`}
-                  isMe={session?.user.id === u.uid}
-                />
-              ))
-            ) : (
-              <div className="empty" style={{ padding: "16px 0" }}>
-                Be the first on the leaderboard.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {mine && (
-          <div className="card">
-            <div className="row">
-              <h3 style={{ margin: 0, fontSize: 15 }}>Your {view.label}</h3>
-              <span className="pill-yellow">LVL {mine.level}</span>
+        {mine && lvl && (
+          <section className="bento" aria-label="Your stats on this machine">
+            <div className="tile">
+              <div className="t-label">Sets</div>
+              <div className="t-value" style={{ fontSize: 26 }}>{mine.sets}</div>
+              <div className="t-sub">{mine.sessions} session{mine.sessions === 1 ? "" : "s"}</div>
             </div>
-            <div className="stat-grid" style={{ marginTop: 12 }}>
-              <div className="stat-tile">
-                <div className="v">{mine.sets}</div>
-                <div className="l">Sets logged</div>
+            <div className="tile">
+              <div className="t-label">Volume</div>
+              <div className="t-value" style={{ fontSize: 24 }}>
+                {Number(mine.volume).toLocaleString()}
+                <small>{machine.unit.toLowerCase()}</small>
               </div>
-              <div className="stat-tile">
-                <div className="v">{mine.sessions}</div>
-                <div className="l">Sessions</div>
+              <div className="t-sub">all time</div>
+            </div>
+            <div className="tile span-2" style={{ minHeight: 0 }}>
+              <div className="row" style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink-soft)" }}>
+                <span>Machine level {lvl.level}</span>
+                <span className="num">
+                  {lvl.into} / {lvl.need} XP
+                </span>
               </div>
-              <div className="stat-tile">
-                <div className="v">{Number(mine.volume).toLocaleString()}</div>
-                <div className="l">KG Volume</div>
+              <div className="progress-track" style={{ marginTop: 10 }}>
+                <div className="progress-fill" style={{ width: `${Math.min(100, Math.round((100 * lvl.into) / lvl.need))}%` }} />
               </div>
             </div>
-            {(() => {
-              const lvl = calculateMachineLevel(mine.xp);
-              return (
-                <div style={{ marginTop: 14 }}>
-                  <div className="row" style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-soft)" }}>
-                    <span>Machine Level</span>
-                    <span className="num">
-                      {lvl.into} / {lvl.need} XP
-                    </span>
-                  </div>
-                  <div className="progress-track" style={{ marginTop: 6 }}>
-                    <div className="progress-fill" style={{ width: `${Math.min(100, Math.round((100 * lvl.into) / lvl.need))}%` }} />
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
+          </section>
         )}
 
-        {challenge && (
-          <div className="card">
-            <div className="row">
-              <div className="eyebrow">
-                <Icon name="bolt" /> Machine Challenge
-              </div>
+        <section className="card">
+          <div className="section-head">
+            <h3>Top on this machine</h3>
+            <Link href={`/leaderboard?tab=machines&machine=${machine.id}${mode ? `&mode=${mode}` : ""}`}>See all</Link>
+          </div>
+          {board === null ? (
+            <div className="stack" aria-busy="true">
+              <div className="skeleton" style={{ height: 40 }} />
+              <div className="skeleton" style={{ height: 40 }} />
             </div>
-            <h3 style={{ margin: "8px 0 2px", fontSize: 17 }}>
+          ) : top3.length ? (
+            top3.map((u) => (
+              <LbRow
+                key={u.uid}
+                rank={u.rank}
+                name={u.display_name}
+                avatarUrl={u.avatar_url}
+                best={`${u.pb_weight}${machine.unit}×${u.pb_reps}`}
+                isMe={session?.user.id === u.uid}
+              />
+            ))
+          ) : (
+            <div className="empty" style={{ padding: "14px 0" }}>
+              Nobody&rsquo;s on the board yet — be the first.
+            </div>
+          )}
+        </section>
+
+        {challenge && (
+          <section className="card">
+            <div className="eyebrow">
+              <Icon name="bolt" /> Machine challenge
+            </div>
+            <h3 style={{ margin: "8px 0 10px", fontSize: 17 }}>
               Hit {challenge.weight}
               {machine.unit} × {challenge.reps}
             </h3>
-            {mine ? (
-              <>
-                <p className="muted" style={{ margin: "0 0 10px", fontSize: 13 }}>
-                  Your current:{" "}
-                  <b className="num" style={{ color: "var(--ink)" }}>
-                    {mine.pb_weight}
-                    {machine.unit} × {mine.pb_reps}
-                  </b>
-                </p>
-                <div className="progress-track">
-                  <div
-                    className="progress-fill"
-                    style={{ width: `${Math.min(100, Math.round((100 * Number(mine.pb_weight)) / challenge.weight))}%` }}
-                  />
-                </div>
-                <div className="row" style={{ marginTop: 8 }}>
-                  <span className="muted" style={{ fontSize: 12.5 }}>
-                    {Math.max(0, challenge.weight - Number(mine.pb_weight))}
-                    {machine.unit} to go
-                  </span>
-                  <Link href={`/machine/${machine.id}/log${mode ? `?mode=${mode}` : ""}`} className="btn btn-yellow btn-sm">
-                    Let&rsquo;s go 🔥
-                  </Link>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="muted" style={{ fontSize: 13, margin: "0 0 10px" }}>
-                  Log a set to start tracking this challenge.
-                </p>
-                <Link href={`/machine/${machine.id}/log${mode ? `?mode=${mode}` : ""}`} className="btn btn-yellow btn-sm">
-                  Let&rsquo;s go 🔥
-                </Link>
-              </>
-            )}
-          </div>
+            <div className="progress-track">
+              <div
+                className="progress-fill"
+                style={{ width: `${mine ? Math.min(100, Math.round((100 * Number(mine.pb_weight)) / challenge.weight)) : 0}%` }}
+              />
+            </div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 8 }}>
+              {mine
+                ? gap && gap > 0
+                  ? `You're at ${mine.pb_weight}${machine.unit} — ${gap}${machine.unit} to go.`
+                  : "Cleared. Respect."
+                : "Log a set to start tracking this challenge."}
+            </div>
+          </section>
         )}
 
         <div className="stack">
@@ -316,8 +281,8 @@ function MachinePageInner({ params }: { params: { id: string } }) {
               <Icon name="dumbbell" />
             </div>
             <div className="body">
-              <div className="title">How to use</div>
-              <div className="sub">Learn the correct setup and form</div>
+              <div className="title">How to use it</div>
+              <div className="sub">Setup, form and common mistakes</div>
             </div>
             <div className="chev">
               <Icon name="chev" />
@@ -328,8 +293,8 @@ function MachinePageInner({ params }: { params: { id: string } }) {
               <Icon name="star" />
             </div>
             <div className="body">
-              <div className="title">Give feedback</div>
-              <div className="sub">Help the gym improve</div>
+              <div className="title">Report an issue</div>
+              <div className="sub">Broken, dirty or hard to use? Tell the gym</div>
             </div>
             <div className="chev">
               <Icon name="chev" />
@@ -339,5 +304,15 @@ function MachinePageInner({ params }: { params: { id: string } }) {
       </div>
       {sharing && <ShareSheet data={sharing} onClose={() => setSharing(null)} />}
     </>
+  );
+}
+
+function MachineSkeleton() {
+  return (
+    <div className="page stack-lg" aria-busy="true" aria-label="Loading machine" style={{ paddingTop: 64 }}>
+      <div className="skeleton" style={{ height: 210, borderRadius: 28 }} />
+      <div className="skeleton" style={{ height: 60, borderRadius: 18 }} />
+      <div className="skeleton" style={{ height: 160, borderRadius: 22 }} />
+    </div>
   );
 }

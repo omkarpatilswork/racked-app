@@ -5,7 +5,6 @@ import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import ExerciseAnimation from "@/components/ExerciseAnimation";
-import LockedMachine from "@/components/LockedMachine";
 import { useMachineLock } from "@/lib/machineLock";
 import { MACHINE_MAP, resolveMachineView } from "@/lib/machines";
 
@@ -22,21 +21,23 @@ function GuidePageInner({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode");
   const view = machine ? resolveMachineView(machine, mode) : null;
+  // The guide is open to everyone (it's just instructions) -- only logging a
+  // set needs a tap. We still check the lock to decide where "back" goes.
   const lockStatus = useMachineLock(machine, searchParams.get("tap"));
 
   if (!machine || !view) return notFound();
-  if (lockStatus === "checking") return null;
-  if (lockStatus === "locked") return <LockedMachine machine={machine} />;
+  const backHref = lockStatus === "unlocked" ? `/machine/${machine.id}${mode ? `?mode=${mode}` : ""}` : "/machines";
 
   return (
     <>
       <div className="topbar">
-        <Link href={`/machine/${machine.id}${mode ? `?mode=${mode}` : ""}`} className="iconbtn" aria-label="Back">
+        <Link href={backHref} className="iconbtn" aria-label="Back">
           <Icon name="back" />
         </Link>
-        <div style={{ width: 38 }} />
+        <div className="topbar-title">How to use</div>
+        <div style={{ width: 42 }} />
       </div>
-      <div className="stack-lg">
+      <div className="page stack-lg">
         <div>
           <div className="eyebrow">How to use{machine.dual ? ` — ${view.label}` : ""}</div>
           <h1 style={{ fontSize: 24, margin: "6px 0 0" }}>{machine.name}</h1>
@@ -68,13 +69,25 @@ function GuidePageInner({ params }: { params: { id: string } }) {
             ))}
           </div>
         </div>
-        <div className="card" style={{ background: "color-mix(in srgb, var(--yellow) 16%, var(--surface))" }}>
-          <div className="eyebrow">Quick Tip</div>
+        <div className="card" style={{ background: "var(--accent-soft)", borderColor: "color-mix(in srgb, var(--yellow) 30%, transparent)" }}>
+          <div className="eyebrow accent">Quick tip</div>
           <div style={{ fontWeight: 700, marginTop: 4, fontSize: 14.5 }}>{view.tip}</div>
         </div>
-        <Link href={`/machine/${machine.id}/log${mode ? `?mode=${mode}` : ""}`} className="btn btn-yellow">
-          <Icon name="flame" /> Log your set
-        </Link>
+        {lockStatus === "unlocked" ? (
+          <Link href={`/machine/${machine.id}/log${mode ? `?mode=${mode}` : ""}`} className="btn btn-yellow btn-lg">
+            <Icon name="flame" /> Log a set
+          </Link>
+        ) : (
+          <div className="tapin-card">
+            <div className="tapin-icons" aria-hidden="true">
+              <Icon name="nfc" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <b>Ready to try it?</b>
+              <span>Tap this machine&rsquo;s sticker or scan its QR code to log a set.</span>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
