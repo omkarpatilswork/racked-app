@@ -13,6 +13,7 @@ npx playwright install chromium   # once
 ```bash
 node tests/sql/0009_account_basics.test.mjs
 node tests/sql/0009_photo_privacy.test.mjs
+node tests/sql/0010_staff_moderation.test.mjs
 ```
 
 They apply every file in `supabase/migrations/` in order to a throwaway
@@ -34,6 +35,7 @@ npx next dev -p 3111
 
 # terminal 2
 node tests/e2e/app.e2e.js
+node tests/e2e/staff.e2e.js
 ```
 
 `tests/e2e/mock.js` fakes a signed-in member and answers every Supabase call

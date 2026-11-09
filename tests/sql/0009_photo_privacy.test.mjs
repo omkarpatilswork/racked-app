@@ -31,7 +31,7 @@ for (const [f,sh] of [["priv",false],["pub",true],["rep",false]]) {
 }
 await q(`select public.add_pump_photo('pre','${A}/priv.jpg', false, null)`);
 await q(`select public.add_pump_photo('post','${A}/pub.jpg', true, null)`);
-await q(`select public.add_pump_photo('pre','${A}/rep.jpg', true, (current_date - 1))`);
+await q(`select public.add_pump_photo('pre','${A}/rep.jpg', true, ((now() at time zone public.app_timezone())::date - 1))`);
 // B reports rep while shared, then A makes it private
 const repId=(await q(`select id from public.pump_photos where path='${A}/rep.jpg'`))[0].id;
 await db.exec(`select set_config('app.uid','${B}',false)`); await q(`select public.report_photos(array[${repId}]::bigint[], 'spam')`);

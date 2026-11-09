@@ -235,6 +235,7 @@ const rpcCalls = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" +
     await page.getByRole("link", { name: "Home" }).click();
     await page.waitForSelector('[data-testid="resume-card"]');
     check("home offers 'You're at Lat Pulldown'", (await page.locator('[data-testid="resume-card"]').textContent()).includes("Lat Pulldown"));
+    await page.waitForFunction(() => /\d/.test(document.querySelector('[data-testid="tile-streak"] .t-value')?.textContent || ""), null, { timeout: 8000 }).catch(() => {});
     check("streak tile shows days", /\d/.test(await page.locator('[data-testid="tile-streak"] .t-value').textContent()));
     await ctx.close();
   }

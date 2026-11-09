@@ -8,6 +8,7 @@ import HomeFeed from "@/components/HomeFeed";
 import PumpCheckCard from "@/components/PumpCheckCard";
 import SignInSheet from "@/components/SignInSheet";
 import Avatar from "@/components/Avatar";
+import StaffNotices from "@/components/StaffNotices";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAttendance, fetchMyStats, fetchWeekSummary, overallFromStats, type WeekSummary } from "@/lib/data";
@@ -101,6 +102,8 @@ function SignedInHome() {
           {firstName ? `, ${firstName}` : ""}
         </h1>
       </header>
+
+      <StaffNotices supabase={supabase} uid={uid} />
 
       {active ? (
         <Link href={`/machine/${active.id}/log`} className="action-card resume-card" data-testid="resume-card">

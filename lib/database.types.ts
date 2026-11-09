@@ -73,6 +73,9 @@ export type Database = {
           is_pb: boolean;
           xp_gain: number;
           created_at: string;
+          // 0010: null = normal, "flagged" = waiting for staff review
+          review_status?: "flagged" | "approved" | null;
+          review_reason?: string | null;
         };
         Insert: NoWrite; // written only via the log_set() RPC
         Update: NoWrite;
@@ -155,6 +158,38 @@ export type Database = {
         Update: NoWrite;
         Relationships: [];
       };
+      // 0010_staff_moderation.sql
+      machine_limits: {
+        Row: {
+          machine_id: string;
+          max_weight: number;
+          max_reps: number;
+          jump_pct: number;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: NoWrite; // written only via admin_set_machine_limit()
+        Update: NoWrite;
+        Relationships: [];
+      };
+      member_notices: {
+        Row: {
+          id: number;
+          uid: string;
+          kind: "set_removed" | "member_machine_reset" | "machine_reset";
+          machine_id: string | null;
+          mode: string | null;
+          weight: number | null;
+          reps: number | null;
+          set_at: string | null;
+          reason: string | null;
+          created_at: string;
+          seen_at: string | null;
+        };
+        Insert: NoWrite; // written only by staff functions
+        Update: NoWrite;
+        Relationships: [];
+      };
     };
     Views: {
       v_overall_leaderboard: {
@@ -208,6 +243,8 @@ export type Database = {
           is_pb: boolean;
           xp_gain: number;
           created_at: string;
+          review_status?: "flagged" | "approved" | null;
+          review_reason?: string | null;
         };
         Relationships: [];
       };
@@ -394,6 +431,62 @@ export type Database = {
         Args: { p_id: number; p_hidden: boolean };
         Returns: undefined;
       };
+      // Staff moderation (0010_staff_moderation.sql)
+      admin_review_queue: {
+        Args: { p_limit?: number };
+        Returns: {
+          id: number;
+          uid: string;
+          display_name: string;
+          avatar_url: string | null;
+          machine_id: string;
+          mode: string | null;
+          weight: number;
+          reps: number;
+          is_pb: boolean;
+          review_reason: string | null;
+          created_at: string;
+          prev_best: number | null;
+          member_sets: number;
+        }[];
+      };
+      admin_approve_set: { Args: { p_id: number }; Returns: undefined };
+      admin_remove_set: { Args: { p_id: number; p_reason?: string | null }; Returns: undefined };
+      admin_reset_member_machine: {
+        Args: { p_uid: string; p_machine_id: string; p_reason?: string | null };
+        Returns: number;
+      };
+      admin_reset_machine_for_all: { Args: { p_machine_id: string; p_reason?: string | null }; Returns: number };
+      admin_set_machine_limit: {
+        Args: { p_machine_id: string; p_max_weight: number; p_max_reps?: number; p_jump_pct?: number };
+        Returns: undefined;
+      };
+      admin_member_search: {
+        Args: { p_query?: string; p_limit?: number };
+        Returns: {
+          id: string;
+          display_name: string;
+          avatar_url: string | null;
+          is_staff: boolean;
+          total_sets: number;
+          last_set_at: string | null;
+          flagged: number;
+          joined_at: string;
+        }[];
+      };
+      admin_activity: {
+        Args: { p_limit?: number };
+        Returns: {
+          id: number;
+          staff_name: string;
+          action: string;
+          target_name: string | null;
+          machine_id: string | null;
+          detail: string | null;
+          created_at: string;
+        }[];
+      };
+      mark_notices_seen: { Args: { p_ids: number[] }; Returns: undefined };
       admin_delete_set_log: {
         Args: { p_id: number };
         Returns: undefined;

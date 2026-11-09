@@ -1,7 +1,7 @@
 # Racked by Bijlee — Claude Code handoff
 
 > Claude Code reads this file automatically at the start of every session.
-> Last updated 2026-11-08 after the "2026 refresh" (design system, onboarding, settings, rest timer, PWA, migration 0009). Where it says "unconfirmed", check before assuming.
+> Last updated 2026-11-10 after the staff console + fair-play update (migration 0010), on top of the 2026 refresh (0009). Where it says "unconfirmed", check before assuming.
 
 ## 0. First thing to do each session
 
@@ -79,7 +79,16 @@
   - Delete account, only shown when 0009 has been run, with typed DELETE confirm.
 - `/welcome`: 3-step onboarding for new members (what it is, how to tap in, name + optional Instagram). `components/OnboardingGate.tsx` redirects a signed-in member whose `profiles.onboarded_at === null` here, with `?next=` back to where they were. **`undefined` (0009 not run) never redirects.** A failed Skip sets `sessionStorage["racked:welcome-skipped"]` so nobody gets trapped.
 - `/privacy`: a plain-language data summary. It's a summary, not a legal policy.
-- `/admin`, `/admin/photos`: staff only (`profiles.is_staff`).
+- `/admin`: the **staff console** (staff only, `profiles.is_staff`). Its tabs live in `components/admin/*` and are chosen with `?tab=`:
+  - **Overview**: KPIs, check-in methods, busiest machines, machine health.
+  - **Review**: the flagged-set queue (Approve / Remove with a reason), plus all recent sets with remove.
+  - **Members**: search, then a member's machines (reset that member on one machine) and their sets.
+  - **Machines**: per-machine limits (max kg, max reps, jump %), reset a machine for everyone (type RESET), and a danger zone to reset all data.
+  - **Feedback**: open/fixed/dismissed, CSV export.
+  - **Activity**: audit log of staff actions.
+
+  Removals and resets ask for a reason (`components/admin/ReasonSheet.tsx`, presets in `lib/fairplay.ts`), which the member sees as a note on Home (`components/StaffNotices.tsx`).
+- `/admin/photos`: reported-photo moderation (staff only).
 - `/tv`: public gym TV screen, first names only. `/auth/callback`: OAuth return.
 - Also: `app/error.tsx`, `app/global-error.tsx`, `app/not-found.tsx`, `app/manifest.ts` (installable PWA, icons in `public/icons/`), `app/robots.ts`, `public/sw.js` and `public/offline.html`.
 
@@ -114,18 +123,24 @@ Migrations live in `supabase/migrations/0001…0009`. They are the source of tru
 | 0006_home_feed | `post_kudos`, `feed_posts()`, `toggle_kudos()` |
 | 0007_pump_photos | `pump_photos`, `photo_kudos`, `photo_reports`, private bucket + policies, photo RPCs, `feed_photos()`, moderation |
 | 0008_instagram_handle | `profiles.instagram_handle`, `set_instagram_handle()`, handle in feed RPCs |
+| 0010_staff_moderation | Fair play. `machine_limits` (per-machine max kg/reps, jump %, `allowed_modes`; staff-editable). BEFORE INSERT trigger `_guard_set_log` on `set_logs` **refuses**: unknown machine/side (RK003), over max weight (RK001) or reps (RK002), weights not in 0.25 kg steps (RK004), two sets within 8 s or more than 30/machine or 120/day per member (RK005). It **flags** (`set_logs.review_status='flagged'`): +40% and ≥10 kg over the member's best from before today (or over their first set today on day one), or a first set at ≥70% of max. Existing over-max sets are flagged on run and whenever a limit is lowered. Staff RPCs: `admin_review_queue`, `admin_approve_set`, `admin_remove_set` (recomputes PB via `admin_delete_set_log`, cleans kudos, notifies), `admin_reset_member_machine`, `admin_reset_machine_for_all` (keeps check-ins), `admin_set_machine_limit`, `admin_member_search`, `admin_activity`. Tables `member_notices` (members read their own; `mark_notices_seen`) and `staff_actions` (audit, staff read) |
 | 0009_account_basics | `profiles.onboarded_at` (existing members backfilled on first run only), `update_my_profile(name, onboarded)`, `delete_my_account()`, a display-name length guard (≤80, NOT VALID), and a **photo privacy fix**: staff can only see photos that are shared, hidden or reported, never "Only me" ones (`_photo_has_report()`, new pump_photos + storage select policies) |
 
 ### Run state on Omi's Supabase
 
-0001–0008 were run, and the 0008 code is deployed: it's in commit `e130b00`. **0009 was delivered on 2026-11-08 and its run state is unconfirmed.** To check, run this in the Supabase SQL Editor:
+0001–0008 were run. The 2026 refresh code is deployed (commits `590e8b3` and `04bf162`). **The run state of 0009 and 0010 is unconfirmed.** To check, run this in the Supabase SQL Editor:
 
 ```sql
-select exists(select 1 from information_schema.columns
-       where table_name='profiles' and column_name='onboarded_at') as ran_0009;
+select
+  exists(select 1 from information_schema.columns where table_name='profiles' and column_name='onboarded_at') as ran_0009,
+  exists(select 1 from information_schema.tables where table_name='machine_limits') as ran_0010;
 ```
 
-The app is built to keep working if 0009 hasn't been run: no onboarding redirect, Settings falls back to a direct name update, and the delete button is hidden.
+The app keeps working without them:
+- **Without 0009:** no onboarding redirect, Settings falls back to a direct name update, and the delete button is hidden.
+- **Without 0010:** staff tabs show a "run 0010" notice, set removal falls back to the old delete, and the log screen uses the built-in limits.
+
+**Adding a new machine** now needs a `machine_limits` row (Staff → Machines → "Set limits", or SQL). Without one, logging on it is refused with RK003. For a dual machine, also set `allowed_modes`.
 
 ### Conventions (keep following these)
 
@@ -140,7 +155,7 @@ The app is built to keep working if 0009 hasn't been run: no onboarding redirect
 ## 6. The core loop: tap → log (app/machine/[id]/log/page.tsx)
 
 - It starts at **what you did last time** on that machine and side (`fetchLastSet`, reading your own `set_logs`), then your PB, then a machine default. Chips: Last, PB and ±4 steps.
-- The sticky CTA reads "Log set · 50KG × 10". It refuses while offline, and on error keeps the values and shows a toast.
+- The sticky CTA reads "Log set · 50KG × 10". It refuses while offline, and on error keeps the values and shows a toast. Database refusals (RK001–RK005) are shown word for word via `friendlyDbError()`. The weight stepper is capped at the machine's limit from `machine_limits`, and a "This machine goes up to X kg" hint is shown.
 - After each set: a haptic, a toast, the set added to "This session", and the **rest timer** (`components/RestTimer.tsx`). The timer counts down from an end timestamp, so it survives the screen locking. It holds a screen wake lock while running (re-acquired when the page becomes visible again), buzzes at the end, and offers +30s and Skip. Its length is stored per device (`racked:rest-seconds`, 0 = off).
 - A PB opens the full-screen celebration (`SetResultModal`): "Keep going" is the primary, focused button; Share and Back to machine are secondary.
 - Effects depend on `session?.user.id`, not the session object. `AuthProvider` also keeps the same session object when auth-js re-emits `SIGNED_IN` on tab focus, so coming back to the app never resets what you typed.
@@ -166,6 +181,8 @@ See `tests/README.md`. In short:
 
 - `tests/sql/*.test.mjs`: apply all migrations to in-memory Postgres (PGlite, with stubs for `auth` and `storage`) and check behaviour as different users, including RLS via `set role authenticated`. Latest run: 27 + 8 passing.
 - `tests/safeNext.test.ts` (`npx tsx`): 15 redirect cases.
+- `tests/sql/0010_staff_moderation.test.mjs`: 63 checks on refusals, flagging (including step-climbing), staff tools, notices, RLS, backfill, kudos cleanup and idempotency.
+- `tests/e2e/staff.e2e.js`: 81 checks on the staff console (every tab, reason sheets, typed confirms, the "0010 not run" fallbacks), member notes and the over-limit message, plus axe and 360px in both themes.
 - `tests/e2e/app.e2e.js` (Playwright): `mock.js` fakes a signed-in session (cookie `sb-placeholder-auth-token` = `base64-` + base64url session JSON) and answers every Supabase REST/RPC/storage call. It covers onboarding, the log flow, rest timer, PB, offline, settings, delete, leaderboard, locked machine, headers/manifest/sw, axe and the 360px width check. Latest run: 101/101. Needs `npm i --no-save playwright @electric-sql/pglite axe-core` and a dev server on port 3111 with a placeholder `.env.local`.
 - Lessons: Next's route announcer also has `role="alert"`, so scope selectors to test ids. Mock machine ids must exist in `lib/machines.ts`. Playwright's `setOffline` doesn't affect service-worker fetches.
 
@@ -178,6 +195,8 @@ See `tests/README.md`. In short:
 - Admin: no button to clear a member's Instagram handle; staff can edit `profiles` in the Supabase table editor.
 - Ideas Omi has raised: video on the feed (only photos are built), streak reminders/notifications, private-only Strava (Strava's terms forbid showing one member's data to others), multi-gym support.
 - Members can still edit their own `profiles` row directly via RLS (an older policy). The 0009 length guard limits the damage; consider column-level grants later.
+- **Fair play:** flagged sets still count on leaderboards, the feed and the TV until staff remove them. Omi chose this over "hold until approved". To switch, add `coalesce(review_status,'') <> 'flagged'` to `leaderboard_overall`/`leaderboard_machine` (0003), `tv_boards`/`tv_activity` (0005) and `feed_posts` (0008), and stop `log_set` from raising the PB for flagged sets.
+- Staff can't ban a member yet (not chosen this round).
 
 ## 11. How Omi starts a Claude Code session
 
@@ -192,4 +211,5 @@ See `tests/README.md`. In short:
 3. Home feed with kudos (0006) and pre/post pump photos with moderation (0007).
 4. Optional photos, the Strava research (decided against), and the Instagram handle (0008, commit `e130b00`).
 5. README restyle by Claude Code (commits `3f14c07`, `756f300`).
+7. **Staff console + fair play (Nov 10)**: tabbed staff page, review queue, member/machine resets, editable limits, member notes, activity log, migration 0010.
 6. **2026 refresh (Nov 8)**: dark-first design system, floating nav with a Machines tab, bento Home, a faster log loop (last set, rest timer, haptics, sticky CTA), onboarding, Settings (name/handle/theme/rest/vibration/sign out/delete), privacy page, PWA + offline page, skeletons and error states, security headers, open-redirect fix, self-hosted fonts, and migration 0009 including the staff photo-privacy fix.

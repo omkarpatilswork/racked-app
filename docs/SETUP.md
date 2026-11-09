@@ -28,10 +28,10 @@ You'll create two free accounts if you don't already have them: **Supabase** and
 ### 1. Create the Supabase project
 
 1. Go to [supabase.com](https://supabase.com), sign up, and create a new project. Pick a strong database password and save it somewhere.
-2. Once the project is ready, open **SQL Editor** and run every migration file in `supabase/migrations/` in number order (0001 → 0009) — paste the contents of each and click Run:
+2. Once the project is ready, open **SQL Editor** and run every migration file in `supabase/migrations/` in number order (0001 → 0010) — paste the contents of each and click Run:
    - `supabase/migrations/0001_init.sql`
    - `supabase/migrations/0002_leaderboard_views.sql`
-   - … through `supabase/migrations/0009_account_basics.sql`
+   - … through `supabase/migrations/0010_staff_moderation.sql`
 3. Open **Project Settings → API**. You'll need three values from this page in a minute: **Project URL**, the **`anon` `public`** key, and the **`service_role`** key (keep the service role key secret — never put it in `NEXT_PUBLIC_*`).
 
 ### 2. Turn on Google sign-in

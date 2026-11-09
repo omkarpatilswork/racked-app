@@ -48,6 +48,39 @@ function defaultState() {
     logResult: (w, r) => ({ isPb: w > 55, weight: w, reps: r, pbWeight: Math.max(55, w), pbReps: w > 55 ? r : 10, previousPb: { weight: 55, reps: 10 }, xpGain: w > 55 ? 60 : 20, totalXp: 1340, totalSets: 74, level: 4 }),
     calls: [],
     failRpc: {},
+    missingRpc: {}, // name -> true: behave as if migration 0010 isn't run
+    limits: [
+      { machine_id: "lat-pulldown-01", max_weight: 150, max_reps: 50, jump_pct: 40, updated_at: iso(1000), updated_by: null },
+      { machine_id: "chest-press-02", max_weight: 150, max_reps: 50, jump_pct: 40, updated_at: iso(1000), updated_by: null },
+      { machine_id: "leg-press-08", max_weight: 400, max_reps: 50, jump_pct: 40, updated_at: iso(1000), updated_by: null },
+    ],
+    notices: [],
+    queue: [
+      { id: 501, uid: "u5", display_name: "Kabir S", avatar_url: null, machine_id: "lat-pulldown-01", mode: null, weight: 140, reps: 10, is_pb: true, review_reason: "Jumped from 50 kg to 140 kg (+180%)", created_at: iso(20), prev_best: 50, member_sets: 6 },
+      { id: 502, uid: "u4", display_name: "Neha Kulkarni", avatar_url: null, machine_id: "leg-press-08", mode: null, weight: 340, reps: 8, is_pb: true, review_reason: "First set on this machine at 340 kg, near its 400 kg max", created_at: iso(90), prev_best: null, member_sets: 1 },
+    ],
+    adminSets: [
+      { id: 501, uid: "u5", display_name: "Kabir S", avatar_url: null, machine_id: "lat-pulldown-01", mode: null, weight: 140, reps: 10, volume: 1400, is_pb: true, xp_gain: 60, created_at: iso(20), review_status: "flagged", review_reason: "Jumped" },
+      { id: 600, uid: "u1", display_name: "Asha Rao", avatar_url: null, machine_id: "lat-pulldown-01", mode: null, weight: 60, reps: 8, volume: 480, is_pb: false, xp_gain: 10, created_at: iso(30), review_status: null, review_reason: null },
+      { id: 601, uid: "u2", display_name: "Rahul Mehta", avatar_url: null, machine_id: "leg-press-08", mode: null, weight: 140, reps: 10, volume: 1400, is_pb: false, xp_gain: 10, created_at: iso(200), review_status: null, review_reason: null },
+    ],
+    members: [
+      { id: "u1", display_name: "Asha Rao", avatar_url: null, is_staff: false, total_sets: 120, last_set_at: iso(30), flagged: 0, joined_at: iso(60 * 24 * 60) },
+      { id: "u5", display_name: "Kabir S", avatar_url: null, is_staff: false, total_sets: 18, last_set_at: iso(20), flagged: 1, joined_at: iso(60 * 24 * 10) },
+    ],
+    memberStats: [
+      { uid: "u5", machine_id: "lat-pulldown-01", mode: "", pb_weight: 140, pb_reps: 10, sets: 6, sessions: 3, volume: 4000, xp: 200, level: 2, last_date: day(0), sets_today: 1, updated_at: iso(20) },
+    ],
+    activity: [
+      { id: 1, staff_name: "Omi Patil", action: "set_limit", target_name: null, machine_id: "leg-press-08", detail: "max 400 kg, 50 reps, flag jumps over 40%", created_at: iso(300) },
+    ],
+    taps: [
+      { machine_id: "lat-pulldown-01", source: "nfc" }, { machine_id: "lat-pulldown-01", source: "qr" }, { machine_id: "leg-press-08", source: "nfc" },
+    ],
+    feedback: [
+      { id: 71, uid: "u1", display_name: "Asha", machine_id: "leg-press-08", rating: 2, issues: ["stack"], comment: "Pin sticks at 100", status: "open", created_at: iso(400) },
+      { id: 72, uid: "u2", display_name: "Rahul", machine_id: "rowing-03", rating: 4, issues: ["clean"], comment: null, status: "open", created_at: iso(800) },
+    ],
   };
 }
 
@@ -73,12 +106,31 @@ async function setup(ctx, page, state, base) {
       const name = p.slice(4);
       const body = JSON.parse(req.postData() || "{}");
       if (state.failRpc[name]) return json(r, { message: "boom" }, 500);
+      if (state.missingRpc[name]) return json(r, { code: "PGRST202", message: "Could not find the function" }, 404);
+      const staffOnly = () => json(r, { code: "42501", message: "staff only" }, 403);
       switch (name) {
+        case "admin_review_queue": return state.profile.is_staff ? json(r, state.queue) : staffOnly();
+        case "admin_approve_set": state.queue = state.queue.filter((x) => x.id !== body.p_id); state.adminSets.forEach((x) => { if (x.id === body.p_id) x.review_status = "approved"; }); return json(r, null);
+        case "admin_remove_set": state.queue = state.queue.filter((x) => x.id !== body.p_id); state.adminSets = state.adminSets.filter((x) => x.id !== body.p_id); return json(r, null);
+        case "admin_delete_set_log": state.queue = state.queue.filter((x) => x.id !== body.p_id); state.adminSets = state.adminSets.filter((x) => x.id !== body.p_id); return json(r, null);
+        case "admin_reset_member_machine": { const n = state.adminSets.filter((x) => x.uid === body.p_uid && x.machine_id === body.p_machine_id).length; state.memberStats = state.memberStats.filter((x) => !(x.uid === body.p_uid && x.machine_id === body.p_machine_id)); return json(r, n || 6); }
+        case "admin_reset_machine_for_all": return json(r, 3);
+        case "admin_set_machine_limit": { const l = state.limits.find((x) => x.machine_id === body.p_machine_id); if (l) Object.assign(l, { max_weight: body.p_max_weight, max_reps: body.p_max_reps, jump_pct: body.p_jump_pct }); return json(r, null); }
+        case "admin_member_search": return json(r, state.members.filter((m) => !body.p_query || m.display_name.toLowerCase().includes(String(body.p_query).toLowerCase())));
+        case "admin_activity": return json(r, state.activity);
+        case "admin_delete_feedback": state.feedback = state.feedback.filter((f) => f.id !== body.p_id); return json(r, null);
+        case "admin_clear_feedback": state.feedback = []; return json(r, null);
+        case "admin_reset_all_data": return json(r, null);
+        case "mark_notices_seen": state.notices.forEach((n) => { if ((body.p_ids || []).includes(n.id)) n.seen_at = new Date().toISOString(); }); return json(r, null);
         case "feed_posts": return json(r, state.posts);
         case "feed_photos": return json(r, state.feedPhotos);
         case "leaderboard_overall": return json(r, state.overall);
         case "leaderboard_machine": return json(r, state.machineBoard.filter((x) => x.machine_id === body.p_machine_id));
-        case "log_set": return json(r, state.logResult(body.p_weight, body.p_reps));
+        case "log_set": {
+          const lim = state.limits.find((x) => x.machine_id === body.p_machine_id);
+          if (lim && body.p_weight > lim.max_weight) return json(r, { code: "RK001", message: `That's more than this machine goes up to (${lim.max_weight} kg max). Check the weight and try again.` }, 400);
+          return json(r, state.logResult(body.p_weight, body.p_reps));
+        }
         case "toggle_kudos": return json(r, { count: 4, mine: true });
         case "set_instagram_handle": state.profile.instagram_handle = (body.p_handle || "").replace(/^@/, "").toLowerCase() || null; return json(r, state.profile.instagram_handle);
         case "update_my_profile": {
@@ -94,6 +146,9 @@ async function setup(ctx, page, state, base) {
       if (req.method() === "PATCH") { Object.assign(state.profile, JSON.parse(req.postData() || "{}")); return json(r, state.profile); }
       return json(r, single ? state.profile : [state.profile]);
     }
+    if (p === "machine_stats" && (u.searchParams.get("uid") || "").replace("eq.", "") !== UID && u.searchParams.get("uid")) {
+      return json(r, state.memberStats.filter((x) => x.uid === u.searchParams.get("uid").replace("eq.", "")));
+    }
     if (p === "machine_stats") {
       const mid = (u.searchParams.get("machine_id") || "").replace("eq.", "");
       const rows = mid ? state.stats.filter((s) => s.machine_id === mid) : state.stats;
@@ -101,6 +156,24 @@ async function setup(ctx, page, state, base) {
     }
     if (p === "attendance") return json(r, req.method() === "GET" ? state.attendance : []);
     if (p === "pump_photos") return json(r, state.photos);
+    const eq = (k) => { const v = u.searchParams.get(k); return v && v.startsWith("eq.") ? v.slice(3) : null; };
+    const countResp = (n) => r.fulfill({ status: 200, contentType: "application/json", body: "", headers: { "content-range": `*/${n}`, "access-control-expose-headers": "content-range" } });
+    if (p === "machine_limits") return state.missingTables?.machine_limits ? json(r, { code: "42P01", message: "missing" }, 404) : json(r, state.limits);
+    if (p === "member_notices") return json(r, state.notices.filter((n) => !n.seen_at));
+    if (p === "tap_events") return json(r, state.taps);
+    if (p === "feedback") {
+      if (req.method() === "PATCH") { const id = Number(eq("id")); const patch = JSON.parse(req.postData() || "{}"); state.feedback.forEach((f) => { if (f.id === id) Object.assign(f, patch); }); return json(r, []); }
+      const st = eq("status"); const mid = eq("machine_id");
+      return json(r, state.feedback.filter((f) => (!st || f.status === st) && (!mid || f.machine_id === mid)));
+    }
+    if (p === "v_admin_set_logs") {
+      const uidF = eq("uid"); const mid = eq("machine_id");
+      return json(r, state.adminSets.filter((x) => (!uidF || x.uid === uidF) && (!mid || x.machine_id === mid)));
+    }
+    if (p === "set_logs" && req.method() === "HEAD") {
+      if (eq("review_status") === "flagged") return countResp(state.queue.length);
+      return countResp(state.adminSets.length);
+    }
     if (p === "set_logs") {
       const mid = (u.searchParams.get("machine_id") || "").replace("eq.", "");
       const rows = mid ? state.setLogs.filter((s) => s.machine_id === mid) : state.setLogs;

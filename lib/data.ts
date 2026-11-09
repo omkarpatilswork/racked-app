@@ -608,3 +608,128 @@ export async function adminSetPhotoHidden(supabase: Client, id: number, hidden: 
   const { error } = await supabase.rpc("admin_set_photo_hidden", { p_id: id, p_hidden: hidden });
   if (error) throw error;
 }
+
+// ---------------------------------------------------------------------------
+// Fair play: machine limits, staff moderation and notes to members
+// (see supabase/migrations/0010_staff_moderation.sql).
+// ---------------------------------------------------------------------------
+
+export type MachineLimit = { max_weight: number; max_reps: number; jump_pct: number; updated_at?: string };
+
+// All machine limits, keyed by machine id. Empty if 0010 hasn't been run.
+export async function fetchMachineLimits(supabase: Client): Promise<Record<string, MachineLimit>> {
+  const { data, error } = await supabase.from("machine_limits").select("*");
+  if (error || !data) return {};
+  return Object.fromEntries(
+    data.map((r) => [
+      r.machine_id,
+      { max_weight: Number(r.max_weight), max_reps: Number(r.max_reps), jump_pct: Number(r.jump_pct), updated_at: r.updated_at },
+    ])
+  );
+}
+
+// Errors the database raises on purpose for members (e.g. a weight above the
+// machine's max) carry a plain-English message we can show as-is.
+export function friendlyDbError(err: unknown): string | null {
+  const e = err as { code?: string; message?: string } | null;
+  // RK001 over max weight, RK002 over max reps, RK003 unknown machine/side,
+  // RK004 odd weight step, RK005 too fast / daily cap (0010_staff_moderation.sql)
+  if (e && e.code && /^RK00[1-5]$/.test(e.code) && e.message) return e.message;
+  return null;
+}
+
+export type ReviewItem = Database["public"]["Functions"]["admin_review_queue"]["Returns"][number];
+export type StaffMember = Database["public"]["Functions"]["admin_member_search"]["Returns"][number];
+export type StaffActivity = Database["public"]["Functions"]["admin_activity"]["Returns"][number];
+export type MemberNotice = Database["public"]["Tables"]["member_notices"]["Row"];
+
+export async function adminReviewQueue(supabase: Client): Promise<ReviewItem[]> {
+  const { data, error } = await supabase.rpc("admin_review_queue", { p_limit: 200 });
+  if (error) throw error;
+  return (data || []).map((r) => ({ ...r, id: Number(r.id), weight: Number(r.weight), prev_best: r.prev_best == null ? null : Number(r.prev_best) }));
+}
+
+export async function adminApproveSet(supabase: Client, id: number) {
+  const { error } = await supabase.rpc("admin_approve_set", { p_id: id });
+  if (error) throw error;
+}
+
+export async function adminRemoveSet(supabase: Client, id: number, reason: string | null) {
+  const { error } = await supabase.rpc("admin_remove_set", { p_id: id, p_reason: reason });
+  if (error) throw error;
+}
+
+export async function adminResetMemberMachine(supabase: Client, uid: string, machineId: string, reason: string | null) {
+  const { data, error } = await supabase.rpc("admin_reset_member_machine", { p_uid: uid, p_machine_id: machineId, p_reason: reason });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+export async function adminResetMachineForAll(supabase: Client, machineId: string, reason: string | null) {
+  const { data, error } = await supabase.rpc("admin_reset_machine_for_all", { p_machine_id: machineId, p_reason: reason });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+export async function adminSetMachineLimit(supabase: Client, machineId: string, limit: MachineLimit) {
+  const { error } = await supabase.rpc("admin_set_machine_limit", {
+    p_machine_id: machineId,
+    p_max_weight: limit.max_weight,
+    p_max_reps: limit.max_reps,
+    p_jump_pct: limit.jump_pct,
+  });
+  if (error) throw error;
+}
+
+export async function adminMemberSearch(supabase: Client, query: string): Promise<StaffMember[]> {
+  const { data, error } = await supabase.rpc("admin_member_search", { p_query: query, p_limit: 40 });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function adminActivity(supabase: Client): Promise<StaffActivity[]> {
+  const { data, error } = await supabase.rpc("admin_activity", { p_limit: 80 });
+  if (error) throw error;
+  return data || [];
+}
+
+// One member's recent sets and per-machine stats (staff can read every row).
+export async function fetchMemberSets(supabase: Client, uid: string, limit = 60) {
+  const { data, error } = await supabase.from("v_admin_set_logs").select("*").eq("uid", uid).limit(limit);
+  if (error) throw error;
+  return (data || []) as SetLogRow[];
+}
+
+export async function fetchMemberStats(supabase: Client, uid: string) {
+  const { data, error } = await supabase.from("machine_stats").select("*").eq("uid", uid);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function fetchFlaggedCount(supabase: Client): Promise<number> {
+  const { count, error } = await supabase
+    .from("set_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("review_status", "flagged");
+  if (error) return 0;
+  return count ?? 0;
+}
+
+// Notes from the gym staff the member hasn't seen yet.
+export async function fetchMyNotices(supabase: Client, uid: string): Promise<MemberNotice[]> {
+  const { data, error } = await supabase
+    .from("member_notices")
+    .select("*")
+    .eq("uid", uid)
+    .is("seen_at", null)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  if (error || !data) return [];
+  return data;
+}
+
+export async function markNoticesSeen(supabase: Client, ids: number[]) {
+  if (!ids.length) return;
+  const { error } = await supabase.rpc("mark_notices_seen", { p_ids: ids });
+  if (error) throw error;
+}

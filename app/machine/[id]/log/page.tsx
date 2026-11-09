@@ -10,7 +10,7 @@ import SetResultModal from "@/components/SetResultModal";
 import LockedMachine from "@/components/LockedMachine";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
-import { fetchLastSet, logSet, type LastSet, type LogSetResult } from "@/lib/data";
+import { fetchLastSet, fetchMachineLimits, friendlyDbError, logSet, type LastSet, type LogSetResult, type MachineLimit } from "@/lib/data";
 import RestTimer from "@/components/RestTimer";
 import { haptic } from "@/lib/haptics";
 import { timeAgo } from "@/lib/time";
@@ -78,9 +78,12 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   // are actually loaded — every machine, not just Lat Pulldown).
   const weightStep = machine?.weightStep ?? (machine?.unit === "KG" ? 5 : 1);
   const weightMin = machine?.minWeight ?? 0;
-  const weightMax = machine?.maxWeight;
+  // The gym's real limit for this machine (set by staff, enforced by the
+  // database) wins over the built-in default when we have it.
+  const [limit, setLimit] = useState<MachineLimit | null>(null);
+  const weightMax = limit?.max_weight ?? machine?.maxWeight;
   const repsMin = machine?.minReps ?? 1;
-  const repsMax = machine?.maxReps;
+  const repsMax = limit?.max_reps ?? machine?.maxReps;
 
   function clampTo(v: number, lo: number, hi?: number) {
     if (v < lo) v = lo;
@@ -113,10 +116,20 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
         .maybeSingle()
         .then(({ data }) => data ?? null, () => null),
       fetchLastSet(supabase, uid, machine.id, mode).catch(() => null),
-    ]).then(([data, last]) => {
+      fetchMachineLimits(supabase).catch(() => ({}) as Record<string, MachineLimit>),
+    ]).then(([data, last, limits]) => {
       if (!active) return;
       setMine(data);
       setLastSet(last);
+      const lim = limits[machine.id] ?? null;
+      setLimit(lim);
+      const wMax = lim?.max_weight ?? weightMax;
+      const rMax = lim?.max_reps ?? repsMax;
+      // even if they've already started editing, never sit above the real max
+      if (lim) {
+        setWeight((w) => Math.min(w, lim.max_weight));
+        setReps((r) => Math.min(r, lim.max_reps));
+      }
       if (userEditedRef.current) return;
       // Start from what you did last time; otherwise your PB; otherwise a
       // sensible starting weight for this machine.
@@ -126,8 +139,8 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
           ? Number(data.pb_weight)
           : roundToStep(machine.startWeight ?? Math.round(view.challenge.weight * 0.7), weightStep);
       const startR = last ? last.reps : data ? data.pb_reps : machine.startReps ?? 10;
-      setWeight(clampTo(startW, weightMin, weightMax));
-      setReps(clampTo(startR, repsMin, repsMax));
+      setWeight(clampTo(startW, weightMin, wMax));
+      setReps(clampTo(startR, repsMin, rMax));
     });
     return () => {
       active = false;
@@ -209,7 +222,7 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
       }
     } catch (err) {
       console.error(err);
-      toast("Couldn't save that set — check your connection and tap Log again");
+      toast(friendlyDbError(err) ?? "Couldn't save that set — check your connection and tap Log again");
     } finally {
       setSaving(false);
     }
@@ -280,6 +293,11 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
             ...(displayPb ? [{ label: `PB ${displayPb.weight}${machine.unit}`, value: displayPb.weight }] : []),
           ]}
         />
+        {limit && (
+          <p className="faint center" style={{ fontSize: 12, margin: "-8px 0 0" }} data-testid="limit-hint">
+            This machine goes up to {limit.max_weight} kg
+          </p>
+        )}
         <Stepper
           label="Reps"
           unit="reps"
