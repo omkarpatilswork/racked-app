@@ -99,6 +99,15 @@ https://your-domain.com/machine/lat-pulldown-01
 
 The 9 machine ids are in `lib/machines.ts` (`MACHINE_IDS`). The dual-mode Pec Fly / Rear Delt machine also takes a `?mode=pec-fly` or `?mode=rear-delt` query param if you want a sticker to default to one side.
 
+### 7. Put the gym TV on
+
+1. On the TV (smart-TV browser, Fire Stick, Chromecast with a browser, or a laptop on HDMI), open `https://<your-site>/tv`.
+2. Press **F** (or double-click) for full screen. **Space** pauses, **← →** step through slides.
+3. Set the TV's screensaver/sleep to "never" (the page also asks the browser to keep the screen awake).
+4. Optional: `/tv?period=week` for this week's boards, `/tv?interval=10` for slower leaderboard slides.
+
+The QR code on the TV opens `/join` on the member's phone: live numbers for the day, one-tap Google sign-in, then they tap any machine to log.
+
 ## Project structure
 
 ```

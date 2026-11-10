@@ -47,7 +47,8 @@ It's also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-b
 | **XP, levels and streaks** | XP per set, a level per machine, attendance streaks and a calendar of the days you trained |
 | **Home feed** | A feed of sets and new best lifts, grouped by visit, with kudos |
 | **Progress photos** | Optional before-and-after photos, with kudos and reporting for moderation |
-| **Gym TV mode** | `/tv` cycles through the leaderboards full screen on the gym's TV, first names only |
+| **Gym TV mode** | `/tv` turns the gym's TV into a live recruiting screen: a scan-to-join QR, today's kg moved, podium leaderboards with "think you can beat this?", what muscle groups the floor is hitting. First names only |
+| **Join page** | `/join` is where the TV's QR lands: today's live numbers, a lift to beat, one-tap Google sign-in |
 | **Machine guides** | A form guide with animation for each machine, and a way to report problems with the machine |
 | **Share cards** | Strava-style cards for a new best lift or a leaderboard rank |
 | **Admin tools** | A staff dashboard for machines, tap analytics and photo moderation |
@@ -137,7 +138,8 @@ racked-app/
 │   ├── settings/            name, Instagram, theme, rest timer, sign out, delete account
 │   ├── welcome/             first-time onboarding
 │   ├── privacy/             plain-language data summary
-│   ├── tv/                  full-screen gym TV mode
+│   ├── tv/                  full-screen gym TV slideshow (join QR, totals, boards)
+│   ├── join/                where the TV's QR code lands
 │   └── admin/               staff console (review queue, members, machine limits, feedback, activity) and photo moderation
 ├── components/              feed cards, share sheet, photo upload, …
 ├── lib/                     machines, gamification, streaks, share cards

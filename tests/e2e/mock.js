@@ -55,6 +55,28 @@ function defaultState() {
       { machine_id: "leg-press-08", max_weight: 400, max_reps: 50, jump_pct: 40, updated_at: iso(1000), updated_by: null },
     ],
     notices: [],
+    tvBoards: [
+      { machine_id: "lat-pulldown-01", mode: "", rank: 1, name: "Asha", pb_weight: 60, pb_reps: 8, sets: 4 },
+      { machine_id: "lat-pulldown-01", mode: "", rank: 2, name: "Omi", pb_weight: 55, pb_reps: 10, sets: 3 },
+      { machine_id: "lat-pulldown-01", mode: "", rank: 3, name: "Rahul", pb_weight: 50, pb_reps: 12, sets: 5 },
+      { machine_id: "lat-pulldown-01", mode: "", rank: 4, name: "Neha", pb_weight: 35, pb_reps: 10, sets: 3 },
+      { machine_id: "lat-pulldown-01", mode: "", rank: 5, name: "Kabir", pb_weight: 30, pb_reps: 12, sets: 2 },
+      { machine_id: "leg-press-08", mode: "", rank: 1, name: "Rahul", pb_weight: 140, pb_reps: 10, sets: 5 },
+      { machine_id: "leg-press-08", mode: "", rank: 2, name: "Asha", pb_weight: 120, pb_reps: 10, sets: 4 },
+      { machine_id: "chest-press-02", mode: "", rank: 1, name: "Omi", pb_weight: 45, pb_reps: 8, sets: 3 },
+      { machine_id: "pec-fly-rear-delt-04", mode: "pec-fly", rank: 1, name: "Neha", pb_weight: 30, pb_reps: 12, sets: 3 },
+    ],
+    tvActivity: [
+      { person: 1, machine_id: "lat-pulldown-01", mode: "", sets: 4, volume: 1900, pbs: 1 },
+      { person: 1, machine_id: "leg-press-08", mode: "", sets: 4, volume: 4800, pbs: 0 },
+      { person: 2, machine_id: "lat-pulldown-01", mode: "", sets: 3, volume: 1650, pbs: 0 },
+      { person: 2, machine_id: "chest-press-02", mode: "", sets: 3, volume: 1080, pbs: 1 },
+      { person: 3, machine_id: "lat-pulldown-01", mode: "", sets: 5, volume: 3000, pbs: 1 },
+      { person: 3, machine_id: "leg-press-08", mode: "", sets: 5, volume: 7000, pbs: 1 },
+      { person: 4, machine_id: "lat-pulldown-01", mode: "", sets: 3, volume: 1050, pbs: 0 },
+      { person: 4, machine_id: "pec-fly-rear-delt-04", mode: "pec-fly", sets: 3, volume: 1080, pbs: 0 },
+      { person: 5, machine_id: "lat-pulldown-01", mode: "", sets: 2, volume: 720, pbs: 0 },
+    ],
     queue: [
       { id: 501, uid: "u5", display_name: "Kabir S", avatar_url: null, machine_id: "lat-pulldown-01", mode: null, weight: 140, reps: 10, is_pb: true, review_reason: "Jumped from 50 kg to 140 kg (+180%)", created_at: iso(20), prev_best: 50, member_sets: 6 },
       { id: 502, uid: "u4", display_name: "Neha Kulkarni", avatar_url: null, machine_id: "leg-press-08", mode: null, weight: 340, reps: 8, is_pb: true, review_reason: "First set on this machine at 340 kg, near its 400 kg max", created_at: iso(90), prev_best: null, member_sets: 1 },
@@ -122,6 +144,8 @@ async function setup(ctx, page, state, base) {
         case "admin_clear_feedback": state.feedback = []; return json(r, null);
         case "admin_reset_all_data": return json(r, null);
         case "mark_notices_seen": state.notices.forEach((n) => { if ((body.p_ids || []).includes(n.id)) n.seen_at = new Date().toISOString(); }); return json(r, null);
+        case "tv_boards": return json(r, state.tvBoards);
+        case "tv_activity": return json(r, state.tvActivity);
         case "feed_posts": return json(r, state.posts);
         case "feed_photos": return json(r, state.feedPhotos);
         case "leaderboard_overall": return json(r, state.overall);

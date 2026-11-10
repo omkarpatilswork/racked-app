@@ -281,8 +281,12 @@ export type TvGroupStat = {
   sets: number;
 };
 
+export type TvMachineStat = { machineId: string; title: string; lifters: number; sets: number };
+
 export type TvActivity = {
   groups: TvGroupStat[];
+  // busiest first (distinct lifters, then sets); machines with nobody on them are left out
+  machines: TvMachineStat[];
   lifters: number; // distinct people in the gym
   sets: number;
   volume: number; // kg moved
@@ -340,6 +344,8 @@ export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[]):
   });
 
   const people = new Set<number>();
+  const machinePeople = new Map<string, Set<number>>();
+  const machineSets = new Map<string, number>();
   const groupPeople = new Map<MuscleGroup, Set<number>>();
   const groupSets = new Map<MuscleGroup, number>();
   let sets = 0;
@@ -350,6 +356,9 @@ export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[]):
     sets += Number(r.sets);
     volume += Number(r.volume);
     pbs += Number(r.pbs);
+    if (!machinePeople.has(r.machine_id)) machinePeople.set(r.machine_id, new Set());
+    machinePeople.get(r.machine_id)!.add(r.person);
+    machineSets.set(r.machine_id, (machineSets.get(r.machine_id) || 0) + Number(r.sets));
     const g = muscleGroupFor(r.machine_id, r.mode);
     if (!g) return;
     if (!groupPeople.has(g)) groupPeople.set(g, new Set());
@@ -364,9 +373,13 @@ export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[]):
     sets: groupSets.get(g.id) || 0,
   }));
 
+  const machines = MACHINES.filter((m) => machinePeople.has(m.id))
+    .map((m) => ({ machineId: m.id, title: m.name, lifters: machinePeople.get(m.id)!.size, sets: machineSets.get(m.id) || 0 }))
+    .sort((a, b) => b.lifters - a.lifters || b.sets - a.sets);
+
   return {
     boards,
-    activity: { groups, lifters: people.size, sets, volume, pbs },
+    activity: { groups, machines, lifters: people.size, sets, volume, pbs },
     fetchedAt: Date.now(),
   };
 }

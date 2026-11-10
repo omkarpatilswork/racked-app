@@ -89,10 +89,17 @@
 
   Removals and resets ask for a reason (`components/admin/ReasonSheet.tsx`, presets in `lib/fairplay.ts`), which the member sees as a note on Home (`components/StaffNotices.tsx`).
 - `/admin/photos`: reported-photo moderation (staff only).
-- `/tv`: public gym TV screen, first names only. `/auth/callback`: OAuth return.
+- `/tv`: the **gym TV slideshow** (public, first names only, landscape TV). Built to pull non-members in, not just show ranks:
+  - Slides (`lib/tvSlides.ts` `buildSlides()`): **Join** (big QR to `/join?src=tv`, "Tap. Lift. Get on the board.", 3 steps, live proof chip) → **Gym today** (kg moved, counted up, with a fun equivalent from `lib/tvCopy.ts`; lifters, sets, new PBs, busiest machine) → leaderboards in threes (podium, "Think you can beat X?" card, empty spots say "Open / Be next"), with **Who's hitting what** (muscle-group bars + "up for grabs") and the Join slide coming back in between. Empty gym → just Join + **Every board is wide open**.
+  - Every non-join slide has a corner QR ("Not on the board yet?"). QR = `components/tv/QrCode.tsx` (npm `qrcode`, SVG). Count-up = `components/tv/CountUp.tsx`.
+  - Data: anon RPCs `tv_boards` + `tv_activity` via `fetchTvData()`, polled every 10s; header flips to "Reconnecting" after 35s without a good refresh, last slides stay up. Slide timing: join 12s, totals 10s, boards `?interval=` (default 8), others 9s. The show tracks its place by slide key, so refreshes never reset the timer.
+  - URL options: `?period=today|week|month|all`, `?interval=8`, `?limit=5`. Keys: **F** fullscreen, **Space** pause, **← →** step. Wake lock + mouse auto-hide.
+  - Sizing: `.tv { --u: min(1vw, 1.7778vh) }`, everything in `em`, so it fits any 16:9/16:10 screen.
+- `/join`: the page behind the TV QR (public, mobile-first). Live "today" numbers + a lift to beat (from the same TV RPCs), one-tap **Join with Google** (`signInWithGoogle("/")`, new members then hit `/welcome`), how it works, and a trust note (TV shows first name + best lift only). Signed-in visitors get a "You're in" state. `?src=tv` changes the eyebrow to "You scanned the gym screen".
+- `/auth/callback`: OAuth return.
 - Also: `app/error.tsx`, `app/global-error.tsx`, `app/not-found.tsx`, `app/manifest.ts` (installable PWA, icons in `public/icons/`), `app/robots.ts`, `public/sw.js` and `public/offline.html`.
 
-The floating nav (`components/BottomNav.tsx`) has Home, Machines, Ranks and You. It's hidden on machine sub-pages, `/welcome`, `/admin` and `/tv`, where it sets `body.no-nav`, which also moves toasts to the top.
+The floating nav (`components/BottomNav.tsx`) has Home, Machines, Ranks and You. It's hidden on machine sub-pages, `/welcome`, `/admin` and `/tv` (it stays on `/join`), where it sets `body.no-nav`, which also moves toasts to the top.
 
 Machine catalog: `lib/machines.ts`. The 10 entries are:
 
@@ -183,6 +190,7 @@ See `tests/README.md`. In short:
 - `tests/safeNext.test.ts` (`npx tsx`): 15 redirect cases.
 - `tests/sql/0010_staff_moderation.test.mjs`: 63 checks on refusals, flagging (including step-climbing), staff tools, notices, RLS, backfill, kudos cleanup and idempotency.
 - `tests/e2e/staff.e2e.js`: 81 checks on the staff console (every tab, reason sheets, typed confirms, the "0010 not run" fallbacks), member notes and the over-limit message, plus axe and 360px in both themes.
+- `tests/e2e/tv.e2e.js`: 70 checks on the TV + `/join`: slide order, QR target, corner QR, totals/equivalent, podium + empty spots, empty-gym rotation, nothing off-screen or under the footer at 1920×1080/1280×720/1366×768/1920×1200, auto-advance surviving a mid-slide refresh and "Reconnecting" (Playwright clock), space-to-pause, no `@`/handles on the TV, `/join` live numbers, Google start + `next=/`, failure fallback, signed-in state, robots, axe + 360px in both themes.
 - `tests/e2e/app.e2e.js` (Playwright): `mock.js` fakes a signed-in session (cookie `sb-placeholder-auth-token` = `base64-` + base64url session JSON) and answers every Supabase REST/RPC/storage call. It covers onboarding, the log flow, rest timer, PB, offline, settings, delete, leaderboard, locked machine, headers/manifest/sw, axe and the 360px width check. Latest run: 101/101. Needs `npm i --no-save playwright @electric-sql/pglite axe-core` and a dev server on port 3111 with a placeholder `.env.local`.
 - Lessons: Next's route announcer also has `role="alert"`, so scope selectors to test ids. Mock machine ids must exist in `lib/machines.ts`. Playwright's `setOffline` doesn't affect service-worker fetches.
 
@@ -197,6 +205,7 @@ See `tests/README.md`. In short:
 - Members can still edit their own `profiles` row directly via RLS (an older policy). The 0009 length guard limits the damage; consider column-level grants later.
 - **Fair play:** flagged sets still count on leaderboards, the feed and the TV until staff remove them. Omi chose this over "hold until approved". To switch, add `coalesce(review_status,'') <> 'flagged'` to `leaderboard_overall`/`leaderboard_machine` (0003), `tv_boards`/`tv_activity` (0005) and `feed_posts` (0008), and stop `log_set` from raising the PB for flagged sets.
 - Staff can't ban a member yet (not chosen this round).
+- TV ideas not built yet (Omi didn't pick them this round): live "new PB!" pop-ups, streak shout-outs, weekly challenges. A portrait-TV layout. Counting TV sign-ups (`?src=tv` is on the URL but isn't stored anywhere yet).
 
 ## 11. How Omi starts a Claude Code session
 
@@ -211,5 +220,6 @@ See `tests/README.md`. In short:
 3. Home feed with kudos (0006) and pre/post pump photos with moderation (0007).
 4. Optional photos, the Strava research (decided against), and the Instagram handle (0008, commit `e130b00`).
 5. README restyle by Claude Code (commits `3f14c07`, `756f300`).
+8. **TV slideshow + /join (Nov 2026, after the staff console)**: the TV became a recruiting screen: Join slide with QR, gym-today totals, podium boards with "beat" cards, muscle-group activity, empty-gym mode, corner QR everywhere, and the `/join` landing page. No database change (uses 0005's RPCs). New npm dependency: `qrcode`.
 7. **Staff console + fair play (Nov 10)**: tabbed staff page, review queue, member/machine resets, editable limits, member notes, activity log, migration 0010.
 6. **2026 refresh (Nov 8)**: dark-first design system, floating nav with a Machines tab, bento Home, a faster log loop (last set, rest timer, haptics, sticky CTA), onboarding, Settings (name/handle/theme/rest/vibration/sign out/delete), privacy page, PWA + offline page, skeletons and error states, security headers, open-redirect fix, self-hosted fonts, and migration 0009 including the staff photo-privacy fix.
