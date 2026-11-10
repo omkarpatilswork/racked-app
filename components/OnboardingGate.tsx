@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 // they just tapped). Only a profile with onboarded_at === null triggers it:
 // if migration 0009 hasn't been run the field is missing (undefined) and
 // nobody is redirected.
-const SKIP = ["/welcome", "/tv", "/auth", "/privacy", "/admin", "/offline"];
+const SKIP = ["/welcome", "/tv", "/auth", "/privacy", "/admin", "/offline", "/about"];
 
 export default function OnboardingGate() {
   const { session, profile } = useAuth();
@@ -19,7 +19,8 @@ export default function OnboardingGate() {
   useEffect(() => {
     if (!session || !profile) return;
     if (profile.onboarded_at !== null) return;
-    if (SKIP.some((p) => pathname.startsWith(p))) return;
+    // the landing page sends members on to /home itself
+    if (pathname === "/" || SKIP.some((p) => pathname.startsWith(p))) return;
     try {
       if (window.sessionStorage.getItem("racked:welcome-skipped") === "1") return;
     } catch {

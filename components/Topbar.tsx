@@ -1,11 +1,14 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import BoltMark from "@/components/BoltMark";
 
-export function BrandMark() {
+// Racked × Bijlee lockup: the Bijlee Run Club bolt + RACKED wordmark.
+export function BrandMark({ href = "/home" }: { href?: string }) {
   return (
-    <Link href="/" className="brand" aria-label="Racked home">
-      <span className="dot" />
-      RACKED <span className="brand-sub">× BIJLEE</span>
+    <Link href={href} className="brand" aria-label="Racked home">
+      <BoltMark className="brand-bolt" />
+      <span className="brand-word">RACKED</span>
+      <span className="brand-sub">× BIJLEE</span>
     </Link>
   );
 }

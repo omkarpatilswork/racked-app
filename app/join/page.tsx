@@ -50,7 +50,7 @@ function Join() {
     if (busy) return;
     setBusy(true);
     try {
-      await signInWithGoogle("/");
+      await signInWithGoogle("/home");
     } finally {
       // the page normally navigates away to Google; if it didn't, allow a retry
       setTimeout(() => setBusy(false), 4000);
@@ -75,7 +75,7 @@ function Join() {
               Walk up to any machine and hold your phone near the Racked sticker to log your set. Your best lift goes
               straight onto the gym TV.
             </p>
-            <Link href="/" className="btn" style={{ background: "#fff", color: "#111" }} data-testid="join-home">
+            <Link href="/home" className="btn" style={{ background: "#fff", color: "#111" }} data-testid="join-home">
               <Icon name="home" /> Go to my home
             </Link>
             <Link href="/machines" className="btn join-ghost" style={{ marginTop: 10 }}>
@@ -91,9 +91,13 @@ function Join() {
             <p>
               Free, no app to download. Sign in once with Google, then tap the sticker on any machine to log your set.
             </p>
-            <button type="button" className="btn btn-lg join-google" onClick={join} disabled={busy} data-testid="join-google">
-              <Icon name="google" />
-              {busy ? "Opening Google…" : "Join with Google"}
+            <button type="button" className="btn-slab join-google" onClick={join} disabled={busy} data-testid="join-google">
+              <span>
+                <i className="g-chip" aria-hidden="true">
+                  <Icon name="google" />
+                </i>
+                {busy ? "Opening Google…" : "Join with Google"}
+              </span>
             </button>
             <p className="join-fine">
               No password · about 10 seconds ·{" "}

@@ -150,7 +150,7 @@ export default function ReviewTab({
                 <div className="review-lift">
                   <span className="big-num">
                     {fmtNum(item.weight)}
-                    <span style={{ fontSize: 14, opacity: 0.6, marginLeft: 3 }}>kg</span> × {item.reps}
+                    <span style={{ fontSize: 14, color: "var(--ink-soft)", marginLeft: 3 }}>kg</span> × {item.reps}
                   </span>
                   <span className="faint" style={{ fontSize: 13 }}>
                     {item.prev_best != null ? `usual best ${fmtNum(item.prev_best)} kg` : "first set on this machine"} · {item.member_sets} set

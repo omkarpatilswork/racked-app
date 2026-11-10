@@ -159,7 +159,7 @@ const rpc = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" + name
 
   // member side: notes + over-limit
   {
-    const { ctx, page, st, errors } = await open(browser, "/", (s) => {
+    const { ctx, page, st, errors } = await open(browser, "/home", (s) => {
       s.notices = [{ id: 9, uid: "me-uid", kind: "set_removed", machine_id: "lat-pulldown-01", mode: null, weight: 300, reps: 10, set_at: iso(60 * 24), reason: "Weight not possible on this machine", created_at: iso(10), seen_at: null }];
       return s;
     });

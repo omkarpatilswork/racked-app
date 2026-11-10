@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 
-const COLORS = ["#FF6A46", "#ffffff", "#2FAE64", "#F0584A"];
+const COLORS = ["#FF482C", "#F4B424", "#F5F4EE", "#FF6A3D"];
 
 export default function Confetti() {
   const pieces = useMemo(

@@ -190,7 +190,7 @@ async function offscreen(page) {
     await sleep(800);
     const auth = st.calls.find((c) => c.startsWith("auth:authorize")) || "";
     check("join: one tap starts Google sign-in", auth.includes("provider=google"), auth);
-    check("join: comes back to the home screen after sign-in", decodeURIComponent(decodeURIComponent(auth)).includes("/auth/callback?next=/"), auth);
+    check("join: comes back to the home screen after sign-in", decodeURIComponent(decodeURIComponent(auth)).includes("/auth/callback?next=/home"), auth);
     check("no page errors (join)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }
@@ -219,7 +219,7 @@ async function offscreen(page) {
     check("join (signed in): 'you're in' with first name", ((await page.locator('[data-testid="join-in"] h1').textContent()) || "").includes(st.profile.display_name.split(" ")[0]));
     check("join (signed in): no Google button", (await page.locator('[data-testid="join-google"]').count()) === 0);
     await page.locator('[data-testid="join-home"]').click();
-    await page.waitForURL((u) => new URL(u).pathname === "/");
+    await page.waitForURL((u) => new URL(u).pathname === "/home");
     check("join (signed in): 'Go to my home' works", true);
     check("no page errors (join signed in)", errors.length === 0, errors.join(" | "));
     await ctx.close();

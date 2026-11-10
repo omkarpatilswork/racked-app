@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
+import BoltMark from "@/components/BoltMark";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { setInstagramHandle, updateMyProfile } from "@/lib/data";
@@ -14,8 +15,8 @@ import { safeNext as safePath } from "@/lib/safeNext";
 
 const SKIP_KEY = "racked:welcome-skipped";
 function safeNext(raw: string | null) {
-  const p = safePath(raw);
-  return p.startsWith("/welcome") ? "/" : p;
+  const p = safePath(raw, "/home");
+  return p.startsWith("/welcome") || p === "/" ? "/home" : p;
 }
 
 export default function WelcomePage() {
@@ -111,8 +112,9 @@ function Welcome() {
     <div className="page stack-lg welcome" data-testid="welcome" style={{ paddingTop: "calc(16px + env(safe-area-inset-top, 0px))" }}>
       <div className="row">
         <div className="brand">
-          <span className="dot" />
-          RACKED
+          <BoltMark className="brand-bolt" />
+          <span className="brand-word">RACKED</span>
+          <span className="brand-sub">× BIJLEE</span>
         </div>
         <button type="button" className="text-btn" onClick={skip} disabled={busy} data-testid="welcome-skip">
           Skip

@@ -19,6 +19,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
+import BoltMark from "@/components/BoltMark";
 import QrCode from "@/components/tv/QrCode";
 import CountUp from "@/components/tv/CountUp";
 import { createClient } from "@/lib/supabase/client";
@@ -201,9 +202,9 @@ function TvScreen() {
       <div className="tv-aurora" aria-hidden />
       <header className="tv-head">
         <div className="tv-brand">
-          <span className="tv-dot" />
+          <BoltMark className="tv-brand-bolt" />
           <b>RACKED</b>
-          <span>× BIJLEE</span>
+          <span>× BIJLEE RUN CLUB</span>
         </div>
         <div className="tv-head-right">
           <div className={`tv-live${stale ? " off" : ""}`} data-testid="tv-live">

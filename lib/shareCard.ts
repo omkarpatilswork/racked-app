@@ -13,14 +13,21 @@ export type ShareCardData = {
   shareText?: string;
 };
 
+// The display font's real family name (next/font gives it a generated name),
+// read from the same CSS variable the app uses.
+function displayFamily() {
+  const v = typeof window !== "undefined" ? getComputedStyle(document.documentElement).getPropertyValue("--font-display").trim() : "";
+  return v || '"Unbounded Variable", sans-serif';
+}
+
 async function ensureShareFonts() {
   // Never let a slow or stalled font download block the share card forever:
   // after 2.5s we draw with whatever is loaded (falling back to system fonts)
   // instead of leaving the share sheet stuck on its loading skeleton.
   const loadAll = (async () => {
     await Promise.all([
-      document.fonts.load('900 100px "Unbounded Variable"'),
-      document.fonts.load('800 40px "Unbounded Variable"'),
+      document.fonts.load(`900 100px ${displayFamily()}`),
+      document.fonts.load(`800 40px ${displayFamily()}`),
       document.fonts.load('700 44px "Manrope Variable"'),
       document.fonts.load('600 26px "Manrope Variable"'),
       document.fonts.load('700 30px "JetBrains Mono Variable"'),
@@ -38,6 +45,23 @@ async function ensureShareFonts() {
 // Native Instagram Stories size (9:16) so the card fills the screen edge to
 // edge when posted, instead of landing as a small letterboxed feed-post
 // crop with black bars above and below.
+// The Bijlee Run Club bolt mark (same shapes as public/brand/bijlee-bolt.svg).
+function drawBolt(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+  const k = size / 1630;
+  ctx.save();
+  ctx.translate(cx - size / 2, cy - size / 2);
+  ctx.scale(k, k);
+  ctx.fillStyle = "#FF482C";
+  ctx.beginPath();
+  ctx.arc(815, 815, 815, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#202018";
+  ctx.fill(new Path2D("M598 441L1368 439L1200 655L1290 659L1237 812L315 1239L684 775L482 775Z"));
+  ctx.fillStyle = "#F4B424";
+  ctx.fill(new Path2D("M598 441L232 905L431 905L315 1239L684 775L482 775Z"));
+  ctx.restore();
+}
+
 export async function drawShareCard(data: ShareCardData): Promise<HTMLCanvasElement> {
   const W = 1080;
   const H = 1920;
@@ -48,30 +72,27 @@ export async function drawShareCard(data: ShareCardData): Promise<HTMLCanvasElem
   await ensureShareFonts();
 
   const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-  bgGrad.addColorStop(0, "#17171B");
-  bgGrad.addColorStop(1, "#0A0A0B");
+  bgGrad.addColorStop(0, "#202018");
+  bgGrad.addColorStop(1, "#0D0D0A");
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
   const glow = ctx.createRadialGradient(W * 0.86, H * 0.08, 10, W * 0.86, H * 0.08, W * 0.75);
-  glow.addColorStop(0, "rgba(255,106,70,0.34)");
-  glow.addColorStop(1, "rgba(255,106,70,0)");
+  glow.addColorStop(0, "rgba(255,72,44,0.34)");
+  glow.addColorStop(1, "rgba(255,72,44,0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, H);
 
-  // wordmark
-  ctx.fillStyle = "#FF6A46";
-  ctx.beginPath();
-  ctx.arc(90, 130, 11, 0, Math.PI * 2);
-  ctx.fill();
+  // wordmark: Bijlee bolt + RACKED
+  drawBolt(ctx, 112, 129, 56);
   ctx.fillStyle = "#FFFFFF";
   ctx.textAlign = "left";
-  ctx.font = '800 42px "Unbounded Variable", sans-serif';
-  ctx.fillText("RACKED", 118, 144);
+  ctx.font = `800 42px ${displayFamily()}`;
+  ctx.fillText("RACKED", 156, 145);
   const rackedW = ctx.measureText("RACKED").width;
   ctx.font = '600 20px "JetBrains Mono Variable", monospace';
   ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.fillText("× BIJLEE", 118 + rackedW + 16, 144);
+  ctx.fillText("× BIJLEE", 156 + rackedW + 16, 145);
 
   // The whole stat block sits vertically centered in the frame -- the ratio
   // of empty space above/below is what makes a 9:16 export feel designed
@@ -80,7 +101,7 @@ export async function drawShareCard(data: ShareCardData): Promise<HTMLCanvasElem
 
   // small accent line above the eyebrow, echoing the NFC sticker's minimal
   // orange-line motif so the share card reads as the same brand system.
-  ctx.strokeStyle = "#FF6A46";
+  ctx.strokeStyle = "#FF482C";
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(W / 2 - 32, centerY - 210);
@@ -90,15 +111,15 @@ export async function drawShareCard(data: ShareCardData): Promise<HTMLCanvasElem
   // eyebrow
   ctx.textAlign = "center";
   ctx.font = '700 30px "JetBrains Mono Variable", monospace';
-  ctx.fillStyle = "#FF6A46";
+  ctx.fillStyle = "#FF482C";
   ctx.fillText((data.eyebrow || "").toUpperCase().split("").join(" "), W / 2, centerY - 140);
 
   // big stat, auto-fit
   let bigSize = 170;
-  ctx.font = `900 ${bigSize}px "Unbounded Variable", sans-serif`;
+  ctx.font = `900 ${bigSize}px ${displayFamily()}`;
   while (ctx.measureText(data.big).width > W - 120 && bigSize > 70) {
     bigSize -= 6;
-    ctx.font = `900 ${bigSize}px "Unbounded Variable", sans-serif`;
+    ctx.font = `900 ${bigSize}px ${displayFamily()}`;
   }
   ctx.fillStyle = "#FFFFFF";
   ctx.fillText(data.big, W / 2, centerY + 40);
@@ -113,7 +134,7 @@ export async function drawShareCard(data: ShareCardData): Promise<HTMLCanvasElem
   // meta line
   if (data.meta) {
     ctx.font = '700 30px "JetBrains Mono Variable", monospace';
-    ctx.fillStyle = "#FF6A46";
+    ctx.fillStyle = "#FF482C";
     ctx.fillText(data.meta, W / 2, centerY + 210);
   }
 

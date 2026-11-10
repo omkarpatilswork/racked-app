@@ -42,6 +42,7 @@ It's also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-b
 
 | | |
 |---|---|
+| **Landing page** | `/` explains Racked to new visitors: a scroll-driven walkthrough of tap → log → PB → leaderboard on a phone, the live gym TV, and one big "Start lifting" button. Members go straight to the app at `/home` |
 | **Tap to log** | Each machine's NFC tag (or QR code) opens that machine: your history, your best lift and a quick set logger |
 | **Live leaderboards** | Overall and per-machine rankings for today, the week, the month or all time, updated the moment anyone logs a set |
 | **XP, levels and streaks** | XP per set, a level per machine, attendance streaks and a calendar of the days you trained |
@@ -131,6 +132,9 @@ npm run build
 ```
 racked-app/
 ├── app/
+│   ├── page.tsx             the public landing page (members are sent to /home)
+│   ├── home/                the app home (feed, streak, level, pump check)
+│   ├── about/               the landing page again, for members too
 │   ├── machines/            the list of tagged machines
 │   ├── machine/[id]/        one machine: history, log, guide, feedback
 │   ├── leaderboard/         overall and per-machine ranks
@@ -141,7 +145,7 @@ racked-app/
 │   ├── tv/                  full-screen gym TV slideshow (join QR, totals, boards)
 │   ├── join/                where the TV's QR code lands
 │   └── admin/               staff console (review queue, members, machine limits, feedback, activity) and photo moderation
-├── components/              feed cards, share sheet, photo upload, …
+├── components/              feed cards, share sheet, photo upload, landing/ (landing page), tv/, admin/, …
 ├── lib/                     machines, gamification, streaks, share cards
 ├── supabase/migrations/     0001–0010
 ├── tests/                   database + browser tests (not run on deploy)

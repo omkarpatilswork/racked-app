@@ -56,7 +56,7 @@ export default function AdminPhotosPage() {
       <div className="stack-lg center" style={{ paddingTop: 60 }}>
         <h2>Staff only</h2>
         <p className="muted">This page is for the gym team.</p>
-        <Link href="/" className="btn btn-primary" style={{ marginTop: 14 }}>
+        <Link href="/home" className="btn btn-primary" style={{ marginTop: 14 }}>
           Back home
         </Link>
       </div>

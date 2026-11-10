@@ -23,7 +23,7 @@ export function applyTheme(pref: ThemePref) {
   const theme = resolveTheme(pref);
   document.documentElement.setAttribute("data-theme", theme);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", theme === "light" ? "#f5f4f0" : "#0a0a0c");
+  if (meta) meta.setAttribute("content", theme === "light" ? "#f5f4ee" : "#0d0d0a");
 }
 
 export function setThemePref(pref: ThemePref) {

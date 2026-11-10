@@ -2,10 +2,10 @@ import type { Metadata, Viewport } from "next";
 // Self-hosted variable fonts (bundled at build time from npm -- no request to
 // Google Fonts, works in any build environment, no layout shift from a
 // late-loading third-party stylesheet).
-import "@fontsource-variable/unbounded";
 import "@fontsource-variable/manrope";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
+import localFont from "next/font/local";
 import { AuthProvider } from "@/lib/auth-context";
 import BottomNav from "@/components/BottomNav";
 import ToastHost from "@/components/ToastHost";
@@ -13,6 +13,7 @@ import NetworkStatus from "@/components/NetworkStatus";
 import OnboardingGate from "@/components/OnboardingGate";
 import AppEffects from "@/components/AppEffects";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme";
+import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
 
 // The whole app is behind client-side Google auth and reads live/realtime
 // Supabase data, so there's no useful static HTML to precompute — and
@@ -22,20 +23,39 @@ import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 // not be the real ones yet) and just renders them per-request instead.
 export const dynamic = "force-dynamic";
 
-const DESCRIPTION =
-  "Tap a gym machine, log your set, beat your PB. Racked turns your gym's equipment into a live, social training log — by Bijlee.";
+// The display font (Unbounded) goes through next/font so it's preloaded with
+// the page and gets a size-matched fallback: headlines appear in the right
+// shape straight away instead of jumping when the font arrives.
+const unbounded = localFont({
+  src: "../node_modules/@fontsource-variable/unbounded/files/unbounded-latin-wght-normal.woff2",
+  weight: "200 900",
+  style: "normal",
+  display: "swap",
+  variable: "--font-unbounded",
+  adjustFontFallback: "Arial",
+});
 
 export const metadata: Metadata = {
-  title: { default: "Racked by Bijlee", template: "%s · Racked" },
-  description: DESCRIPTION,
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_TITLE, template: "%s · Racked" },
+  description: SITE_DESCRIPTION,
   applicationName: "Racked",
   appleWebApp: { capable: true, title: "Racked", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
   openGraph: {
-    title: "Racked by Bijlee",
-    description: DESCRIPTION,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     type: "website",
-    siteName: "Racked",
+    siteName: "Racked by Bijlee",
+    url: "/",
+    locale: "en_IN",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Racked by Bijlee Run Club: Tap. Lift. Get on the board." }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: ["/og.png"],
   },
   icons: {
     icon: [
@@ -47,7 +67,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0c",
+  themeColor: "#0d0d0a",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -56,7 +76,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" data-theme="dark" className={unbounded.variable} suppressHydrationWarning>
       <head>
         {/* Sets light/dark before first paint so the page never flashes. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />

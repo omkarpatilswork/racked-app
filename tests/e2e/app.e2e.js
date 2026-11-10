@@ -24,9 +24,9 @@ const rpcCalls = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" +
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
 
-  // 1. signed-out home + sign-in sheet a11y
+  // 1. signed-out app home (/home) + sign-in sheet a11y
   {
-    const { ctx, page, errors } = await open(browser, "/", (s) => ((s.signedIn = false), s));
+    const { ctx, page, errors } = await open(browser, "/home", (s) => ((s.signedIn = false), s));
     await page.waitForSelector('[data-testid="hero-signin"]');
     check("signed-out home shows how it works", (await page.getByText("How it works").count()) === 1);
     check("bottom nav has 4 tabs", (await page.locator(".bottom-nav a").count()) === 4);
@@ -90,7 +90,7 @@ const rpcCalls = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" +
   }
   // 2c. migration not run -> field missing -> no redirect
   {
-    const { ctx, page } = await open(browser, "/", (s) => (delete s.profile.onboarded_at, s));
+    const { ctx, page } = await open(browser, "/home", (s) => (delete s.profile.onboarded_at, s));
     await sleep(1500);
     check("no welcome redirect when 0009 isn't run", !page.url().includes("/welcome"));
     await ctx.close();
@@ -257,7 +257,7 @@ const rpcCalls = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" +
 
   // 10. no horizontal overflow at 360px; axe scan
   const axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
-  for (const [url, theme] of [["/", "dark"], ["/", "light"], ["/machine/lat-pulldown-01?tap=LP4K9X", "dark"], ["/machine/lat-pulldown-01/log?tap=LP4K9X", "dark"], ["/machine/lat-pulldown-01/log?tap=LP4K9X", "light"], ["/leaderboard", "dark"], ["/leaderboard", "light"], ["/profile", "dark"], ["/settings", "dark"], ["/settings", "light"], ["/machines", "dark"], ["/privacy", "dark"]]) {
+  for (const [url, theme] of [["/home", "dark"], ["/home", "light"], ["/machine/lat-pulldown-01?tap=LP4K9X", "dark"], ["/machine/lat-pulldown-01/log?tap=LP4K9X", "dark"], ["/machine/lat-pulldown-01/log?tap=LP4K9X", "light"], ["/leaderboard", "dark"], ["/leaderboard", "light"], ["/profile", "dark"], ["/settings", "dark"], ["/settings", "light"], ["/machines", "dark"], ["/privacy", "dark"]]) {
     const { ctx, page, errors } = await open(browser, url, (s) => s, { width: 360, theme });
     await sleep(900);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

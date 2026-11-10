@@ -11,7 +11,7 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
           minHeight: "100vh",
           display: "grid",
           placeItems: "center",
-          background: "#0a0a0c",
+          background: "#0d0d0a",
           color: "#f5f4f0",
           fontFamily: "system-ui, sans-serif",
           textAlign: "center",
@@ -23,7 +23,7 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
           <p style={{ opacity: 0.7, margin: "0 0 20px" }}>Please try again in a moment.</p>
           <button
             onClick={reset}
-            style={{ background: "#ff5a36", color: "#1a0704", border: 0, borderRadius: 14, padding: "14px 22px", fontWeight: 800, fontSize: 15 }}
+            style={{ background: "#ff482c", color: "#1a0603", border: 0, borderRadius: 14, padding: "14px 22px", fontWeight: 800, fontSize: 15 }}
           >
             Try again
           </button>

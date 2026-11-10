@@ -10,7 +10,7 @@ export default function QrCode({ value, className, label }: { value: string; cla
 
   useEffect(() => {
     let active = true;
-    QRCode.toString(value, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#0a0a0c", light: "#ffffff" } })
+    QRCode.toString(value, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#0d0d0a", light: "#ffffff" } })
       .then((s) => active && setSvg(s))
       .catch(() => active && setSvg(null));
     return () => {

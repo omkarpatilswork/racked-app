@@ -85,7 +85,7 @@ export default function SetResultModal({
                   {machine.unit} × {result.previousPb.reps}
                 </span>
                 {gain !== null && gain > 0 && (
-                  <span className="pill" style={{ background: "rgba(255,90,54,.2)", borderColor: "rgba(255,122,85,.4)", color: "#ffb39e" }}>
+                  <span className="pill" style={{ background: "rgba(255,72,44,.2)", borderColor: "rgba(255,107,79,.4)", color: "#ffb39e" }}>
                     +{gain.toFixed(1).replace(/\.0$/, "")}
                     {machine.unit}
                   </span>

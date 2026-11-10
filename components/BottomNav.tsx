@@ -6,18 +6,21 @@ import { usePathname } from "next/navigation";
 import Icon from "@/components/Icon";
 
 const TABS = [
-  { href: "/", label: "Home", icon: "home" },
+  { href: "/home", label: "Home", icon: "home" },
   { href: "/machines", label: "Machines", icon: "grid" },
   { href: "/leaderboard", label: "Ranks", icon: "trophy" },
   { href: "/profile", label: "You", icon: "user" },
 ] as const;
 
-// Paths where the floating nav is hidden: focused flows (logging a set,
-// guide, feedback), the welcome screens, staff tools and the gym TV.
+// Paths where the floating nav is hidden: the public landing page (/ and
+// /about), focused flows (logging a set, guide, feedback), the welcome
+// screens, staff tools and the gym TV.
 export function navHidden(pathname: string) {
   const segments = pathname.split("/").filter(Boolean);
   const isMachineSubpage = segments[0] === "machine" && segments.length > 2;
   return (
+    pathname === "/" ||
+    pathname.startsWith("/about") ||
     isMachineSubpage ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/tv") ||
@@ -39,8 +42,8 @@ export default function BottomNav() {
     <nav className="bottom-nav" aria-label="Main">
       {TABS.map((tab) => {
         const active =
-          tab.href === "/"
-            ? pathname === "/"
+          tab.href === "/home"
+            ? pathname === "/home"
             : tab.href === "/machines"
               ? pathname.startsWith("/machines") || pathname.startsWith("/machine/")
               : tab.href === "/profile"

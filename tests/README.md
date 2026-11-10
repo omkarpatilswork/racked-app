@@ -37,6 +37,7 @@ npx next dev -p 3111
 node tests/e2e/app.e2e.js
 node tests/e2e/staff.e2e.js
 node tests/e2e/tv.e2e.js      # gym TV + /join (takes ~3 min)
+node tests/e2e/landing.e2e.js # landing page + / -> /home routing (takes ~4 min)
 ```
 
 `tests/e2e/mock.js` fakes a signed-in member and answers every Supabase call

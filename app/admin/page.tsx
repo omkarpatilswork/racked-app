@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
+import BoltMark from "@/components/BoltMark";
 import Avatar from "@/components/Avatar";
 import ConfirmSheet from "@/components/ConfirmSheet";
 import SignInSheet from "@/components/SignInSheet";
@@ -104,7 +105,7 @@ function StaffConsole() {
         <p className="muted" style={{ margin: 0, maxWidth: 300, marginInline: "auto" }}>
           {profile?.display_name || "This account"} isn&rsquo;t set up as gym staff. Ask the owner to give you access.
         </p>
-        <Link href="/" className="btn btn-ghost" style={{ maxWidth: 240, margin: "8px auto 0" }}>
+        <Link href="/home" className="btn btn-ghost" style={{ maxWidth: 240, margin: "8px auto 0" }}>
           Back to Racked
         </Link>
       </div>
@@ -116,12 +117,13 @@ function StaffConsole() {
   return (
     <>
       <div className="topbar">
-        <Link href="/" className="brand" aria-label="Back to the member app">
-          <span className="dot" />
-          RACKED <span className="brand-sub">STAFF</span>
+        <Link href="/home" className="brand" aria-label="Back to the member app">
+          <BoltMark className="brand-bolt" />
+          <span className="brand-word">RACKED</span>
+          <span className="brand-sub">STAFF</span>
         </Link>
         <div className="row" style={{ gap: 8 }}>
-          <Link href="/" className="iconbtn" aria-label="Open the member app">
+          <Link href="/home" className="iconbtn" aria-label="Open the member app">
             <Icon name="home" />
           </Link>
           <button type="button" className="iconbtn" onClick={() => setConfirmOut(true)} aria-label="Sign out">
@@ -178,7 +180,7 @@ function StaffConsole() {
         onConfirm={async () => {
           await signOut();
           setConfirmOut(false);
-          router.replace("/");
+          router.replace("/home");
         }}
       />
     </>
