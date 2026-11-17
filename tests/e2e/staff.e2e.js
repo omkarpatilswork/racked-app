@@ -191,7 +191,7 @@ const rpc = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" + name
 
   // a11y + layout on staff tabs
   const axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
-  for (const tab of ["", "?tab=review", "?tab=members", "?tab=machines", "?tab=feedback", "?tab=activity"]) {
+  for (const tab of ["", "?tab=review", "?tab=members", "?tab=machines", "?tab=rewards", "?tab=feedback", "?tab=activity"]) {
     for (const theme of ["dark", "light"]) {
       const { ctx, page, errors } = await open(browser, "/admin" + tab, staff, { width: 360, theme });
       await sleep(1000);

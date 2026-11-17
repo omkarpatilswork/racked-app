@@ -11,6 +11,7 @@ import LockedMachine from "@/components/LockedMachine";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchLastSet, fetchMachineLimits, friendlyDbError, logSet, type LastSet, type LogSetResult, type MachineLimit } from "@/lib/data";
+import { awardsToast, syncMyRewards } from "@/lib/rewards";
 import RestTimer from "@/components/RestTimer";
 import { haptic } from "@/lib/haptics";
 import { timeAgo } from "@/lib/time";
@@ -220,6 +221,14 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
         haptic("success");
         toast(`Set ${sessionSets.length + 1} logged · ${res.weight}${machine!.unit} × ${res.reps} · +${res.xpGain} XP`);
       }
+      // Pay out any mission / streak / badge / challenge XP this set unlocked
+      // (shown just after the set toast). Silent if rewards aren't set up.
+      syncMyRewards(supabase)
+        .then((awards) => {
+          const t = awardsToast(awards);
+          if (t) setTimeout(() => toast(t), res.isPb ? 400 : 1200);
+        })
+        .catch(() => undefined);
     } catch (err) {
       console.error(err);
       toast(friendlyDbError(err) ?? "Couldn't save that set — check your connection and tap Log again");

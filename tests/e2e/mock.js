@@ -12,6 +12,88 @@ const now = Date.now();
 const iso = (minsAgo) => new Date(now - minsAgo * 60000).toISOString();
 const day = (o = 0) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(now + o * 86400000));
 
+// Rewards fixtures (0011_rewards.sql shapes)
+const hrs = (h) => new Date(now + h * 3600000).toISOString();
+function rewardsFixtures() {
+  const sponsors = [
+    { id: "jersey-drip", name: "Jersey Drip", tagline: "Premium football, cricket & F1 jerseys", blurb: "Jerseys with your name and number.", website_url: "https://jerseydrip.shop", instagram_url: null, logo_url: null, category: "Apparel",
+      products: [
+        { id: 1, title: "Football jerseys", subtitle: "Club and country kits", price_text: null, image_url: null, url: "https://jerseydrip.shop" },
+        { id: 2, title: "Cricket jerseys", subtitle: "India and league styles", price_text: null, image_url: null, url: "https://jerseydrip.shop" },
+      ] },
+    { id: "clean-crate", name: "The Clean Crate", tagline: "Fuel your vibe, naturally", blurb: "Ready-to-eat protein oats: 15 g protein a pack.", website_url: "https://www.thecleancratefoods.com", instagram_url: null, logo_url: "https://www.thecleancratefoods.com/logo-new.jpg", category: "Nutrition",
+      products: [
+        { id: 5, title: "Mocha Rush", subtitle: "15 g protein · box of 4", price_text: "₹379", image_url: "https://www.thecleancratefoods.com/photos/DSC_8741.jpg", url: "https://www.thecleancratefoods.com" },
+        { id: 6, title: "Thai Mango Coconut", subtitle: "15 g protein · box of 4", price_text: "₹379", image_url: "https://www.thecleancratefoods.com/photos/DSC_8723.jpg", url: "https://www.thecleancratefoods.com" },
+      ] },
+  ];
+  const missions = [
+    { id: "sets15", title: "Log 15 sets", description: "Any machine, any weight.", metric: "sets", target: 15, xp: 60, icon: "dumbbell", sort: 1 },
+    { id: "days3", title: "Train 3 days", description: "Log at least one set on 3 different days.", metric: "days", target: 3, xp: 75, icon: "flame", sort: 2 },
+    { id: "machines4", title: "Use 4 machines", description: "Spread the work: 4 different machines.", metric: "machines", target: 4, xp: 50, icon: "grid", sort: 3 },
+    { id: "pb1", title: "Beat a personal best", description: "Beat your best on any machine you've used before.", metric: "pbs", target: 1, xp: 50, icon: "trophy", sort: 4 },
+    { id: "volume5k", title: "Move 5,000 kg", description: "Weight × reps, added up over the week.", metric: "volume", target: 5000, xp: 75, icon: "bolt", sort: 5 },
+  ];
+  const badges = [
+    ["first_set", "First rep", "Log your first set.", 20, "dumbbell"], ["first_pb", "Personal best", "Beat your best on a machine for the first time.", 30, "trophy"],
+    ["early_bird", "Early bird", "Log a set before 7 am.", 30, "sun"], ["regular", "Regular", "Train on 10 different days.", 75, "flame"],
+    ["explorer", "Explorer", "Log a set on all 10 machines.", 100, "grid"], ["tonne_day", "Tonne day", "Move 1,000 kg in a single day.", 50, "bolt"],
+    ["century", "Century", "Log 100 sets.", 100, "medal"], ["ten_tonne", "10-tonne club", "Move 10,000 kg in total.", 100, "star"],
+    ["podium", "Podium", "Finish in the top 3 of a season.", 150, "target"],
+  ].map(([id, title, description, xp, icon], i) => ({ id, title, description, xp, icon, sort: i + 1 }));
+  const prizes = [
+    { id: 1, rank_from: 1, rank_to: 1, title: "Gift hamper from Jersey Drip × The Clean Crate", description: "For the season's top performer.", sponsor_ids: ["jersey-drip", "clean-crate"] },
+    { id: 2, rank_from: 2, rank_to: 5, title: "Partner coupons", description: "Discount coupons from Jersey Drip and The Clean Crate.", sponsor_ids: ["jersey-drip", "clean-crate"] },
+  ];
+  const season = { id: 7, title: "Week of 16 Nov", period: "week", starts_at: hrs(-30), ends_at: hrs(80), prizes, players: 6 };
+  const shop = [
+    { id: 11, sponsor_id: "clean-crate", title: "Protein oats, 1 pack", description: "One 60 g pack of The Clean Crate protein oats (15 g protein).", image_url: null, xp_cost: 600, code_mode: "desk", stock_left: 18, per_member_limit: 1, valid_until: null },
+    { id: 12, sponsor_id: "jersey-drip", title: "₹150 off at Jersey Drip", description: "A discount on any jersey at jerseydrip.shop.", image_url: null, xp_cost: 1000, code_mode: "pool", stock_left: null, per_member_limit: 1, valid_until: null },
+    { id: 13, sponsor_id: "clean-crate", title: "Breakfast Box (8 packs)", description: "The Clean Crate Breakfast Box, both flavours.", image_url: null, xp_cost: 3000, code_mode: "desk", stock_left: 3, per_member_limit: 1, valid_until: null },
+    { id: 14, sponsor_id: "jersey-drip", title: "Custom Jersey Drip jersey", description: "A jersey of your choice with your name and number.", image_url: null, xp_cost: 6000, code_mode: "desk", stock_left: 0, per_member_limit: 1, valid_until: null },
+  ];
+  const challenges = [
+    { id: 3, sponsor_id: "clean-crate", title: "Clean Crate Leg Day", description: "Heaviest Leg Press set this week wins. Everyone who joins gets +20 XP.", metric: "best_lift", machine_id: "leg-press-08", mode: null, starts_at: hrs(-30), ends_at: hrs(80), prize: "A box of The Clean Crate protein oats", winners: 1, join_xp: 20, players: 4, leader: { name: "Rahul", value: 140, reps: 10 } },
+  ];
+  const overview = { period: "week", season, sponsors, shop, challenges, missions, badges, streak_steps: [{ days: 3, xp: 30 }, { days: 7, xp: 75 }, { days: 14, xp: 150 }, { days: 30, xp: 400 }],
+    last_winners: { season: "Week of 9 Nov", winners: [{ rank: 1, name: "Asha", score: 980, prize: prizes[0].title }, { rank: 2, name: "Rahul", score: 760, prize: "Partner coupons" }, { rank: 3, name: "Omi", score: 610, prize: "Partner coupons" }] } };
+  const my = {
+    wallet: { training: 1300, bonus: 240, spent: 0, on_hold: 60, lifetime: 1540, balance: 1540 },
+    season: { id: 7, title: season.title, period: "week", ends_at: season.ends_at, rank: 3, score: 380, players: 6, ahead: { name: "Rahul", score: 420 }, top_prize: prizes[0].title },
+    week: { sets: 9, days: 3, machines: 3, pbs: 1, volume: 4200 },
+    missions_done: ["days3", "pb1"],
+    streak: { days: 3, started: day(-2), claimed: [3] },
+    badges: [{ id: "first_set", at: iso(60 * 24 * 30) }, { id: "first_pb", at: iso(60 * 24 * 20) }, { id: "regular", at: iso(60 * 24 * 2) }],
+    redemptions: [{ id: 41, title: "Partner coupons", sponsor_id: "jersey-drip", source: "prize", code: "RK-7F3A2C", code_mode: "desk", how_to_use: null, xp_spent: 0, status: "issued", rank: 3, created_at: iso(60 * 24) }],
+    claimed_rewards: {},
+    challenges: [{ id: 3, rank: 2, value: 120, reps: 12 }],
+    recent: [],
+  };
+  const board = [
+    { rank: 1, name: "Asha", score: 520, is_me: false }, { rank: 2, name: "Rahul", score: 420, is_me: false }, { rank: 3, name: "Omi", score: 380, is_me: true },
+    { rank: 4, name: "Neha", score: 300, is_me: false }, { rank: 5, name: "Kabir", score: 160, is_me: false }, { rank: 6, name: "Dev", score: 40, is_me: false },
+  ];
+  const challengeBoard = [{ rank: 1, name: "Rahul", value: 140, reps: 10, is_me: false }, { rank: 2, name: "Omi", value: 120, reps: 12, is_me: true }, { rank: 3, name: "Asha", value: 100, reps: 8, is_me: false }];
+  const admin = {
+    period: "week",
+    season: { id: 7, title: season.title, period: "week", starts_at: season.starts_at, ends_at: season.ends_at, awarded_at: null },
+    season_prizes: prizes, templates: prizes,
+    live_board: board.map((b) => ({ rank: b.rank, name: { Asha: "Asha Rao", Rahul: "Rahul Mehta", Omi: "Omi Patil", Neha: "Neha Kulkarni", Kabir: "Kabir S", Dev: "Dev" }[b.name], score: b.score, flagged: b.name === "Kabir" ? 1 : 0 })),
+    to_award: [{ id: 6, title: "Week of 9 Nov", ends_at: hrs(-30), board: [
+      { rank: 1, name: "Asha Rao", score: 980, flagged: 0, prize: prizes[0].title }, { rank: 2, name: "Rahul Mehta", score: 760, flagged: 0, prize: "Partner coupons" },
+      { rank: 3, name: "Kabir S", score: 640, flagged: 2, prize: "Partner coupons" }, { rank: 4, name: "Omi Patil", score: 610, flagged: 0, prize: "Partner coupons" } ] }],
+    seasons: [{ id: 6, title: "Week of 9 Nov", period: "week", starts_at: hrs(-198), ends_at: hrs(-30), awarded_at: null, winners: [] }],
+    rewards: shop.map((r) => ({ ...r, how_to_use: null, stock: r.stock_left, active: r.id !== 14, sort: r.id, issued: r.id === 11 ? 2 : 0, codes_left: r.id === 12 ? 25 : 0, shared_code: null })),
+    challenges: challenges.map((c) => ({ ...c, active: true, awarded_at: null, reward_id: null, top: challengeBoard.map((x) => ({ rank: x.rank, name: x.name, value: x.value, reps: x.reps })) })),
+    sponsors: sponsors.map((sp, i) => ({ ...sp, active: true, sort: i + 1, products: sp.products.map((p, j) => ({ ...p, active: true, sort: j + 1, sponsor_id: sp.id })), clicks_7d: 14 + i, clicks_30d: 52 + i, redeemed_30d: 3 })),
+    redemptions: [
+      { id: 41, title: "Partner coupons", code: "RK-7F3A2C", source: "prize", status: "issued", rank: 3, xp_spent: 0, created_at: iso(60 * 24), fulfilled_at: null, member: "Omi Patil", sponsor_id: "jersey-drip" },
+      { id: 42, title: "Protein oats, 1 pack", code: "RK-91BC0D", source: "shop", status: "issued", rank: null, xp_spent: 600, created_at: iso(300), fulfilled_at: null, member: "Asha Rao", sponsor_id: "clean-crate" },
+    ],
+  };
+  return { overview, my, board, challengeBoard, admin, syncAwards: [] };
+}
+
 function defaultState() {
   return {
     signedIn: true,
@@ -46,6 +128,7 @@ function defaultState() {
       { machine_id: "lat-pulldown-01", mode: "", uid: "u4", display_name: "Neha Kulkarni", avatar_url: null, pb_weight: 35, pb_reps: 10, xp: 200, level: 2, sets: 12, rank: 4 },
     ],
     logResult: (w, r) => ({ isPb: w > 55, weight: w, reps: r, pbWeight: Math.max(55, w), pbReps: w > 55 ? r : 10, previousPb: { weight: 55, reps: 10 }, xpGain: w > 55 ? 60 : 20, totalXp: 1340, totalSets: 74, level: 4 }),
+    rewards: rewardsFixtures(),
     calls: [],
     failRpc: {},
     missingRpc: {}, // name -> true: behave as if migration 0010 isn't run
@@ -144,6 +227,37 @@ async function setup(ctx, page, state, base) {
         case "admin_clear_feedback": state.feedback = []; return json(r, null);
         case "admin_reset_all_data": return json(r, null);
         case "mark_notices_seen": state.notices.forEach((n) => { if ((body.p_ids || []).includes(n.id)) n.seen_at = new Date().toISOString(); }); return json(r, null);
+        case "rewards_overview": return json(r, state.rewards.overview);
+        case "my_rewards": return state.signedIn ? json(r, state.rewards.my) : json(r, { code: "42501", message: "Sign in first" }, 401);
+        case "sync_my_rewards": { const a = state.rewards.syncAwards; state.rewards.syncAwards = []; return json(r, a); }
+        case "season_board": return json(r, state.rewards.board.slice(0, body.p_limit || 10).map((x) => ({ ...x, is_me: state.signedIn && x.is_me })));
+        case "challenge_board": return json(r, state.rewards.challengeBoard.map((x) => ({ ...x, is_me: state.signedIn && x.is_me })));
+        case "track_sponsor_click": return json(r, null);
+        case "redeem_reward": {
+          const it = state.rewards.overview.shop.find((x) => x.id === body.p_reward_id);
+          const w = state.rewards.my.wallet;
+          if (!it) return json(r, { code: "RK101", message: "This reward isn't available right now" }, 400);
+          if (w.balance < it.xp_cost) return json(r, { code: "RK104", message: `You need ${it.xp_cost - w.balance} more XP for this` }, 400);
+          if (state.rewards.my.claimed_rewards[String(it.id)]) return json(r, { code: "RK103", message: "You've already claimed this one" }, 400);
+          w.balance -= it.xp_cost; w.spent += it.xp_cost;
+          state.rewards.my.claimed_rewards[String(it.id)] = 1;
+          const code = it.code_mode === "pool" ? "JD-150-XK2" : "RK-4D21FA";
+          state.rewards.my.redemptions.unshift({ id: 99, title: it.title, sponsor_id: it.sponsor_id, source: "shop", code, code_mode: it.code_mode, how_to_use: null, xp_spent: it.xp_cost, status: "issued", rank: null, created_at: new Date().toISOString() });
+          return json(r, { id: 99, title: it.title, code, code_mode: it.code_mode, how_to_use: null, sponsor_id: it.sponsor_id, xp_spent: it.xp_cost, balance: w.balance });
+        }
+        case "admin_rewards_data": return state.profile.is_staff ? json(r, state.rewards.admin) : staffOnly();
+        case "admin_set_season_period": state.rewards.admin.period = body.p_period; return json(r, null);
+        case "admin_save_prizes": state.rewards.admin.templates = body.p_prizes; if (body.p_apply_current) state.rewards.admin.season_prizes = body.p_prizes; return json(r, null);
+        case "admin_award_season": { const s = state.rewards.admin.to_award.find((x) => x.id === body.p_season_id); state.rewards.admin.to_award = state.rewards.admin.to_award.filter((x) => x.id !== body.p_season_id); return json(r, (s ? s.board : []).map((b) => ({ rank: b.rank, prize: b.prize }))); }
+        case "admin_update_redemption": state.rewards.admin.redemptions.forEach((x) => { if (x.id === body.p_id) { x.status = body.p_status; x.fulfilled_at = new Date().toISOString(); } }); return json(r, null);
+        case "admin_save_reward": { const p = body.p; if (p.id) { const x = state.rewards.admin.rewards.find((y) => String(y.id) === String(p.id)); Object.assign(x, { ...p, id: x.id, xp_cost: p.xp_cost === "" ? null : Number(p.xp_cost ?? x.xp_cost) }); return json(r, x.id); } const id = 100 + state.rewards.admin.rewards.length; state.rewards.admin.rewards.push({ ...p, id, xp_cost: p.xp_cost ? Number(p.xp_cost) : null, issued: 0, codes_left: 0, shared_code: null, sort: 0 }); return json(r, id); }
+        case "admin_add_reward_codes": { const n = String(body.p_codes || "").split(/[\n,;]+/).filter((x) => x.trim()).length; const x = state.rewards.admin.rewards.find((y) => y.id === body.p_reward_id); if (x) { if (body.p_shared) { x.shared_code = body.p_codes.trim(); x.code_mode = "shared"; } else { x.codes_left += n; x.code_mode = "pool"; } } return json(r, body.p_shared ? 1 : n); }
+        case "admin_save_challenge": { const p = body.p; if (p.id) { const x = state.rewards.admin.challenges.find((y) => String(y.id) === String(p.id)); Object.assign(x, { ...p, id: x.id }); return json(r, x.id); } const id = 50 + state.rewards.admin.challenges.length; state.rewards.admin.challenges.push({ ...p, id, players: 0, top: [], awarded_at: null }); return json(r, id); }
+        case "admin_award_challenge": state.rewards.admin.challenges.forEach((x) => { if (x.id === body.p_id) x.awarded_at = new Date().toISOString(); }); return json(r, [{ rank: 1 }]);
+        case "admin_save_sponsor": { const p = body.p; const x = state.rewards.admin.sponsors.find((y) => y.id === p.id); if (x) Object.assign(x, p); else state.rewards.admin.sponsors.push({ ...p, products: [], clicks_7d: 0, clicks_30d: 0, redeemed_30d: 0 }); return json(r, p.id); }
+        case "admin_save_product": { const p = body.p; const sp = state.rewards.admin.sponsors.find((y) => y.id === p.sponsor_id); if (p.id) { sp.products.forEach((x) => { if (String(x.id) === String(p.id)) Object.assign(x, { ...p, id: x.id }); }); return json(r, p.id); } const id = 200 + sp.products.length; sp.products.push({ ...p, id }); return json(r, id); }
+        case "admin_delete_product": state.rewards.admin.sponsors.forEach((sp) => { sp.products = sp.products.filter((x) => x.id !== body.p_id); }); return json(r, null);
+        case "admin_bonus_xp": return json(r, null);
         case "tv_boards": return json(r, state.tvBoards);
         case "tv_activity": return json(r, state.tvActivity);
         case "feed_posts": return json(r, state.posts);
@@ -217,6 +331,8 @@ async function setup(ctx, page, state, base) {
     return json(r, { Key: "x" });
   });
   await page.route("**/realtime/v1/**", (r) => r.abort());
+  // sponsor images on the Rewards page (never hit the real sites in tests)
+  await page.route(/^https:\/\/(www\.)?(thecleancratefoods\.com|jerseydrip\.shop)\//, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: IMG }));
 }
 
 module.exports = { defaultState, setup, UID, day, iso };

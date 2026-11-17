@@ -64,7 +64,7 @@ async function offscreen(page) {
     check("join slide shows live proof", ((await page.locator('[data-testid="tv-proof"]').textContent()) || "").includes("5 lifters"));
     check("no corner QR on the join slide (big one is there)", (await page.locator('[data-testid="tv-corner-qr"]').count()) === 0);
     const dots = await page.locator(".tv-dots i").count();
-    check("7 slides for 4 boards", dots === 7, String(dots));
+    check("8 slides for 4 boards (incl. the prize race)", dots === 8, String(dots));
 
     const kinds = [];
     const issues = [];
@@ -81,7 +81,12 @@ async function offscreen(page) {
         check("totals counts up to 22,280 kg", ((await page.locator('[data-testid="tv-kg"]').textContent()) || "").includes("22,280"));
         check("totals gives a fun equivalent", ((await page.locator(".tv-equiv").textContent()) || "").includes("elephants"));
       }
-      if (k === "slide-board" && i === 2) {
+      if (k === "slide-prizes") {
+        const t = (await page.locator('[data-testid="slide-prizes"]').textContent()) || "";
+        check("prize slide: #1 prize, countdown, partners", t.includes("#1 wins") && t.includes("Gift hamper") && /ends in \d+d/i.test(t) && t.includes("Jersey Drip"), t.slice(0, 160));
+        check("prize slide: race top 5 by first name", (await page.locator('[data-testid="slide-prizes"] .tv-row').count()) === 5 && t.includes("Asha") && !t.includes("Rao"));
+      }
+      if (k === "slide-board" && i === 3) {
         const t = (await page.locator('[data-testid="slide-board"]').textContent()) || "";
         check("first board is Lat Pulldown with a 'beat' challenge", t.includes("Lat Pulldown") && ((await page.locator('[data-testid="tv-beat"]').textContent()) || "").includes("Asha"));
         check("podium shows top 3", (await page.locator(".tv-pod:not(.empty)").count()) === 3);
@@ -93,8 +98,8 @@ async function offscreen(page) {
       await page.keyboard.press("ArrowRight");
     }
     check(
-      "rotation order: join, totals, 3 boards, floor, board",
-      kinds.join(",") === "slide-join,slide-totals,slide-board,slide-board,slide-board,slide-activity,slide-board",
+      "rotation order: join, totals, prizes, 3 boards, floor, board",
+      kinds.join(",") === "slide-join,slide-totals,slide-prizes,slide-board,slide-board,slide-board,slide-activity,slide-board",
       kinds.join(",")
     );
     check("nothing off-screen or under the footer at 1920x1080", issues.length === 0, issues.join(" | "));
@@ -132,8 +137,9 @@ async function offscreen(page) {
   {
     const { ctx, page, errors } = await open(browser, "/tv", empty);
     await page.waitForSelector('[data-testid="slide-join"]');
-    check("empty gym: just join + 'wide open' (no 0 kg slide)", (await page.locator(".tv-dots i").count()) === 2);
+    check("empty gym: join + prizes + 'wide open' (no 0 kg slide)", (await page.locator(".tv-dots i").count()) === 3);
     check("empty gym: proof chip invites the first set", ((await page.locator('[data-testid="tv-proof"]').textContent()) || "").toLowerCase().includes("first set"));
+    await page.keyboard.press("ArrowRight");
     await page.keyboard.press("ArrowRight");
     await page.waitForSelector('[data-testid="slide-open"]');
     check("open slide lists all 10 machines as free", (await page.locator(".tv-open-cell").count()) === 10);
@@ -141,6 +147,16 @@ async function offscreen(page) {
     const off = await offscreen(page);
     check("open slide fits", off.length === 0, off.join(", "));
     check("no page errors (TV, empty)", errors.length === 0, errors.join(" | "));
+    await ctx.close();
+  }
+
+  // ---- rewards not set up yet (0011 not run): no prize slide, nothing breaks
+  {
+    const { ctx, page, errors } = await open(browser, "/tv", (s) => (signedOut(s), (s.missingRpc.rewards_overview = true), s));
+    await page.waitForSelector('[data-testid="slide-join"]');
+    await sleep(800);
+    check("without rewards: the original 7 slides", (await page.locator(".tv-dots i").count()) === 7);
+    check("no page errors (TV, no rewards)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }
 

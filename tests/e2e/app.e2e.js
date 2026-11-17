@@ -30,6 +30,7 @@ const rpcCalls = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" +
     await page.waitForSelector('[data-testid="hero-signin"]');
     check("signed-out home shows how it works", (await page.getByText("How it works").count()) === 1);
     check("bottom nav has 4 tabs", (await page.locator(".bottom-nav a").count()) === 4);
+    check("bottom nav is Home, Ranks, Rewards, You", (await page.locator(".bottom-nav a").allTextContents()).map((t) => t.trim()).join(",") === "Home,Ranks,Rewards,You");
     await page.locator('[data-testid="hero-signin"]').click();
     const sheet = page.locator('[data-testid="signin-sheet"]');
     check("sign-in sheet is a modal dialog", (await sheet.getAttribute("role")) === "dialog" && (await sheet.getAttribute("aria-modal")) === "true");
@@ -257,7 +258,7 @@ const rpcCalls = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" +
 
   // 10. no horizontal overflow at 360px; axe scan
   const axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
-  for (const [url, theme] of [["/home", "dark"], ["/home", "light"], ["/machine/lat-pulldown-01?tap=LP4K9X", "dark"], ["/machine/lat-pulldown-01/log?tap=LP4K9X", "dark"], ["/machine/lat-pulldown-01/log?tap=LP4K9X", "light"], ["/leaderboard", "dark"], ["/leaderboard", "light"], ["/profile", "dark"], ["/settings", "dark"], ["/settings", "light"], ["/machines", "dark"], ["/privacy", "dark"]]) {
+  for (const [url, theme] of [["/home", "dark"], ["/home", "light"], ["/machine/lat-pulldown-01?tap=LP4K9X", "dark"], ["/machine/lat-pulldown-01/log?tap=LP4K9X", "dark"], ["/machine/lat-pulldown-01/log?tap=LP4K9X", "light"], ["/leaderboard", "dark"], ["/leaderboard", "light"], ["/profile", "dark"], ["/settings", "dark"], ["/settings", "light"], ["/machines", "dark"], ["/privacy", "dark"], ["/rewards", "dark"], ["/rewards", "light"]]) {
     const { ctx, page, errors } = await open(browser, url, (s) => s, { width: 360, theme });
     await sleep(900);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

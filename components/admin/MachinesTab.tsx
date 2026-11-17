@@ -137,7 +137,7 @@ export default function MachinesTab({ supabase, onChanged }: { supabase: Supabas
         <div className="card" style={{ borderColor: "color-mix(in srgb, var(--danger) 40%, var(--border))" }}>
           <div style={{ fontWeight: 800 }}>Reset everything</div>
           <p className="faint" style={{ fontSize: 13, margin: "4px 0 12px" }}>
-            Wipes every member&rsquo;s sets, PBs, check-ins, feedback and attendance on every machine. Accounts are kept. Only for starting over.
+            Wipes every member&rsquo;s sets, PBs, check-ins, feedback, attendance, XP, claimed rewards and past prize races. Accounts, brands, shop items and prize settings are kept. Only for starting over.
           </p>
           <button type="button" className="btn btn-danger btn-sm" onClick={() => setResetAll(true)}>
             Reset all gym data…
@@ -159,7 +159,7 @@ export default function MachinesTab({ supabase, onChanged }: { supabase: Supabas
       <ConfirmSheet
         open={resetAll}
         title="Reset ALL gym data?"
-        body="This permanently deletes every set, PB, check-in, feedback and attendance record for every member. It can't be undone."
+        body="This permanently deletes every set, PB, check-in, feedback, attendance record, XP and claimed reward for every member. It can't be undone."
         confirmLabel="Reset everything"
         danger
         typeToConfirm="RESET ALL"

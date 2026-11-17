@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Topbar from "@/components/Topbar";
 import Icon from "@/components/Icon";
@@ -129,6 +130,18 @@ function LeaderboardInner() {
         <header>
           <h1 style={{ fontSize: 27, margin: 0 }}>Leaderboard</h1>
         </header>
+        <Link href="/rewards" className="action-card rw-teaser" data-testid="lb-prize-race">
+          <div className="glyph gold">
+            <Icon name="gift" />
+          </div>
+          <div className="body">
+            <div className="title">Prize race</div>
+            <div className="sub">Top XP earners win prizes from our partners</div>
+          </div>
+          <div className="chev">
+            <Icon name="chev" />
+          </div>
+        </Link>
         <div className="tabs" role="tablist" aria-label="Leaderboard type">
           <button role="tab" aria-selected={tab === "overall"} className={`tab${tab === "overall" ? " active" : ""}`} onClick={() => setQuery({ tab: "overall", machine: undefined, mode: undefined })}>
             Overall XP

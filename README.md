@@ -46,13 +46,14 @@ It's also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-b
 | **Tap to log** | Each machine's NFC tag (or QR code) opens that machine: your history, your best lift and a quick set logger |
 | **Live leaderboards** | Overall and per-machine rankings for today, the week, the month or all time, updated the moment anyone logs a set |
 | **XP, levels and streaks** | XP per set, a level per machine, attendance streaks and a calendar of the days you trained |
+| **Rewards** | Weekly missions, lifting-streak bonuses and badges earn bonus XP; a weekly prize race with gifts from partner brands; sponsor challenges; an XP shop for vouchers (spending XP never lowers your level); a partner showcase with click tracking for sponsor reports |
 | **Home feed** | A feed of sets and new best lifts, grouped by visit, with kudos |
 | **Progress photos** | Optional before-and-after photos, with kudos and reporting for moderation |
 | **Gym TV mode** | `/tv` turns the gym's TV into a live recruiting screen: a scan-to-join QR, today's kg moved, podium leaderboards with "think you can beat this?", what muscle groups the floor is hitting. First names only |
 | **Join page** | `/join` is where the TV's QR lands: today's live numbers, a lift to beat, one-tap Google sign-in |
 | **Machine guides** | A form guide with animation for each machine, and a way to report problems with the machine |
 | **Share cards** | Strava-style cards for a new best lift or a leaderboard rank |
-| **Admin tools** | A staff dashboard for machines, tap analytics and photo moderation |
+| **Admin tools** | A staff dashboard for machines, tap analytics, photo moderation, fair-play review, and rewards (prizes, shop, codes, challenges, partners) |
 
 ## 03 · How it works
 
@@ -83,7 +84,7 @@ It's also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-b
 
 ## 04 · Built in public
 
-Racked began as a Claude Artifact prototype and became this deployable app in **September and October 2026**. Every feature shipped as a numbered database migration (the timeline below shows the first eight; **0009** added onboarding, account settings and deletion, and tighter photo privacy, and **0010** added the staff console's fair-play tools, in November 2026):
+Racked began as a Claude Artifact prototype and became this deployable app in **September and October 2026**. Every feature shipped as a numbered database migration (the timeline below shows the first eight; **0009** added onboarding, account settings and deletion, and tighter photo privacy, **0010** added the staff console's fair-play tools, and **0011** added Rewards, in November 2026):
 
 <div align="center">
 <img src="docs/assets/timeline.svg" alt="Eight migrations: core schema, leaderboards, admin tools, tap source, gym TV, home feed, photos, Instagram handles" width="100%"/>
@@ -97,7 +98,7 @@ The notes written for each update are kept in [`docs/updates/`](docs/updates).
 |---|---|
 | **Status** | Live at [racked-app-liard.vercel.app](https://racked-app-liard.vercel.app), used at Bijlee. |
 | **Coverage** | 10 machines, defined in [`lib/machines.ts`](lib/machines.ts) |
-| **Database** | 10 migrations in [`supabase/migrations/`](supabase/migrations) |
+| **Database** | 11 migrations in [`supabase/migrations/`](supabase/migrations) |
 | **Fair play** | Impossible weights are refused by the database; suspicious jumps go to a staff review queue. Staff can remove any set or reset a member or machine; members get a note explaining why. |
 | **Tests** | Database tests (in-memory Postgres) and browser tests with a mocked backend in [`tests/`](tests) — see [tests/README.md](tests/README.md). |
 | **App** | Installable (Add to Home Screen), dark-first with a light mode, works with a slow or dropped connection. |

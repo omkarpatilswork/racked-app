@@ -27,6 +27,7 @@ import { fetchTvData, type TvBoard, type TvData } from "@/lib/data";
 import { MACHINES } from "@/lib/machines";
 import { fmtKg, kgEquivalent } from "@/lib/tvCopy";
 import { buildSlides, type Slide } from "@/lib/tvSlides";
+import { fetchTvPrize, prizeRankLabel, timeLeft, type TvPrize } from "@/lib/rewards";
 import type { Period } from "@/lib/period";
 
 const POLL_MS = 10_000;
@@ -95,7 +96,24 @@ function TvScreen() {
     return () => clearInterval(t);
   }, []);
 
-  const slides = useMemo<Slide[]>(() => (data ? buildSlides(data) : []), [data]);
+  // ---- prize race (rewards): refreshed every minute; no slide without it
+  const [prize, setPrize] = useState<TvPrize | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      fetchTvPrize(supabase).then(
+        (p) => !cancelled && setPrize(p),
+        () => undefined
+      );
+    load();
+    const t = setInterval(load, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [supabase]);
+
+  const slides = useMemo<Slide[]>(() => (data ? buildSlides(data, !!prize) : []), [data, prize]);
   // Track the slide by key, so fresh data arriving mid-slide never makes the
   // show jump to a different slide.
   const idx = useMemo(() => {
@@ -229,6 +247,8 @@ function TvScreen() {
           <GroupsSlide key={current.key} data={data} period={period} />
         ) : current.kind === "open" ? (
           <OpenSlide key={current.key} period={period} />
+        ) : current.kind === "prizes" ? (
+          prize ? <PrizeSlide key={current.key} prize={prize} now={now} /> : <OpenSlide key={current.key} period={period} />
         ) : (
           <BoardSlide key={current.key} board={current.board} period={period} />
         )}
@@ -405,6 +425,53 @@ function GroupsSlide({ data, period }: { data: TvData; period: Period }) {
             </div>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function PrizeSlide({ prize, now }: { prize: TvPrize; now: number }) {
+  const [first, ...rest] = prize.prizes;
+  const word = prize.period === "month" ? "month" : "week";
+  return (
+    <section className="tv-slide tv-prizes" data-testid="slide-prizes">
+      <div>
+        <div className="tv-eyebrow">This {word}&apos;s prize race{now ? ` · ends in ${timeLeft(prize.endsAt, now)}` : ""}</div>
+        <h2 className="tv-title">
+          {first ? (first.rank_from === first.rank_to && first.rank_from === 1 ? "#1 wins" : `${prizeRankLabel(first)} win`) : "Win"}
+          <br />
+          <span className="tv-grad" style={first && first.title.length > 28 ? { fontSize: "0.78em" } : undefined}>
+            {first ? first.title : "a prize"}
+          </span>
+        </h2>
+        <p className="tv-sub">Every set, mission and streak earns XP. Most XP this {word} wins{prize.sponsors.length ? `, with prizes from ${prize.sponsors.join(" × ")}` : ""}.</p>
+        {rest.length > 0 && (
+          <div className="tv-prize-list">
+            {rest.map((p) => (
+              <div key={p.id} className="tv-prize-row">
+                <b>{prizeRankLabel(p)}</b>
+                <span>{p.title}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="tv-prize-board">
+        <div className="tv-prize-board-head">{prize.title}</div>
+        {prize.top.length === 0 ? (
+          <div className="tv-sub">Nobody on the board yet. The first set this {word} takes #1.</div>
+        ) : (
+          prize.top.map((r, i) => (
+            <div key={r.rank} className={`tv-row${r.rank === 1 ? " lead" : ""}`} style={{ animationDelay: `${0.15 + i * 0.08}s` }}>
+              <div className="rk">{r.rank}</div>
+              <div className="nm">{r.name}</div>
+              <div className="lift">
+                {r.score.toLocaleString("en-IN")}
+                <small>XP</small>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </section>
   );

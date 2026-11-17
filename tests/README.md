@@ -14,6 +14,7 @@ npx playwright install chromium   # once
 node tests/sql/0009_account_basics.test.mjs
 node tests/sql/0009_photo_privacy.test.mjs
 node tests/sql/0010_staff_moderation.test.mjs
+node tests/sql/0011_rewards.test.mjs
 ```
 
 They apply every file in `supabase/migrations/` in order to a throwaway
@@ -37,6 +38,7 @@ npx next dev -p 3111
 node tests/e2e/app.e2e.js
 node tests/e2e/staff.e2e.js
 node tests/e2e/tv.e2e.js      # gym TV + /join (takes ~3 min)
+node tests/e2e/rewards.e2e.js  # Rewards page, Home teaser, staff Rewards tab
 node tests/e2e/landing.e2e.js # landing page + / -> /home routing (takes ~4 min)
 ```
 

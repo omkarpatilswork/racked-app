@@ -9,6 +9,7 @@ import PumpCheckCard from "@/components/PumpCheckCard";
 import SignInSheet from "@/components/SignInSheet";
 import Avatar from "@/components/Avatar";
 import StaffNotices from "@/components/StaffNotices";
+import RewardsTeaser from "@/components/rewards/RewardsTeaser";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAttendance, fetchMyStats, fetchWeekSummary, overallFromStats, type WeekSummary } from "@/lib/data";
@@ -133,6 +134,21 @@ function SignedInHome() {
         </div>
       )}
 
+      <Link href="/machines" className="action-card machines-card" data-testid="machines-card">
+        <div className="glyph">
+          <Icon name="grid" />
+        </div>
+        <div className="body">
+          <div className="title">All {MACHINES.length} machines</div>
+          <div className="sub">Find a machine, see how to use it and who&rsquo;s top</div>
+        </div>
+        <div className="chev">
+          <Icon name="chev" />
+        </div>
+      </Link>
+
+      <RewardsTeaser supabase={supabase} />
+
       <section className="bento" aria-label="Your stats">
         <div className="tile accent-tile tall" data-testid="tile-streak">
           <div className="t-label">
@@ -243,6 +259,18 @@ function SignedOutHome() {
         <div className="body">
           <div className="title">See who&rsquo;s on top</div>
           <div className="sub">This gym&rsquo;s live leaderboard</div>
+        </div>
+        <div className="chev">
+          <Icon name="chev" />
+        </div>
+      </Link>
+      <Link href="/rewards" className="action-card rw-teaser" data-testid="rw-teaser-out">
+        <div className="glyph gold">
+          <Icon name="gift" />
+        </div>
+        <div className="body">
+          <div className="title">Rewards</div>
+          <div className="sub">Weekly missions and prizes from our partner brands</div>
         </div>
         <div className="chev">
           <Icon name="chev" />

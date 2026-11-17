@@ -5,10 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "@/components/Icon";
 
+// Machines live on Home (big "All machines" card), so the bar is
+// Home · Ranks · Rewards · You.
 const TABS = [
   { href: "/home", label: "Home", icon: "home" },
-  { href: "/machines", label: "Machines", icon: "grid" },
   { href: "/leaderboard", label: "Ranks", icon: "trophy" },
+  { href: "/rewards", label: "Rewards", icon: "gift" },
   { href: "/profile", label: "You", icon: "user" },
 ] as const;
 
@@ -43,12 +45,10 @@ export default function BottomNav() {
       {TABS.map((tab) => {
         const active =
           tab.href === "/home"
-            ? pathname === "/home"
-            : tab.href === "/machines"
-              ? pathname.startsWith("/machines") || pathname.startsWith("/machine/")
-              : tab.href === "/profile"
-                ? pathname.startsWith("/profile") || pathname.startsWith("/settings")
-                : pathname.startsWith(tab.href);
+            ? pathname === "/home" || pathname.startsWith("/machines") || pathname.startsWith("/machine/")
+            : tab.href === "/profile"
+              ? pathname.startsWith("/profile") || pathname.startsWith("/settings")
+              : pathname.startsWith(tab.href);
         return (
           <Link key={tab.href} href={tab.href} aria-current={active ? "page" : undefined}>
             <Icon name={tab.icon} />

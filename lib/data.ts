@@ -647,7 +647,9 @@ export function friendlyDbError(err: unknown): string | null {
   const e = err as { code?: string; message?: string } | null;
   // RK001 over max weight, RK002 over max reps, RK003 unknown machine/side,
   // RK004 odd weight step, RK005 too fast / daily cap (0010_staff_moderation.sql)
-  if (e && e.code && /^RK00[1-5]$/.test(e.code) && e.message) return e.message;
+  // RK101-RK112: rewards (not available, out of stock, already claimed, need
+  // more XP, already awarded, still running...) (0011_rewards.sql)
+  if (e && e.code && /^RK(00[1-5]|1[01]\d)$/.test(e.code) && e.message) return e.message;
   return null;
 }
 
