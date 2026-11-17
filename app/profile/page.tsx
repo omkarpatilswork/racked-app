@@ -11,6 +11,8 @@ import ProgressPhotos from "@/components/ProgressPhotos";
 import SignInSheet from "@/components/SignInSheet";
 import ShareSheet from "@/components/ShareSheet";
 import MachineCard from "@/components/MachineCard";
+import GymMark from "@/components/GymMark";
+import { useGym } from "@/lib/gym";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAttendance, fetchMyStats, overallFromStats, toggleAttendanceDay } from "@/lib/data";
@@ -65,6 +67,8 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
   const pct = Math.min(100, Math.round((100 * lvl.into) / lvl.need));
   const mine = Object.values(stats || {}).sort((a, b) => b.xp - a.xp);
   const streaks = computeStreaks(attendance);
+  const gym = useGym();
+  const since = profile?.created_at ? new Date(profile.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" }) : null;
 
   async function handleToggleAttendance(dateStr: string) {
     if (dateStr > todayStr()) return;
@@ -153,6 +157,36 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
               {overall.unlocked} / {MACHINES.length} machines
             </div>
           </div>
+        </section>
+
+        <section className="card gym-card" data-testid="your-gym">
+          <div className="row" style={{ alignItems: "flex-start" }}>
+            <GymMark variant="lockup" label="Your gym" />
+            {gym.instagram && (
+              <a className="iconbtn" href={gym.instagram} target="_blank" rel="noopener" aria-label={`${gym.name} on Instagram`}>
+                <Icon name="instagram" />
+              </a>
+            )}
+          </div>
+          <div className="gym-card-stats">
+            <div>
+              <b className="num">{since || "–"}</b>
+              <span>Member since</span>
+            </div>
+            <div>
+              <b className="num">
+                {overall.unlocked}/{MACHINES.length}
+              </b>
+              <span>Machines used</span>
+            </div>
+            <div>
+              <b className="num">{streaks.best}</b>
+              <span>Best streak</span>
+            </div>
+          </div>
+          <Link href="/leaderboard" className="btn btn-ghost btn-sm" style={{ marginTop: 12, width: "100%" }} data-testid="gym-leaderboard-link">
+            <Icon name="trophy" /> {gym.name} leaderboard
+          </Link>
         </section>
 
         <section className="card">

@@ -206,12 +206,12 @@ const rpcCalls = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" +
 
   // 6. leaderboard + error state
   {
-    const { ctx, page } = await open(browser, "/leaderboard");
+    const { ctx, page } = await open(browser, "/leaderboard?tab=all");
     await page.waitForSelector('[data-testid="podium"]');
     check("podium shows top 3", (await page.locator(".podium-spot .pname").count()) === 3);
     check("rest of list below podium", (await page.locator(".lb-row").count()) === 2);
     await ctx.close();
-    const r = await open(browser, "/leaderboard", (s) => ((s.failRpc.leaderboard_overall = true), s));
+    const r = await open(browser, "/leaderboard?tab=all", (s) => ((s.failRpc.leaderboard_overall = true), s));
     await r.page.waitForSelector("text=Couldn’t load the leaderboard", { timeout: 10000 });
     check("leaderboard error state with retry", (await r.page.getByRole("button", { name: /Try again/ }).count()) === 1);
     await r.ctx.close();

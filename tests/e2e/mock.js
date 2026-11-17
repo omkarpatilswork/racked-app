@@ -45,7 +45,8 @@ function rewardsFixtures() {
     { id: 1, rank_from: 1, rank_to: 1, title: "Gift hamper from Jersey Drip × The Clean Crate", description: "For the season's top performer.", sponsor_ids: ["jersey-drip", "clean-crate"] },
     { id: 2, rank_from: 2, rank_to: 5, title: "Partner coupons", description: "Discount coupons from Jersey Drip and The Clean Crate.", sponsor_ids: ["jersey-drip", "clean-crate"] },
   ];
-  const season = { id: 7, title: "Week of 16 Nov", period: "week", starts_at: hrs(-30), ends_at: hrs(80), prizes, players: 6 };
+  const season = { id: 7, title: "Week of 16 Nov", period: "week", starts_at: hrs(-30), ends_at: hrs(80), prizes, players: 6, leader: { name: "Asha", score: 520 } };
+  const settings = { gym_name: "Club 360", gym_location: "Baner, Pune", gym_logo_url: null, gym_logo_dark_url: null, gym_instagram_url: "https://instagram.com/club360", gym_website_url: null, prize_headline: null, rewards_note: "Winners collect at the front desk every Monday", show_partners: true, show_shop: true };
   const shop = [
     { id: 11, sponsor_id: "clean-crate", title: "Protein oats, 1 pack", description: "One 60 g pack of The Clean Crate protein oats (15 g protein).", image_url: null, xp_cost: 600, code_mode: "desk", stock_left: 18, per_member_limit: 1, valid_until: null },
     { id: 12, sponsor_id: "jersey-drip", title: "₹150 off at Jersey Drip", description: "A discount on any jersey at jerseydrip.shop.", image_url: null, xp_cost: 1000, code_mode: "pool", stock_left: null, per_member_limit: 1, valid_until: null },
@@ -53,9 +54,9 @@ function rewardsFixtures() {
     { id: 14, sponsor_id: "jersey-drip", title: "Custom Jersey Drip jersey", description: "A jersey of your choice with your name and number.", image_url: null, xp_cost: 6000, code_mode: "desk", stock_left: 0, per_member_limit: 1, valid_until: null },
   ];
   const challenges = [
-    { id: 3, sponsor_id: "clean-crate", title: "Clean Crate Leg Day", description: "Heaviest Leg Press set this week wins. Everyone who joins gets +20 XP.", metric: "best_lift", machine_id: "leg-press-08", mode: null, starts_at: hrs(-30), ends_at: hrs(80), prize: "A box of The Clean Crate protein oats", winners: 1, join_xp: 20, players: 4, leader: { name: "Rahul", value: 140, reps: 10 } },
+    { id: 3, sponsor_id: "clean-crate", title: "Clean Crate Leg Press Challenge", description: "Every Friday: the heaviest single Leg Press set of the day wins a goodie bag from The Clean Crate.", metric: "best_lift", machine_id: "leg-press-08", mode: null, starts_at: hrs(-2), ends_at: hrs(10), prize: "A goodie bag from The Clean Crate", winners: 1, join_xp: 20, players: 4, leader: { name: "Rahul", value: 140, reps: 10 }, series_id: 1, repeats: "weekly", weekday: 5, last_result: { ends_at: hrs(-158), name: "Asha", value: 130, reps: 8 } },
   ];
-  const overview = { period: "week", season, sponsors, shop, challenges, missions, badges, streak_steps: [{ days: 3, xp: 30 }, { days: 7, xp: 75 }, { days: 14, xp: 150 }, { days: 30, xp: 400 }],
+  const overview = { period: "week", settings, season, sponsors, shop, challenges, missions, badges, streak_steps: [{ days: 3, xp: 30 }, { days: 7, xp: 75 }, { days: 14, xp: 150 }, { days: 30, xp: 400 }],
     last_winners: { season: "Week of 9 Nov", winners: [{ rank: 1, name: "Asha", score: 980, prize: prizes[0].title }, { rank: 2, name: "Rahul", score: 760, prize: "Partner coupons" }, { rank: 3, name: "Omi", score: 610, prize: "Partner coupons" }] } };
   const my = {
     wallet: { training: 1300, bonus: 240, spent: 0, on_hold: 60, lifetime: 1540, balance: 1540 },
@@ -91,7 +92,13 @@ function rewardsFixtures() {
       { id: 42, title: "Protein oats, 1 pack", code: "RK-91BC0D", source: "shop", status: "issued", rank: null, xp_spent: 600, created_at: iso(300), fulfilled_at: null, member: "Asha Rao", sponsor_id: "clean-crate" },
     ],
   };
-  return { overview, my, board, challengeBoard, admin, syncAwards: [] };
+  admin.settings = settings;
+  admin.series = [{ id: 1, sponsor_id: "clean-crate", title: "Clean Crate Leg Press Challenge", description: challenges[0].description, metric: "best_lift", machine_id: "leg-press-08", mode: null, prize: challenges[0].prize, reward_id: null, winners: 1, join_xp: 20, active: true, weekday: 5, start_time: "00:00", end_time: "24:00", next: { id: 3, starts_at: hrs(-2), ends_at: hrs(10), players: 4 } }];
+  admin.challenges = [
+    { ...admin.challenges[0], series_id: 1 },
+    { id: 2, sponsor_id: "clean-crate", title: "Clean Crate Leg Press Challenge", description: "", metric: "best_lift", machine_id: "leg-press-08", mode: null, starts_at: hrs(-170), ends_at: hrs(-158), prize: "A goodie bag from The Clean Crate", winners: 1, join_xp: 20, players: 5, active: true, awarded_at: null, reward_id: null, series_id: 1, top: [{ rank: 1, name: "Asha Rao", value: 130, reps: 8 }, { rank: 2, name: "Rahul Mehta", value: 120, reps: 10 }] },
+  ];
+  return { overview, my, board, challengeBoard, admin, settings, syncAwards: [] };
 }
 
 function defaultState() {
@@ -246,6 +253,9 @@ async function setup(ctx, page, state, base) {
           return json(r, { id: 99, title: it.title, code, code_mode: it.code_mode, how_to_use: null, sponsor_id: it.sponsor_id, xp_spent: it.xp_cost, balance: w.balance });
         }
         case "admin_rewards_data": return state.profile.is_staff ? json(r, state.rewards.admin) : staffOnly();
+        case "admin_rr_data": return state.profile.is_staff ? json(r, state.rewards.admin) : staffOnly();
+        case "admin_save_series": { const p = body.p; if (p.id) { const x = state.rewards.admin.series.find((y) => String(y.id) === String(p.id)); Object.assign(x, { ...p, id: x.id, weekday: Number(p.weekday ?? x.weekday) }); return json(r, x.id); } const id = 10 + state.rewards.admin.series.length; state.rewards.admin.series.push({ ...p, id, weekday: Number(p.weekday), next: null }); return json(r, id); }
+        case "admin_save_rr_settings": Object.assign(state.rewards.settings, body.p); return json(r, null);
         case "admin_set_season_period": state.rewards.admin.period = body.p_period; return json(r, null);
         case "admin_save_prizes": state.rewards.admin.templates = body.p_prizes; if (body.p_apply_current) state.rewards.admin.season_prizes = body.p_prizes; return json(r, null);
         case "admin_award_season": { const s = state.rewards.admin.to_award.find((x) => x.id === body.p_season_id); state.rewards.admin.to_award = state.rewards.admin.to_award.filter((x) => x.id !== body.p_season_id); return json(r, (s ? s.board : []).map((b) => ({ rank: b.rank, prize: b.prize }))); }
@@ -293,6 +303,7 @@ async function setup(ctx, page, state, base) {
       return single ? (rows[0] ? json(r, rows[0]) : json(r, { code: "PGRST116" }, 406)) : json(r, rows);
     }
     if (p === "attendance") return json(r, req.method() === "GET" ? state.attendance : []);
+    if (p === "rr_settings") return state.missingTables?.rr_settings ? json(r, { code: "42P01", message: "missing" }, 404) : json(r, single ? { id: 1, ...state.rewards.settings } : [{ id: 1, ...state.rewards.settings }]);
     if (p === "pump_photos") return json(r, state.photos);
     const eq = (k) => { const v = u.searchParams.get(k); return v && v.startsWith("eq.") ? v.slice(3) : null; };
     const countResp = (n) => r.fulfill({ status: 200, contentType: "application/json", body: "", headers: { "content-range": `*/${n}`, "access-control-expose-headers": "content-range" } });
@@ -326,6 +337,8 @@ async function setup(ctx, page, state, base) {
       return json(r, (paths || []).map((p) => ({ path: p, signedURL: `/object/sign/pump-photos/${p}?token=t`, error: null })));
     }
     if (u.includes("/object/sign/")) return r.fulfill({ status: 200, contentType: "image/jpeg", body: IMG });
+    if (u.includes("/object/public/rr-media/")) return r.fulfill({ status: 200, contentType: "image/jpeg", body: IMG });
+    if (u.includes("/object/rr-media/") && r.request().method() === "POST") { state.calls.push("storage:upload " + u.split("/object/rr-media/")[1]); return json(r, { Key: "rr-media/x", Id: "x" }); }
     if (u.includes("/object/list/")) { state.calls.push("storage:list"); return json(r, state.storageFiles || []); }
     if (r.request().method() === "DELETE") { state.calls.push("storage:delete " + (r.request().postData() || "")); state.storageFiles = []; return json(r, []); }
     return json(r, { Key: "x" });

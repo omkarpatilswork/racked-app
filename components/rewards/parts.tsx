@@ -47,7 +47,7 @@ export function copyCode(code: string) {
 }
 
 // ---- wallet ---------------------------------------------------------------
-export function WalletCard({ me, onHow, onShop }: { me: MyRewards; onHow: () => void; onShop: () => void }) {
+export function WalletCard({ me, onHow, onShop }: { me: MyRewards; onHow: () => void; onShop?: () => void }) {
   const w = me.wallet;
   return (
     <section className="rw-wallet" data-testid="rw-wallet" aria-label="Your XP">
@@ -77,11 +77,13 @@ export function WalletCard({ me, onHow, onShop }: { me: MyRewards; onHow: () => 
         )}
       </div>
       <p className="rw-wallet-note">Spending XP never lowers your level or your rank.</p>
-      <button type="button" className="btn-slab rw-wallet-cta" onClick={onShop}>
-        <span>
-          Spend in the XP shop <span aria-hidden="true">→</span>
-        </span>
-      </button>
+      {onShop && (
+        <button type="button" className="btn-slab rw-wallet-cta" onClick={onShop}>
+          <span>
+            Spend in the XP shop <span aria-hidden="true">→</span>
+          </span>
+        </button>
+      )}
     </section>
   );
 }
@@ -104,104 +106,6 @@ export function SignInCard({ onSignIn }: { onSignIn: () => void }) {
           Continue with Google
         </span>
       </button>
-    </section>
-  );
-}
-
-// ---- season prize race ------------------------------------------------------
-export function SeasonCard({
-  ov,
-  me,
-  top,
-  sponsors,
-  now,
-  onBoard,
-}: {
-  ov: RewardsOverview;
-  me: MyRewards | null;
-  top: BoardRow[] | null;
-  sponsors: SponsorMap;
-  now: number;
-  onBoard: () => void;
-}) {
-  const s = ov.season;
-  if (!s) return null;
-  const myRank = me?.season?.rank ?? null;
-  const myPrize = prizeForRank(s.prizes, myRank);
-  const lastPrizeRank = s.prizes.reduce((m, p) => Math.max(m, p.rank_to), 0);
-  const ahead = me?.season?.ahead;
-  return (
-    <section className="rw-season" data-testid="rw-season" aria-labelledby="rw-season-h">
-      <div className="rw-season-head">
-        <div>
-          <span className="eyebrow rw-on-dark-eyebrow">This {periodWord(s.period)}&rsquo;s prize race</span>
-          <h2 id="rw-season-h">{s.title}</h2>
-        </div>
-        <span className="rw-countdown" data-testid="rw-countdown">
-          <Icon name="timer" />
-          {timeLeft(s.ends_at, now)}
-        </span>
-      </div>
-
-      {me && (
-        <div className="rw-myrank" data-testid="rw-myrank">
-          {myRank ? (
-            <>
-              <span className="rw-myrank-n display">#{myRank}</span>
-              <span>
-                <b>{fmtXp(me.season?.score)} XP</b> this {periodWord(s.period)}
-                {ahead ? (
-                  <>
-                    {" "}
-                    · {fmtXp(ahead.score - (me.season?.score || 0) + 1)} XP to pass {ahead.name}
-                  </>
-                ) : myRank === 1 ? (
-                  <> · you&rsquo;re leading</>
-                ) : null}
-                {myPrize ? <span className="rw-inprize"> · in the prizes</span> : null}
-              </span>
-            </>
-          ) : (
-            <span>Log a set to join the race. All XP you earn this {periodWord(s.period)} counts.</span>
-          )}
-        </div>
-      )}
-
-      <ol className="rw-prizes" aria-label="Prizes">
-        {s.prizes.map((p) => {
-          const names = sponsorNames(p.sponsor_ids, sponsors);
-          return (
-            <li key={p.id} className={p.rank_from === 1 ? "first" : ""}>
-              <span className="rw-prize-rank">{prizeRankLabel(p)}</span>
-              <span className="rw-prize-body">
-                <b>{p.title}</b>
-                {names.length > 0 && <span className="rw-prize-by">{names.join(" × ")}</span>}
-              </span>
-              <Icon name={p.rank_from === 1 ? "gift" : "ticket"} className="icon rw-prize-ic" />
-            </li>
-          );
-        })}
-      </ol>
-
-      {top && top.length > 0 ? (
-        <ol className="rw-mini-board" aria-label="Top of the race">
-          {top.slice(0, 5).map((r) => (
-            <li key={r.rank} className={`${r.is_me ? "me " : ""}${r.rank <= lastPrizeRank ? "prized" : ""}`}>
-              <span className="r num">{r.rank}</span>
-              <span className="n">{r.is_me ? `${r.name} (you)` : r.name}</span>
-              <span className="s num">{fmtXp(r.score)}</span>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <p className="rw-empty-dark">No one on the board yet. First set this {periodWord(s.period)} takes #1.</p>
-      )}
-      <button type="button" className="rw-dark-btn" onClick={onBoard} data-testid="rw-board-btn">
-        Full board <Icon name="chev" />
-      </button>
-      <p className="rw-fine">
-        Score = all XP earned this {periodWord(s.period)}: sets, missions, streaks, badges and challenges. Sets waiting for a staff check don&rsquo;t count until approved.
-      </p>
     </section>
   );
 }
@@ -310,89 +214,6 @@ export function StreakCard({ steps, me }: { steps: { days: number; xp: number }[
       <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>
         A streak counts days with at least one logged set, in a row. Miss a day and it starts again.
       </p>
-    </section>
-  );
-}
-
-// ---- sponsor challenges -------------------------------------------------------------
-export function ChallengesSection({
-  list,
-  me,
-  sponsors,
-  now,
-  onBoard,
-}: {
-  list: Challenge[];
-  me: MyRewards | null;
-  sponsors: SponsorMap;
-  now: number;
-  onBoard: (c: Challenge) => void;
-}) {
-  if (!list.length) return null;
-  return (
-    <section data-testid="rw-challenges" aria-labelledby="rw-ch-h">
-      <div className="section-head">
-        <h2 id="rw-ch-h" style={{ fontSize: 17, margin: 0 }}>
-          Sponsor challenges
-        </h2>
-      </div>
-      <div className="stack">
-        {list.map((c) => {
-          const sp = c.sponsor_id ? sponsors[c.sponsor_id] : null;
-          const m = c.machine_id ? MACHINE_MAP[c.machine_id] : null;
-          const mine = me?.challenges.find((x) => x.id === c.id);
-          const started = new Date(c.starts_at).getTime() <= now;
-          const ended = new Date(c.ends_at).getTime() <= now;
-          return (
-            <article key={c.id} className="card rw-challenge" data-testid={`challenge-${c.id}`}>
-              <div className="rw-ch-top">
-                <span className="eyebrow accent">{sp ? `${sp.name} challenge` : "Challenge"}</span>
-                <span className="pill rw-pill">{ended ? "Ended" : started ? `Ends in ${timeLeft(c.ends_at, now)}` : `Starts in ${timeLeft(c.starts_at, now)}`}</span>
-              </div>
-              <h3 className="rw-ch-title">{c.title}</h3>
-              {c.description && <p className="rw-ch-desc">{c.description}</p>}
-              <dl className="rw-ch-facts">
-                <div>
-                  <dt>Goal</dt>
-                  <dd>
-                    {metricLabel(c.metric)}
-                    {m ? ` · ${m.name}` : ""}
-                  </dd>
-                </div>
-                {c.prize && (
-                  <div>
-                    <dt>{c.winners > 1 ? `Top ${c.winners} win` : "Winner gets"}</dt>
-                    <dd>{c.prize}</dd>
-                  </div>
-                )}
-                <div>
-                  <dt>Leader</dt>
-                  <dd>{c.leader ? `${c.leader.name} · ${metricValue(c.metric, c.leader.value, c.leader.reps)}` : "Nobody yet"}</dd>
-                </div>
-                {mine && (
-                  <div>
-                    <dt>You</dt>
-                    <dd>
-                      #{mine.rank} · {metricValue(c.metric, mine.value, mine.reps)}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-              <div className="rw-ch-actions">
-                {m && !ended ? (
-                  <Link href={`/machine/${m.id}`} className="btn btn-yellow btn-sm">
-                    Go to {m.name}
-                  </Link>
-                ) : null}
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => onBoard(c)}>
-                  Board · {c.players}
-                </button>
-                {c.join_xp > 0 && !ended && <span className="rw-xp">+{c.join_xp} XP for joining</span>}
-              </div>
-            </article>
-          );
-        })}
-      </div>
     </section>
   );
 }
@@ -613,23 +434,30 @@ export function WinnersCard({ last }: { last: RewardsOverview["last_winners"] })
 // ---- partners ----------------------------------------------------------------------
 const productIcon = (sp: Sponsor) => (/apparel|jersey|wear|cloth/i.test(`${sp.category} ${sp.name}`) ? "shirt" : /nutri|food|protein|oat/i.test(`${sp.category} ${sp.name}`) ? "bowl" : "gift");
 
-export function PartnersSection({ sponsors, onClick }: { sponsors: Sponsor[]; onClick: (sponsorId: string, productId?: number) => void }) {
-  if (!sponsors.length) return null;
+export function PartnersSection({ sponsors, onClick, gymName }: { sponsors: Sponsor[]; onClick: (sponsorId: string, productId?: number) => void; gymName?: string }) {
+  if (!sponsors.length)
+    return (
+      <div className="card empty" data-testid="rw-partners-empty">
+        Partner brands will show up here soon.
+      </div>
+    );
   return (
     <section data-testid="rw-partners" aria-labelledby="rw-partners-h">
-      <div className="section-head">
-        <h2 id="rw-partners-h" style={{ fontSize: 17, margin: 0 }}>
-          Our partners
-        </h2>
-        <span className="faint" style={{ fontSize: 12.5 }}>
-          The brands behind the prizes
-        </span>
+      <div className="rw-tab-intro">
+        <h2 id="rw-partners-h">Our partners</h2>
+        <p>The brands behind the prizes{gymName ? ` at ${gymName}` : ""}. Tap through to see what they make.</p>
       </div>
       <div className="stack">
         {sponsors.map((sp) => {
           const site = sponsorLink(sp.website_url, "partner-card");
           return (
-            <article key={sp.id} className="card rw-partner" data-testid={`partner-${sp.id}`}>
+            <article key={sp.id} className={`card rw-partner${sp.cover_url ? " has-cover" : ""}`} data-testid={`partner-${sp.id}`}>
+              {sp.cover_url && (
+                <div className="rw-cover" aria-hidden="true">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={sp.cover_url} alt="" loading="lazy" onError={(e) => ((e.currentTarget.parentElement!.style.display = "none"))} />
+                </div>
+              )}
               <header className="rw-partner-head">
                 <span className="rw-logo" aria-hidden="true">
                   {sp.logo_url ? (
@@ -698,6 +526,8 @@ export function PartnersSection({ sponsors, onClick }: { sponsors: Sponsor[]; on
 }
 
 // ---- sheets ----------------------------------------------------------------------------
+export { periodWord, sponsorNames };
+
 export function HowXpSheet({ open, onClose, ov }: { open: boolean; onClose: () => void; ov: RewardsOverview | null }) {
   const missionXp = (ov?.missions || []).reduce((s, m) => s + m.xp, 0);
   return (
@@ -722,7 +552,8 @@ export function HowXpSheet({ open, onClose, ov }: { open: boolean; onClose: () =
         <div>
           <b>Win</b>
           <ul>
-            <li>Every {periodWord(ov?.period)}, the members who earn the most XP win prizes from our partners</li>
+            <li>Every {periodWord(ov?.period)}, whoever earns the most XP wins the prize. More sets = more XP</li>
+            <li>Special challenges (like the Friday Leg Press one) have their own winner</li>
             <li>Staff check the board before prizes go out</li>
           </ul>
         </div>

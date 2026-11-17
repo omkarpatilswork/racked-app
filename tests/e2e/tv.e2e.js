@@ -110,6 +110,7 @@ async function offscreen(page) {
     check("left arrow goes back", (await slideKind(page)) === "slide-board");
     const body = (await page.locator("body").textContent()) || "";
     check("no emails or @handles on the TV", !body.includes("@") && !body.includes("omi.lifts"));
+    check("no gym branding on the TV (Omi's call)", !body.includes("Club 360"));
     check("nav hidden on the TV", (await page.locator(".bottom-nav").count()) === 0);
     check("no page errors (TV, full)", errors.length === 0, errors.join(" | "));
     await ctx.close();
@@ -196,7 +197,8 @@ async function offscreen(page) {
   {
     const { ctx, page, st, errors } = await open(browser, "/join?src=tv", signedOut, { width: 390, height: 844 });
     await page.waitForSelector('[data-testid="join-out"]');
-    check("join: says they came from the gym screen", ((await page.locator('[data-testid="join-out"] .eyebrow').textContent()) || "").includes("gym screen"));
+    check("join: says they came from the gym screen", /You scanned the Club 360 screen/.test((await page.locator('[data-testid="join-out"] .eyebrow').first().textContent()) || ""));
+    check("join: shows the gym", ((await page.locator('[data-testid="join-out"] [data-testid="gym-mark"]').textContent()) || "").includes("Club 360"));
     await page.waitForSelector('[data-testid="join-live"]');
     const live = (await page.locator('[data-testid="join-live"]').textContent()) || "";
     check("join: live numbers from today", live.includes("5") && live.includes("32") && live.includes("Lifters"));

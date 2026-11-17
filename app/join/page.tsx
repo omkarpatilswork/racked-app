@@ -9,6 +9,8 @@ import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchTvData, type TvData } from "@/lib/data";
 import { MACHINES } from "@/lib/machines";
+import { useGym } from "@/lib/gym";
+import GymMark from "@/components/GymMark";
 
 // Where the QR code on the gym TV lands (/join?src=tv). One job: turn someone
 // standing on the gym floor into a member in about ten seconds, by showing
@@ -28,6 +30,7 @@ function firstName(name?: string | null) {
 
 function Join() {
   const { session, profile, loading, signInWithGoogle } = useAuth();
+  const gym = useGym();
   const params = useSearchParams();
   const fromTv = params.get("src") === "tv";
   const supabase = useMemo(() => createClient(), []);
@@ -84,7 +87,10 @@ function Join() {
           </section>
         ) : (
           <section className="hero-machine join-hero" data-testid="join-out">
-            <div className="eyebrow">{fromTv ? "You scanned the gym screen" : "Racked × Bijlee"}</div>
+            <div className="eyebrow">{fromTv ? `You scanned the ${gym.name} screen` : `Racked at ${gym.name}`}</div>
+            <div style={{ margin: "10px 0 2px" }}>
+              <GymMark variant="chip" onDark label="Live at" />
+            </div>
             <h1>
               Get on the board <span className="join-grad">today.</span>
             </h1>

@@ -10,6 +10,7 @@ import SignInSheet from "@/components/SignInSheet";
 import Avatar from "@/components/Avatar";
 import StaffNotices from "@/components/StaffNotices";
 import RewardsTeaser from "@/components/rewards/RewardsTeaser";
+import GymMark from "@/components/GymMark";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAttendance, fetchMyStats, fetchWeekSummary, overallFromStats, type WeekSummary } from "@/lib/data";
@@ -40,7 +41,7 @@ export default function HomePage() {
           ) : undefined
         }
       />
-      <div className="page stack-lg">
+      <div className="page stack-lg home-page">
         {loading ? <HomeSkeleton /> : session ? <SignedInHome /> : <SignedOutHome />}
       </div>
     </>
@@ -102,6 +103,9 @@ function SignedInHome() {
           {greeting()}
           {firstName ? `, ${firstName}` : ""}
         </h1>
+        <div style={{ marginTop: 10 }}>
+          <GymMark variant="chip" label="Training at" />
+        </div>
       </header>
 
       <StaffNotices supabase={supabase} uid={uid} />
@@ -203,6 +207,9 @@ function SignedOutHome() {
     <>
       <section className="hero-machine" style={{ padding: "26px 22px 22px" }}>
         <div className="eyebrow">Racked × Bijlee Run Club</div>
+        <div style={{ marginTop: 10 }}>
+          <GymMark variant="chip" onDark label="Live at" />
+        </div>
         <h1 style={{ fontSize: 30, margin: "10px 0 10px" }}>
           Tap. Lift. Get on the <em>board.</em>
         </h1>
@@ -269,8 +276,8 @@ function SignedOutHome() {
           <Icon name="gift" />
         </div>
         <div className="body">
-          <div className="title">Rewards</div>
-          <div className="sub">Weekly missions and prizes from our partner brands</div>
+          <div className="title">This week&rsquo;s prize</div>
+          <div className="sub">Log the most this week and win gifts from our partner brands</div>
         </div>
         <div className="chev">
           <Icon name="chev" />

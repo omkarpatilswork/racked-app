@@ -14,7 +14,6 @@ import MembersTab from "@/components/admin/MembersTab";
 import MachinesTab from "@/components/admin/MachinesTab";
 import FeedbackTab from "@/components/admin/FeedbackTab";
 import ActivityTab from "@/components/admin/ActivityTab";
-import RewardsTab from "@/components/admin/RewardsTab";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAdminFeedback, fetchFlaggedCount } from "@/lib/data";
@@ -24,7 +23,6 @@ const TABS = [
   { key: "review", label: "Review", icon: "shield" },
   { key: "members", label: "Members", icon: "user" },
   { key: "machines", label: "Machines", icon: "grid" },
-  { key: "rewards", label: "Rewards", icon: "gift" },
   { key: "feedback", label: "Feedback", icon: "msg" },
   { key: "activity", label: "Activity", icon: "timer" },
 ] as const;
@@ -45,6 +43,10 @@ function StaffConsole() {
   const params = useSearchParams();
   const tabParam = params.get("tab") as TabKey | null;
   const tab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : "overview";
+  // Rewards moved to its own page (R&R Controls)
+  useEffect(() => {
+    if ((tabParam as string) === "rewards") router.replace("/rnr");
+  }, [tabParam, router]);
   const [flagged, setFlagged] = useState<number | null>(null);
   const [openIssues, setOpenIssues] = useState<number | null>(null);
   const [confirmOut, setConfirmOut] = useState(false);
@@ -162,6 +164,9 @@ function StaffConsole() {
                 </button>
               );
             })}
+            <Link href="/rnr" className="chip rr-chip" data-testid="open-rnr">
+              <Icon name="gift" /> R&amp;R Controls <Icon name="chev" />
+            </Link>
           </div>
         </nav>
 
@@ -169,7 +174,6 @@ function StaffConsole() {
         {tab === "review" && <ReviewTab supabase={supabase} onChanged={refreshCounts} />}
         {tab === "members" && <MembersTab supabase={supabase} onChanged={refreshCounts} />}
         {tab === "machines" && <MachinesTab supabase={supabase} onChanged={refreshCounts} />}
-        {tab === "rewards" && <RewardsTab supabase={supabase} />}
         {tab === "feedback" && <FeedbackTab supabase={supabase} onChanged={refreshCounts} />}
         {tab === "activity" && <ActivityTab supabase={supabase} />}
       </div>

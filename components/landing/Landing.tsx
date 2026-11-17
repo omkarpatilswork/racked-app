@@ -9,7 +9,8 @@ import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchTvData, type TvActivity } from "@/lib/data";
 import { fmtKg } from "@/lib/tvCopy";
-import { BIJLEE_HANDLE, BIJLEE_INSTAGRAM, BIJLEE_URL, GYM_NAME, LANDING_PHOTOS } from "@/lib/site";
+import { BIJLEE_HANDLE, BIJLEE_INSTAGRAM, BIJLEE_URL, LANDING_PHOTOS } from "@/lib/site";
+import { useGym, type Gym } from "@/lib/gym";
 import { BoardScreen, HeroScreen, LogScreen, PbScreen, Phone, TapScreen } from "@/components/landing/Screens";
 import TvPreview from "@/components/landing/TvPreview";
 import "./landing.css";
@@ -62,7 +63,7 @@ const FEATURES = [
   },
 ];
 
-const FAQ = [
+const faq = (gym: Gym) => [
   { q: "Is it free?", a: "Yes. Racked is free for members." },
   {
     q: "Do I need to download an app?",
@@ -70,7 +71,7 @@ const FAQ = [
   },
   {
     q: "Where can I use it?",
-    a: `${GYM_NAME ? `At ${GYM_NAME}, Pune,` : "At our partner gym in Pune,"} on every machine with a Racked sticker. More gyms soon.`,
+    a: `At ${gym.name}${gym.location ? ` (${gym.location})` : ", Pune"}, on every machine with a Racked sticker. More gyms soon.`,
   },
   {
     q: "What shows up on the gym TV?",
@@ -144,8 +145,8 @@ function StartButton({ testId, size = "lg" }: { testId: string; size?: "lg" | "s
   );
 }
 
-function tickerItems(live: TvActivity | null | "error"): string[] {
-  const where = GYM_NAME ? `Live today at ${GYM_NAME}` : "Live today at the gym";
+function tickerItems(live: TvActivity | null | "error", gymName: string): string[] {
+  const where = `Live today at ${gymName}`;
   if (live && live !== "error") {
     if (live.sets === 0) {
       return [where, "Nobody has lifted yet", "Your first set takes #1", "Tap. Lift. Get on the board."];
@@ -160,7 +161,7 @@ function tickerItems(live: TvActivity | null | "error"): string[] {
     if (live.machines[0]) items.push(`Busiest: ${live.machines[0].title}`);
     return items;
   }
-  return ["Tap. Lift. Get on the board.", "Free · no download", "Built by Bijlee Run Club", "Pune"];
+  return ["Tap. Lift. Get on the board.", `Live at ${gymName}`, "Free · no download", "Built by Bijlee Run Club"];
 }
 
 export default function Landing({ redirectMembers = false }: { redirectMembers?: boolean }) {
@@ -171,6 +172,7 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
   const gsapRef = useRef<Gsap | null>(null);
   const reduceRef = useRef(false);
   const [live, setLive] = useState<TvActivity | null | "error">(null);
+  const gym = useGym();
   const [step, setStep] = useState(0);
   const [scrolled, setScrolled] = useState(false);
   // flips once GSAP is in, so the step that's already on screen gets its animation
@@ -438,7 +440,7 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
     };
   }, [step, motionReady]);
 
-  const ticker = tickerItems(live);
+  const ticker = tickerItems(live, gym.name);
 
   return (
     <div className="lp" ref={rootRef} data-testid="landing">
@@ -468,7 +470,7 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
         <div className="lp-wrap lp-hero-grid">
           <div className="lp-hero-copy">
             <p className="lp-kicker">
-              <i className="lp-live-dot" /> Racked by Bijlee Run Club · Pune
+              <i className="lp-live-dot" /> Live at {gym.name} · by Bijlee Run Club
             </p>
             <h1 id="lp-hero-title" className="lp-hero-title">
               <span className="l1">Tap. Lift.</span>
@@ -719,7 +721,7 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
             </h2>
           </div>
           <div className="lp-faq-list">
-            {FAQ.map((f) => (
+            {faq(gym).map((f) => (
               <details key={f.q} className="lp-qa">
                 <summary>
                   {f.q}

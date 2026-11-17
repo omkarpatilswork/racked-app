@@ -31,10 +31,33 @@ export type Sponsor = {
   instagram_url: string | null;
   logo_url: string | null;
   category: string | null;
+  cover_url?: string | null;
   products: SponsorProduct[];
 };
-export type Prize = { id: number; rank_from: number; rank_to: number; title: string; description: string | null; sponsor_ids: string[] };
-export type Season = { id: number; title: string; period: "week" | "month"; starts_at: string; ends_at: string; prizes: Prize[]; players: number };
+export type Prize = { id: number; rank_from: number; rank_to: number; title: string; description: string | null; sponsor_ids: string[]; image_url?: string | null };
+export type Season = {
+  id: number;
+  title: string;
+  period: "week" | "month";
+  starts_at: string;
+  ends_at: string;
+  prizes: Prize[];
+  players: number;
+  leader?: { name: string; score: number } | null;
+};
+// Gym + Rewards-page settings, edited in R&R Controls (0012)
+export type RrSettings = {
+  gym_name: string;
+  gym_location: string | null;
+  gym_logo_url: string | null;
+  gym_logo_dark_url: string | null;
+  gym_instagram_url: string | null;
+  gym_website_url: string | null;
+  prize_headline: string | null;
+  rewards_note: string | null;
+  show_partners: boolean;
+  show_shop: boolean;
+};
 export type CodeMode = "shared" | "pool" | "desk";
 export type ShopItem = {
   id: number;
@@ -64,11 +87,17 @@ export type Challenge = {
   join_xp: number;
   players: number;
   leader: { name: string; value: number; reps: number | null } | null;
+  // weekly challenges (0012)
+  series_id?: number | null;
+  repeats?: "weekly" | null;
+  weekday?: number; // 1 = Monday ... 7 = Sunday (gym time)
+  last_result?: { ends_at: string; name: string; value: number; reps: number | null } | null;
 };
 export type MissionDef = { id: string; title: string; description: string; metric: "sets" | "days" | "machines" | "pbs" | "volume"; target: number; xp: number; icon: string; sort: number };
 export type BadgeDef = { id: string; title: string; description: string; xp: number; icon: string; sort: number };
 export type RewardsOverview = {
   period: "week" | "month";
+  settings?: RrSettings | null;
   season: Season | null;
   sponsors: Sponsor[];
   shop: ShopItem[];
@@ -134,7 +163,11 @@ export async function fetchRewardsOverview(supabase: Client): Promise<RewardsOve
     ...o,
     sponsors: o.sponsors || [],
     shop: (o.shop || []).map((x) => ({ ...x, xp_cost: Number(x.xp_cost) })),
-    challenges: (o.challenges || []).map((c) => ({ ...c, leader: c.leader ? { ...c.leader, value: Number(c.leader.value) } : null })),
+    challenges: (o.challenges || []).map((c) => ({
+      ...c,
+      leader: c.leader ? { ...c.leader, value: Number(c.leader.value) } : null,
+      last_result: c.last_result ? { ...c.last_result, value: Number(c.last_result.value) } : null,
+    })),
     missions: (o.missions || []).map((m) => ({ ...m, target: Number(m.target) })),
     badges: o.badges || [],
     streak_steps: o.streak_steps || [],
@@ -232,6 +265,25 @@ export function timeLeft(endsAt: string | null | undefined, now = Date.now()): s
   return `${Math.max(1, m)}m`;
 }
 
+export const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+export const weekdayName = (d: number | undefined | null) => (d && d >= 1 && d <= 7 ? WEEKDAYS[d - 1] : "");
+
+// "Live today · ends in 5h", "Starts Friday", "Ended"
+export function challengeStatus(c: Pick<Challenge, "starts_at" | "ends_at" | "weekday">, now = Date.now()) {
+  const s = new Date(c.starts_at).getTime();
+  const e = new Date(c.ends_at).getTime();
+  if (now >= e) return { live: false, ended: true, label: "Ended" };
+  if (now >= s) return { live: true, ended: false, label: `Live now · ends in ${timeLeft(c.ends_at, now)}` };
+  const days = Math.floor((s - now) / 86400000);
+  const label = days < 1 ? `Starts in ${timeLeft(c.starts_at, now)}` : days < 7 ? `Starts ${weekdayName(c.weekday) || new Date(c.starts_at).toLocaleDateString(undefined, { weekday: "long" })}` : `Starts ${new Date(c.starts_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`;
+  return { live: false, ended: false, label };
+}
+
+// XP gap -> "about N sets" (a set is 10 XP before bonuses)
+export function setsFor(xp: number) {
+  return Math.max(1, Math.ceil(xp / 10));
+}
+
 export function prizeRankLabel(p: { rank_from: number; rank_to: number }) {
   return p.rank_from === p.rank_to ? `#${p.rank_from}` : `#${p.rank_from}–${p.rank_to}`;
 }
@@ -323,7 +375,16 @@ export type AdminRedemption = {
   member: string;
   sponsor_id: string | null;
 };
-export type PrizeRow = { id?: number; rank_from: number; rank_to: number; title: string; description: string | null; sponsor_ids: string[]; reward_id?: number | null };
+export type PrizeRow = {
+  id?: number;
+  rank_from: number;
+  rank_to: number;
+  title: string;
+  description: string | null;
+  sponsor_ids: string[];
+  reward_id?: number | null;
+  image_url?: string | null;
+};
 export type AdminRewardsData = {
   period: "week" | "month";
   season: { id: number; title: string; period: "week" | "month"; starts_at: string; ends_at: string; awarded_at: string | null };
@@ -357,7 +418,15 @@ export async function adminRewardsData(supabase: Client): Promise<AdminRewardsDa
 export const adminSetSeasonPeriod = (s: Client, period: "week" | "month") => call<null>(s, "admin_set_season_period", { p_period: period });
 export const adminSavePrizes = (s: Client, prizes: PrizeRow[], applyCurrent = true) =>
   call<null>(s, "admin_save_prizes", {
-    p_prizes: prizes.map((p) => ({ rank_from: p.rank_from, rank_to: p.rank_to, title: p.title, description: p.description, sponsor_ids: p.sponsor_ids, reward_id: p.reward_id ?? null })),
+    p_prizes: prizes.map((p) => ({
+      rank_from: p.rank_from,
+      rank_to: p.rank_to,
+      title: p.title,
+      description: p.description,
+      sponsor_ids: p.sponsor_ids,
+      reward_id: p.reward_id ?? null,
+      image_url: p.image_url ?? null,
+    })),
     p_apply_current: applyCurrent,
   });
 export const adminAwardSeason = (s: Client, id: number) => call<{ rank: number; prize: string }[]>(s, "admin_award_season", { p_season_id: id });
@@ -373,3 +442,79 @@ export const adminSaveProduct = (s: Client, p: Record<string, unknown>) => call<
 export const adminDeleteProduct = (s: Client, id: number) => call<null>(s, "admin_delete_product", { p_id: id });
 export const adminBonusXp = (s: Client, uid: string, amount: number, reason: string) =>
   call<null>(s, "admin_bonus_xp", { p_uid: uid, p_amount: amount, p_reason: reason });
+
+// ---- R&R Controls (0012) ---------------------------------------------------
+export type AdminSeries = {
+  id: number;
+  sponsor_id: string | null;
+  title: string;
+  description: string | null;
+  metric: Metric;
+  machine_id: string | null;
+  mode: string | null;
+  prize: string | null;
+  reward_id: number | null;
+  winners: number;
+  join_xp: number;
+  active: boolean;
+  weekday: number;
+  start_time: string;
+  end_time: string;
+  next: { id: number; starts_at: string; ends_at: string; players: number } | null;
+};
+export type AdminChallengeRow = AdminChallenge & { series_id: number | null };
+export type AdminRrData = Omit<AdminRewardsData, "challenges"> & {
+  settings: RrSettings;
+  series: AdminSeries[];
+  challenges: AdminChallengeRow[];
+};
+
+export async function adminRrData(supabase: Client): Promise<AdminRrData> {
+  const d = await call<AdminRrData>(supabase, "admin_rr_data");
+  return {
+    ...d,
+    season_prizes: d.season_prizes || [],
+    templates: d.templates || [],
+    live_board: d.live_board || [],
+    to_award: d.to_award || [],
+    seasons: d.seasons || [],
+    rewards: d.rewards || [],
+    series: d.series || [],
+    challenges: (d.challenges || []).map((c) => ({ ...c, top: (c.top || []).map((t) => ({ ...t, value: Number(t.value) })) })),
+    sponsors: d.sponsors || [],
+    redemptions: d.redemptions || [],
+  };
+}
+export const adminSaveSeries = (s: Client, p: Record<string, unknown>) => call<number>(s, "admin_save_series", { p });
+export const adminSaveRrSettings = (s: Client, p: Partial<RrSettings>) => call<null>(s, "admin_save_rr_settings", { p });
+
+// Photos for prizes, brands and products: shrunk in the browser, then put in
+// the public "rr-media" bucket (staff only can upload).
+export async function uploadRrPhoto(supabase: Client, file: File, folder: "prizes" | "brands" | "products" | "gym" | "shop"): Promise<string> {
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new Error("Use a PNG, JPG or WebP picture");
+  const keepPng = file.type === "image/png"; // logos keep their see-through background
+  const blob = await shrinkImage(file, folder === "gym" || folder === "brands" ? 1200 : 1600, keepPng ? "image/png" : "image/jpeg");
+  if (blob.size > 5 * 1024 * 1024) throw new Error("That picture is too big (5 MB max)");
+  const ext = keepPng ? "png" : "jpg";
+  const name = `${folder}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage.from("rr-media").upload(name, blob, { contentType: keepPng ? "image/png" : "image/jpeg", cacheControl: "31536000", upsert: false });
+  if (error) throw error;
+  return supabase.storage.from("rr-media").getPublicUrl(name).data.publicUrl;
+}
+
+async function shrinkImage(file: File, max: number, type: string): Promise<Blob> {
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    if (scale === 1 && file.type === type) return file;
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * scale);
+    c.height = Math.round(bmp.height * scale);
+    const ctx = c.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise<Blob>((res) => c.toBlob((b) => res(b || file), type, 0.86));
+  } catch {
+    return file;
+  }
+}
