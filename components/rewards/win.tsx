@@ -158,12 +158,14 @@ export function ChallengesBlock({
   sponsors,
   now,
   onBoard,
+  onShare,
 }: {
   list: Challenge[];
   me: MyRewards | null;
   sponsors: SponsorMap;
   now: number;
   onBoard: (c: Challenge) => void;
+  onShare?: (c: Challenge, mine: { rank: number; value: number; reps: number | null }) => void;
 }) {
   if (!list.length) return null;
   return (
@@ -244,6 +246,11 @@ export function ChallengesBlock({
                 {(st.live || st.ended) && (
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => onBoard(c)}>
                     Board · {c.players}
+                  </button>
+                )}
+                {mine && onShare && c.metric === "best_lift" && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => onShare(c, mine)} data-testid="share-challenge">
+                    <Icon name="share" /> Share
                   </button>
                 )}
                 {c.join_xp > 0 && !st.ended && <span className="rw-xp">+{c.join_xp} XP for joining</span>}

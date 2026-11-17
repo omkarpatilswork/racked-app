@@ -1,5 +1,5 @@
 // Ported 1:1 from the Racked Artifact prototype's inline icon set.
-const PATHS: Record<string, string> = {
+export const ICON_PATHS: Record<string, string> = {
   home: '<path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/>',
   grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
   trophy:
@@ -55,7 +55,7 @@ const PATHS: Record<string, string> = {
   instagram: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="0.8"/>',
 };
 
-export type IconName = keyof typeof PATHS;
+export type IconName = keyof typeof ICON_PATHS;
 
 export default function Icon({
   name,
@@ -64,7 +64,7 @@ export default function Icon({
   name: IconName | string;
   className?: string;
 }) {
-  const inner = PATHS[name] || "";
+  const inner = ICON_PATHS[name] || "";
   return (
     <svg
       aria-hidden="true"

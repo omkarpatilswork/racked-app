@@ -11,6 +11,8 @@ import Avatar from "@/components/Avatar";
 import StaffNotices from "@/components/StaffNotices";
 import RewardsTeaser from "@/components/rewards/RewardsTeaser";
 import GymMark from "@/components/GymMark";
+import ShareStudio from "@/components/share/ShareStudio";
+import type { StoryData } from "@/lib/story";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAttendance, fetchMyStats, fetchWeekSummary, overallFromStats, type WeekSummary } from "@/lib/data";
@@ -69,6 +71,7 @@ function SignedInHome() {
   const [attendance, setAttendance] = useState<AttendanceMap | null>(null);
   const [week, setWeek] = useState<WeekSummary | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [share, setShare] = useState<StoryData | null>(null);
 
   useEffect(() => {
     setActiveId(getActiveMachineId());
@@ -94,6 +97,22 @@ function SignedInHome() {
   });
   const active = activeId ? MACHINE_MAP[activeId] : null;
   const today = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" });
+
+  function shareWeek() {
+    if (!week) return;
+    const monday = new Date();
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const days = Object.keys(attendance || {}).filter((d) => d >= dateStr(monday)).length;
+    setShare({
+      kind: "week",
+      title: `Week of ${monday.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`,
+      sets: week.sets,
+      volume: week.volume,
+      pbs: week.pbs,
+      days,
+    });
+  }
 
   return (
     <>
@@ -182,7 +201,14 @@ function SignedInHome() {
           </div>
         </Link>
         <div className="tile" data-testid="tile-week">
-          <div className="t-label">This week</div>
+          <div className="row" style={{ alignItems: "flex-start" }}>
+            <div className="t-label">This week</div>
+            {week && week.sets > 0 && (
+              <button type="button" className="share-mini tile-share" onClick={shareWeek} aria-label="Share your week" data-testid="share-week">
+                <Icon name="share" />
+              </button>
+            )}
+          </div>
           <div>
             <div className="t-value" style={{ fontSize: 24 }}>
               {week ? week.volume.toLocaleString() : "–"}
@@ -197,6 +223,7 @@ function SignedInHome() {
 
       <PumpCheckCard />
       <HomeFeed />
+      {share && <ShareStudio story={share} title="Share your week" onClose={() => setShare(null)} />}
     </>
   );
 }

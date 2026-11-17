@@ -12,6 +12,8 @@ export default function Sheet({
   children,
   labelledBy,
   testId,
+  layer,
+  className,
 }: {
   open: boolean;
   onClose: () => void;
@@ -19,6 +21,8 @@ export default function Sheet({
   children: React.ReactNode;
   labelledBy?: string;
   testId?: string;
+  layer?: number; // z-index, to sit above full-screen overlays (the PB celebration is 60)
+  className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const autoId = useId();
@@ -70,13 +74,14 @@ export default function Sheet({
   return (
     <div
       className="sheet-backdrop"
+      style={layer ? { zIndex: layer } : undefined}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
         ref={ref}
-        className="sheet"
+        className={`sheet${className ? ` ${className}` : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

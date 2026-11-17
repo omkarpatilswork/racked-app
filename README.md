@@ -52,7 +52,7 @@ It's also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-b
 | **Gym TV mode** | `/tv` turns the gym's TV into a live recruiting screen: a scan-to-join QR, today's kg moved, podium leaderboards with "think you can beat this?", what muscle groups the floor is hitting. First names only |
 | **Join page** | `/join` is where the TV's QR lands: today's live numbers, a lift to beat, one-tap Google sign-in |
 | **Machine guides** | A form guide with animation for each machine, and a way to report problems with the machine |
-| **Share cards** | Strava-style cards for a new best lift or a leaderboard rank |
+| **Share to Stories** | Instagram Story / WhatsApp Status images for a PB, a session, a rank, a streak, a badge, a win or your week. Every machine has its own design, and you can put the stats over your own gym photo |
 | **Admin tools** | A staff dashboard for machines, tap analytics, photo moderation and fair-play review, plus R&R Controls: a CMS for prizes (with photos), weekly challenges, partner brands, the XP shop and the gym's branding |
 
 ## 03 · How it works

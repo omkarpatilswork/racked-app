@@ -12,6 +12,8 @@ import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchLastSet, fetchMachineLimits, friendlyDbError, logSet, type LastSet, type LogSetResult, type MachineLimit } from "@/lib/data";
 import { awardsToast, syncMyRewards } from "@/lib/rewards";
+import ShareStudio from "@/components/share/ShareStudio";
+import type { StoryData } from "@/lib/story";
 import RestTimer from "@/components/RestTimer";
 import { haptic } from "@/lib/haptics";
 import { timeAgo } from "@/lib/time";
@@ -69,6 +71,7 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   // "Log set" adds to this list instead of bouncing you back to the machine
   // screen, so you can knock out set after set without re-navigating.
   const [sessionSets, setSessionSets] = useState<{ weight: number; reps: number; isPb: boolean }[]>([]);
+  const [sessionShare, setSessionShare] = useState<StoryData | null>(null);
   // What you did last time on this machine -- the log screen starts there.
   const [lastSet, setLastSet] = useState<LastSet | null>(null);
   // bumps after every logged set to (re)start the rest timer
@@ -165,6 +168,22 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
 
   const displayPb = livePb ?? (mine ? { weight: Number(mine.pb_weight), reps: mine.pb_reps } : null);
   const sessionVolume = sessionSets.reduce((sum, s) => sum + s.weight * s.reps, 0);
+  function shareSession() {
+    if (!sessionSets.length || !machine || !view) return;
+    const best = [...sessionSets].sort((a, b) => b.weight - a.weight || b.reps - a.reps)[0];
+    setSessionShare({
+      kind: "lift",
+      machineId: machine.id,
+      label: machine.dual ? view.label : machine.name,
+      weight: best.weight,
+      reps: best.reps,
+      unit: machine.unit,
+      isPb: best.isPb,
+      tag: best.isPb ? "NEW PB" : "TODAY'S BEST",
+      sets: sessionSets.length,
+      best: best.isPb || !livePb ? null : { weight: livePb.weight, reps: livePb.reps },
+    });
+  }
 
   if (!session) {
     return (
@@ -323,8 +342,13 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
           <section className="card" data-testid="session-sets">
             <div className="row">
               <h3 style={{ margin: 0, fontSize: 15 }}>This session</h3>
-              <span className="pill-yellow">
-                {sessionSets.length} set{sessionSets.length > 1 ? "s" : ""}
+              <span className="row" style={{ gap: 8 }}>
+                <span className="pill-yellow">
+                  {sessionSets.length} set{sessionSets.length > 1 ? "s" : ""}
+                </span>
+                <button type="button" className="share-mini" onClick={shareSession} aria-label="Share today's best set" data-testid="share-session">
+                  <Icon name="share" />
+                </button>
               </span>
             </div>
             <ol style={{ listStyle: "none", margin: "8px 0 0", padding: 0 }}>
@@ -371,6 +395,7 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
           )}
         </div>
       </div>
+      {sessionShare && <ShareStudio story={sessionShare} title="Share today's best" onClose={() => setSessionShare(null)} />}
       {result && (
         <SetResultModal
           machine={machine}

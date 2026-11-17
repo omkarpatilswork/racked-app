@@ -9,7 +9,7 @@ import IgHandle from "@/components/IgHandle";
 import AttendanceCalendar from "@/components/AttendanceCalendar";
 import ProgressPhotos from "@/components/ProgressPhotos";
 import SignInSheet from "@/components/SignInSheet";
-import ShareSheet from "@/components/ShareSheet";
+import ShareStudio from "@/components/share/ShareStudio";
 import MachineCard from "@/components/MachineCard";
 import GymMark from "@/components/GymMark";
 import { useGym } from "@/lib/gym";
@@ -20,7 +20,7 @@ import { calculateMachineLevel } from "@/lib/gamification";
 import { computeStreaks, todayStr, type AttendanceMap } from "@/lib/streaks";
 import { MACHINE_MAP, MACHINES } from "@/lib/machines";
 import { toast } from "@/lib/toast";
-import type { ShareCardData } from "@/lib/shareCard";
+import type { StoryData } from "@/lib/story";
 import type { Database } from "@/lib/database.types";
 
 type StatsRow = Database["public"]["Tables"]["machine_stats"]["Row"];
@@ -50,7 +50,7 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
 
   const [stats, setStats] = useState<Record<string, StatsRow> | null>(null);
   const [attendance, setAttendance] = useState<AttendanceMap>({});
-  const [sharing, setSharing] = useState<ShareCardData | null>(null);
+  const [sharing, setSharing] = useState<StoryData | null>(null);
   const [photoDays, setPhotoDays] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -91,13 +91,12 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
 
   function openProgressShare() {
     setSharing({
-      eyebrow: "My Progress",
-      big: `LEVEL ${lvl.level}`,
-      sub: `${overall.totalSets} sets · ${overall.totalVolume.toLocaleString()}KG moved`,
-      meta: `${overall.unlocked}/${MACHINES.length} MACHINES · ${overall.pbCount} PBs`,
-      dateLabel: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
-      fileTag: "progress",
-      shareText: `Level ${lvl.level} on Racked — ${overall.totalSets} sets, ${overall.totalVolume.toLocaleString()}KG moved 🔥 #RackedByBijlee`,
+      kind: "progress",
+      level: lvl.level,
+      sets: overall.totalSets,
+      volume: overall.totalVolume,
+      pbs: overall.pbCount,
+      machines: `${overall.unlocked}/${MACHINES.length} machines`,
     });
   }
 
@@ -247,7 +246,7 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
           )}
         </section>
       </div>
-      {sharing && <ShareSheet data={sharing} onClose={() => setSharing(null)} />}
+      {sharing && <ShareStudio story={sharing} title="Share your progress" onClose={() => setSharing(null)} />}
     </>
   );
 }

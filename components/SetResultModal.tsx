@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/Icon";
 import Confetti from "@/components/Confetti";
-import ShareSheet from "@/components/ShareSheet";
+import ShareStudio from "@/components/share/ShareStudio";
 import { checkChallengeCompletion } from "@/lib/gamification";
 import type { LogSetResult } from "@/lib/data";
-import type { ShareCardData } from "@/lib/shareCard";
+import type { StoryData } from "@/lib/story";
 import type { Machine } from "@/lib/machines";
 
 export default function SetResultModal({
@@ -41,27 +41,18 @@ export default function SetResultModal({
   }, [onContinue, onClose]);
   const [sharing, setSharing] = useState(false);
   const cleared = checkChallengeCompletion(result.weight, result.reps, challenge);
-  const dateLabel = new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 
-  const shareData: ShareCardData = result.isPb
-    ? {
-        eyebrow: "New Personal Best",
-        big: `${result.weight}${machine.unit} × ${result.reps}`,
-        sub: label,
-        meta: `+${result.xpGain} XP`,
-        dateLabel,
-        fileTag: `pb-${machine.id}`,
-        shareText: `New PB on ${label}: ${result.weight}${machine.unit} × ${result.reps} 💪 #RackedByBijlee`,
-      }
-    : {
-        eyebrow: "Set Logged",
-        big: `${result.weight}${machine.unit} × ${result.reps}`,
-        sub: label,
-        meta: `PB ${result.pbWeight}${machine.unit} × ${result.pbReps}`,
-        dateLabel,
-        fileTag: `set-${machine.id}`,
-        shareText: `Logged ${result.weight}${machine.unit} × ${result.reps} on ${label} 🔥 #RackedByBijlee`,
-      };
+  const story: StoryData = {
+    kind: "lift",
+    machineId: machine.id,
+    label,
+    weight: result.weight,
+    reps: result.reps,
+    unit: machine.unit,
+    isPb: result.isPb,
+    gain: result.isPb && result.previousPb ? result.weight - result.previousPb.weight : null,
+    best: result.isPb ? null : { weight: result.pbWeight, reps: result.pbReps },
+  };
 
   if (result.isPb) {
     const gain = result.previousPb ? result.weight - result.previousPb.weight : null;
@@ -117,6 +108,7 @@ export default function SetResultModal({
                 className="btn"
                 style={{ background: "rgba(255,255,255,.1)", color: "#fff", border: "1px solid rgba(255,255,255,.16)" }}
                 onClick={() => setSharing(true)}
+                data-testid="pb-share"
               >
                 <Icon name="share" /> Share
               </button>
@@ -130,7 +122,7 @@ export default function SetResultModal({
             </div>
           </div>
         </div>
-        {sharing && <ShareSheet data={shareData} onClose={() => setSharing(false)} />}
+        {sharing && <ShareStudio story={story} title={result.isPb ? "Share your PB" : "Share your set"} onClose={() => setSharing(false)} />}
       </>
     );
   }
@@ -165,7 +157,7 @@ export default function SetResultModal({
           </div>
         </div>
       </div>
-      {sharing && <ShareSheet data={shareData} onClose={() => setSharing(false)} />}
+      {sharing && <ShareStudio story={story} title={result.isPb ? "Share your PB" : "Share your set"} onClose={() => setSharing(false)} />}
     </>
   );
 }

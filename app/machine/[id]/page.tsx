@@ -6,14 +6,14 @@ import { notFound, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import LbRow from "@/components/LbRow";
 import LockedMachine from "@/components/LockedMachine";
-import ShareSheet from "@/components/ShareSheet";
+import ShareStudio from "@/components/share/ShareStudio";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMachineLeaderboard, recordTap } from "@/lib/data";
 import { calculateMachineLevel } from "@/lib/gamification";
 import { claimTapRecord, resolveTapSource, useMachineLock } from "@/lib/machineLock";
 import { MACHINE_MAP, resolveMachineView } from "@/lib/machines";
-import type { ShareCardData } from "@/lib/shareCard";
+import type { StoryData } from "@/lib/story";
 import type { Database } from "@/lib/database.types";
 
 type StatsRow = Database["public"]["Tables"]["machine_stats"]["Row"];
@@ -42,7 +42,7 @@ function MachinePageInner({ params }: { params: { id: string } }) {
   const [mine, setMine] = useState<StatsRow | null>(null);
   const [board, setBoard] = useState<LbRowType[] | null>(null);
   const [mineLoaded, setMineLoaded] = useState(false);
-  const [sharing, setSharing] = useState<ShareCardData | null>(null);
+  const [sharing, setSharing] = useState<StoryData | null>(null);
 
   // Guarded on lockStatus === "unlocked" so a locked page (someone who
   // clicked here from elsewhere in the app instead of tapping the sticker)
@@ -110,15 +110,15 @@ function MachinePageInner({ params }: { params: { id: string } }) {
 
   function openPrShare() {
     if (!mine) return;
-    const label = machine!.name + (machine!.dual ? ` — ${view!.label}` : "");
     setSharing({
-      eyebrow: "Personal Best",
-      big: `${mine.pb_weight}${machine!.unit} × ${mine.pb_reps}`,
-      sub: label,
-      meta: `LEVEL ${mine.level}`,
-      dateLabel: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
-      fileTag: `pr-${machine!.id}`,
-      shareText: `${mine.pb_weight}${machine!.unit} × ${mine.pb_reps} on ${label} 💪 #RackedByBijlee`,
+      kind: "lift",
+      machineId: machine!.id,
+      label: machine!.dual ? view!.label : machine!.name,
+      weight: Number(mine.pb_weight),
+      reps: mine.pb_reps,
+      unit: machine!.unit,
+      isPb: true,
+      tag: "MY BEST",
     });
   }
 
@@ -302,7 +302,7 @@ function MachinePageInner({ params }: { params: { id: string } }) {
           </Link>
         </div>
       </div>
-      {sharing && <ShareSheet data={sharing} onClose={() => setSharing(null)} />}
+      {sharing && <ShareStudio story={sharing} title="Share your best" onClose={() => setSharing(null)} />}
     </>
   );
 }

@@ -40,6 +40,7 @@ node tests/e2e/app.e2e.js
 node tests/e2e/staff.e2e.js
 node tests/e2e/tv.e2e.js      # gym TV + /join (takes ~3 min)
 node tests/e2e/rewards.e2e.js  # Rewards, Ranks, Home cards, Profile gym card, R&R Controls
+node tests/e2e/share.e2e.js    # story images + share studio
 node tests/e2e/landing.e2e.js # landing page + / -> /home routing (takes ~4 min)
 ```
 

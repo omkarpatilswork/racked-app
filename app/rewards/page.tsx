@@ -20,6 +20,9 @@ import {
   type SponsorMap,
 } from "@/components/rewards/parts";
 import { ChallengesBlock, PrizeHero } from "@/components/rewards/win";
+import ShareStudio from "@/components/share/ShareStudio";
+import { MACHINE_MAP } from "@/lib/machines";
+import type { StoryData } from "@/lib/story";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyDbError } from "@/lib/data";
@@ -80,6 +83,7 @@ function RewardsInner() {
   const [redeemErr, setRedeemErr] = useState<string | null>(null);
   const [redeemRes, setRedeemRes] = useState<RedeemResult | null>(null);
   const loadId = useRef(0);
+  const [share, setShare] = useState<StoryData | null>(null);
 
   const showPartners = ov?.settings?.show_partners !== false;
   const showShop = ov?.settings?.show_shop !== false;
@@ -168,6 +172,19 @@ function RewardsInner() {
     setBoard({ kind: "challenge", c, title: c.title, sub: `${c.players} lifter${c.players === 1 ? "" : "s"}` });
     setBoardRows(null);
     fetchChallengeBoard(supabase, c.id, 50).then(setBoardRows, () => setBoardRows([]));
+  }
+
+  function shareWin(r: { title: string; rank: number | null; source: string; sponsor_id: string | null }) {
+    const sp = r.sponsor_id ? sponsors[r.sponsor_id] : null;
+    const prize = ov?.season?.prizes.find((p) => p.title === r.title);
+    const names = (prize?.sponsor_ids || (sp ? [sp.id] : [])).map((id) => sponsors[id]?.name).filter(Boolean) as string[];
+    setShare({ kind: "win", title: r.title, place: r.rank, what: r.source === "prize" ? `Prize race winner at ${gym.name}` : "Challenge winner", sponsors: names });
+  }
+
+  function shareChallenge(c: Challenge, mine: { rank: number; value: number; reps: number | null }) {
+    const m = c.machine_id ? MACHINE_MAP[c.machine_id] : null;
+    if (!m) return;
+    setShare({ kind: "lift", machineId: m.id, label: m.name, weight: mine.value, reps: mine.reps || 1, unit: m.unit, isPb: mine.rank === 1, tag: `#${mine.rank} IN THE CHALLENGE` });
   }
 
   function startRedeem(item: ShopItem) {
@@ -286,8 +303,8 @@ function RewardsInner() {
                   </button>
                 )}
                 <PrizeHero ov={ov} me={me} top={top} sponsors={sponsors} now={now} onBoard={openSeasonBoard} onHow={() => setHow(true)} />
-                {ready.length > 0 && <MyRewardsSection list={ready} sponsors={sponsors} />}
-                <ChallengesBlock list={ov.challenges} me={me} sponsors={sponsors} now={now} onBoard={openChallengeBoard} />
+                {ready.length > 0 && <MyRewardsSection list={ready} sponsors={sponsors} onShare={shareWin} />}
+                <ChallengesBlock list={ov.challenges} me={me} sponsors={sponsors} now={now} onBoard={openChallengeBoard} onShare={shareChallenge} />
                 <WinnersCard last={ov.last_winners} />
                 <Link href="/leaderboard#progress" className="action-card" data-testid="rw-progress-link">
                   <div className="glyph yellow">
@@ -339,7 +356,7 @@ function RewardsInner() {
                   <div className="skeleton" style={{ height: 180, borderRadius: 28 }} />
                 )}
                 <ShopSection items={ov.shop} me={me} sponsors={sponsors} signedIn={signedIn} onRedeem={startRedeem} onSignIn={() => setSignIn(true)} />
-                {me && <MyRewardsSection list={me.redemptions} sponsors={sponsors} />}
+                {me && <MyRewardsSection list={me.redemptions} sponsors={sponsors} onShare={shareWin} />}
               </div>
             )}
           </>
@@ -367,6 +384,7 @@ function RewardsInner() {
         onConfirm={confirmRedeem}
         onClose={closeRedeem}
       />
+      {share && <ShareStudio story={share} onClose={() => setShare(null)} />}
       <SignInSheet open={signIn} onClose={() => setSignIn(false)} next={tab === "win" ? "/rewards" : `/rewards?tab=${tab}`} />
     </>
   );

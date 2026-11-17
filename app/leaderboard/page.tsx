@@ -8,7 +8,7 @@ import Icon from "@/components/Icon";
 import Avatar from "@/components/Avatar";
 import BoltMark from "@/components/BoltMark";
 import GymMark from "@/components/GymMark";
-import ShareSheet from "@/components/ShareSheet";
+import ShareStudio from "@/components/share/ShareStudio";
 import CountUp from "@/components/tv/CountUp";
 import { BadgesSection, MissionsCard, StreakCard } from "@/components/rewards/parts";
 import { useAuth } from "@/lib/auth-context";
@@ -30,7 +30,7 @@ import {
   type MyRewards,
   type RewardsOverview,
 } from "@/lib/rewards";
-import type { ShareCardData } from "@/lib/shareCard";
+import type { StoryData } from "@/lib/story";
 
 type Tab = "week" | "all" | "machine";
 type Row = { key: string; rank: number; name: string; avatar: string | null; value: number; label: string; isMe: boolean };
@@ -77,7 +77,7 @@ function LeaderboardInner() {
   const [weekSource, setWeekSource] = useState<"season" | "xp">("season");
   const [ov, setOv] = useState<RewardsOverview | null>(null);
   const [me, setMe] = useState<MyRewards | null>(null);
-  const [sharing, setSharing] = useState<ShareCardData | null>(null);
+  const [sharing, setSharing] = useState<StoryData | null>(null);
 
   function setQuery(next: Record<string, string | undefined>) {
     const q = new URLSearchParams(params.toString());
@@ -189,16 +189,26 @@ function LeaderboardInner() {
 
   function shareRank() {
     if (!mine) return;
-    const where = tab === "machine" && selM ? subject : tab === "week" ? "This week" : "All time";
+    const scope = tab === "machine" && selM ? `on ${subject}` : tab === "week" ? "this week" : "all time";
+    const val = (r: Row) => (tab === "machine" ? `${r.value} ${r.label.split(" ")[0]}` : `${fmtXp(r.value)} XP`);
     setSharing({
-      eyebrow: `${gym.name} leaderboard`,
-      big: `#${mine.rank}`,
-      sub: where,
-      meta: tab === "machine" ? `${mine.value}${mine.label.replace(/^kg/, "KG")}` : `${fmtXp(mine.value)} XP`,
-      dateLabel: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
-      fileTag: `rank-${tab}`,
-      shareText: `#${mine.rank} on the ${gym.name} leaderboard (${where.toLowerCase()}) 🏆 #RackedByBijlee`,
+      kind: "rank",
+      rank: mine.rank,
+      scope,
+      value: tab === "machine" ? `${mine.value} ${mine.label}` : `${fmtXp(mine.value)} XP`,
+      of: list.length,
+      top: list.slice(0, 3).map((r) => ({ rank: r.rank, name: r.isMe ? (myFirst || "Me") : r.name.split(" ")[0], value: val(r), me: r.isMe })),
     });
+  }
+
+  function shareBadge(b: { title: string; description: string; icon: string; xp: number }) {
+    setSharing({ kind: "badge", title: b.title, description: b.description, icon: b.icon, xp: b.xp });
+  }
+
+  function shareStreak() {
+    const days = me?.streak.days || 0;
+    const next = (ov?.streak_steps || []).find((s) => s.days > days) || null;
+    setSharing({ kind: "streak", days, next });
   }
 
   return (
@@ -357,13 +367,13 @@ function LeaderboardInner() {
               <h2 id="lb-progress-h">Your progress</h2>
               <p>Streaks, missions and badges all earn bonus XP, and that counts towards this week&rsquo;s prize.</p>
             </div>
-            <StreakCard steps={ov.streak_steps} me={me} />
+            <StreakCard steps={ov.streak_steps} me={me} onShare={shareStreak} />
             <MissionsCard defs={ov.missions} me={me} />
-            <BadgesSection defs={ov.badges} me={me} />
+            <BadgesSection defs={ov.badges} me={me} onShare={shareBadge} />
           </section>
         )}
       </div>
-      {sharing && <ShareSheet data={sharing} onClose={() => setSharing(null)} />}
+      {sharing && <ShareStudio story={sharing} onClose={() => setSharing(null)} />}
     </>
   );
 }

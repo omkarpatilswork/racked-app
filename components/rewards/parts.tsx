@@ -167,7 +167,7 @@ export function MissionsCard({ defs, me }: { defs: MissionDef[]; me: MyRewards |
 }
 
 // ---- streak -----------------------------------------------------------------
-export function StreakCard({ steps, me }: { steps: { days: number; xp: number }[]; me: MyRewards | null }) {
+export function StreakCard({ steps, me, onShare }: { steps: { days: number; xp: number }[]; me: MyRewards | null; onShare?: () => void }) {
   if (!steps.length) return null;
   const days = me?.streak.days || 0;
   const next = steps.find((s) => s.days > days);
@@ -196,6 +196,11 @@ export function StreakCard({ steps, me }: { steps: { days: number; xp: number }[
               : `You've hit every streak bonus. Legend.`}
           </div>
         </div>
+        {onShare && me && days >= 2 && (
+          <button type="button" className="share-mini" onClick={onShare} aria-label="Share your streak" data-testid="share-streak">
+            <Icon name="share" />
+          </button>
+        )}
       </div>
       <ol className="rw-steps" aria-label="Streak bonuses">
         {steps.map((s) => {
@@ -325,7 +330,7 @@ export function codeHint(r: { code_mode: string; how_to_use: string | null; sour
   return "Use this code at checkout on the brand's website.";
 }
 
-export function MyRewardsSection({ list, sponsors }: { list: Redemption[]; sponsors: SponsorMap }) {
+export function MyRewardsSection({ list, sponsors, onShare }: { list: Redemption[]; sponsors: SponsorMap; onShare?: (r: Redemption) => void }) {
   const shown = list.filter((r) => r.status !== "cancelled" || Date.now() - new Date(r.created_at).getTime() < 7 * 86400000);
   if (!shown.length) return null;
   return (
@@ -360,7 +365,14 @@ export function MyRewardsSection({ list, sponsors }: { list: Redemption[]; spons
                   </>
                 )}
               </span>
-              <span className={`rw-status ${r.status}`}>{STATUS[r.status]}</span>
+              <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+                <span className={`rw-status ${r.status}`}>{STATUS[r.status]}</span>
+                {onShare && r.source !== "shop" && r.status !== "cancelled" && (
+                  <button type="button" className="share-mini" onClick={() => onShare(r)} aria-label={`Share: you won ${r.title}`} data-testid="share-win">
+                    <Icon name="share" />
+                  </button>
+                )}
+              </span>
             </li>
           );
         })}
@@ -370,7 +382,7 @@ export function MyRewardsSection({ list, sponsors }: { list: Redemption[]; spons
 }
 
 // ---- badges -----------------------------------------------------------------
-export function BadgesSection({ defs, me }: { defs: BadgeDef[]; me: MyRewards | null }) {
+export function BadgesSection({ defs, me, onShare }: { defs: BadgeDef[]; me: MyRewards | null; onShare?: (b: BadgeDef) => void }) {
   if (!defs.length) return null;
   const earned = new Map((me?.badges || []).map((b) => [b.id, b.at]));
   return (
@@ -397,6 +409,11 @@ export function BadgesSection({ defs, me }: { defs: BadgeDef[]; me: MyRewards | 
               <span>{b.description}</span>
               <span className="rw-xp">{at ? `+${b.xp} XP earned` : `+${b.xp} XP`}</span>
               <span className="sr-only">{at ? "Unlocked" : "Locked"}</span>
+              {at && onShare && (
+                <button type="button" className="share-mini rw-badge-share" onClick={() => onShare(b)} aria-label={`Share the ${b.title} badge`} data-testid={`share-badge-${b.id}`}>
+                  <Icon name="share" />
+                </button>
+              )}
             </li>
           );
         })}
