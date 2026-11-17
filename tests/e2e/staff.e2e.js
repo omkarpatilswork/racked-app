@@ -116,6 +116,52 @@ const rpc = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" + name
     await ctx.close();
   }
 
+  // house lifts (0013): real lifts by people not on the app yet
+  {
+    const { ctx, page, st, errors } = await open(browser, "/admin?tab=machines", staff);
+    await page.waitForSelector('[data-testid="house-lift"]');
+    check("house lifts listed", (await page.locator('[data-testid="house-lift"]').count()) === 1 && ((await page.locator('[data-testid="house-lift"]').textContent()) || "").includes("Vikram"));
+    await page.locator('[data-testid="add-house-lift"]').click();
+    await page.waitForSelector('[data-testid="house-lift-form"]');
+    await page.locator('[data-testid="save-house-lift"]').click();
+    check("house lift form asks for the name first", ((await page.locator('[data-testid="house-lift-form"] .field-error').textContent()) || "").includes("name"));
+    await page.locator("#hl-name").fill("Meera");
+    await page.locator("#hl-machine").selectOption("pec-fly-rear-delt-04");
+    check("dual machine asks which side", (await page.locator("#hl-side").count()) === 1);
+    await page.locator("#hl-side").selectOption("rear-delt");
+    await page.locator("#hl-kg").fill("35");
+    await page.locator("#hl-reps").fill("12");
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    check("date defaults to today (gym time)", (await page.locator("#hl-date").inputValue()) === today);
+    await page.locator('[data-testid="save-house-lift"]').click();
+    await sleep(700);
+    const saved = rpc(st, "admin_save_house_lift")[0] || "";
+    check("house lift saved", saved.includes('"name":"Meera"') && saved.includes('"mode":"rear-delt"') && saved.includes('"weight":35') && saved.includes('"reps":12'), saved);
+    check("list updates + toast", (await page.locator('[data-testid="house-lift"]').count()) === 2 && (await page.locator(".toast").allTextContents()).some((t) => t.includes("Meera")));
+    await page.locator('[data-testid="add-house-lift"]').click();
+    await page.waitForSelector('[data-testid="house-lift-form"]');
+    await page.locator("#hl-name").fill("Raj");
+    await page.locator("#hl-machine").selectOption("lat-pulldown-01");
+    await page.locator("#hl-kg").fill("500");
+    await page.locator("#hl-reps").fill("5");
+    await page.locator('[data-testid="save-house-lift"]').click();
+    await sleep(700);
+    check("over the machine's max: the database's reason shows", ((await page.locator('[data-testid="house-lift-form"] .field-error').textContent()) || "").includes("150 kg"));
+    await page.keyboard.press("Escape");
+    await sleep(400);
+    await page.locator('[data-testid="remove-house-lift"]').first().click();
+    await page.locator('[data-testid="confirm-yes"]').click();
+    await sleep(700);
+    check("house lift removed", rpc(st, "admin_delete_house_lift").length === 1 && (await page.locator('[data-testid="house-lift"]').count()) === 1);
+    check("reset-all copy says house lifts are kept", ((await page.locator("text=Reset everything").locator("..").textContent()) || "").includes("house lifts"));
+    check("no page errors (house lifts)", errors.length === 0, errors.join(" | "));
+    await ctx.close();
+    const m = await open(browser, "/admin?tab=machines", (s) => (staff(s), (s.missingRpc.admin_house_lifts = true), s));
+    await m.page.waitForSelector('[data-testid="house-lifts"] [data-testid="needs-0013"]', { timeout: 10000 }).catch(() => {});
+    check("house lifts: asks to run 0013 first", (await m.page.locator('[data-testid="house-lifts"] [data-testid="needs-0013"]').count()) === 1);
+    await m.ctx.close();
+  }
+
   // machines: limits + reset machine (typed RESET)
   {
     const { ctx, page, st, errors } = await open(browser, "/admin?tab=machines", staff);
@@ -191,7 +237,7 @@ const rpc = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" + name
 
   // a11y + layout on staff tabs
   const axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
-  for (const tab of ["", "?tab=review", "?tab=members", "?tab=machines", "?tab=rewards", "?tab=feedback", "?tab=activity"]) {
+  for (const tab of ["", "?tab=review", "?tab=members", "?tab=machines", "?tab=feedback", "?tab=activity"]) {
     for (const theme of ["dark", "light"]) {
       const { ctx, page, errors } = await open(browser, "/admin" + tab, staff, { width: 360, theme });
       await sleep(1000);

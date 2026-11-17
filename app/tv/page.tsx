@@ -2,21 +2,22 @@
 
 // Gym TV screen. Open https://<your-site>/tv on the TV's browser, press F (or
 // double-click) for full screen, and leave it. No login: it only shows first
-// names, best lifts and anonymous counts (see supabase/migrations/0005).
+// names, best lifts and anonymous counts (see supabase/migrations/0005, 0013).
 //
-// The slideshow is built to pull people in: a "Join Racked" slide with a big
-// QR code, today's gym totals, who's training what, and a leaderboard for
-// every machine someone has used. A small "scan to join" QR stays in the
-// corner of every other slide.
+// Built to teach and to pull people in, with very little text per slide:
+//   Join (big QR) · How it works · a machine's top 3 · the gym today ·
+//   this week's prize · challenges · partner ads · last week's winners.
+// How often each shows and for how long is set in R&R Controls -> TV
+// (lib/tvSlides.ts has the running order rules). A small "scan to join" QR
+// sits in the corner of every slide except Join and the partner ads (which
+// have their own QR).
 //
-// Optional settings in the address:
-//   /tv?interval=8        seconds per leaderboard slide (default 8, minimum 4)
+// Optional setting in the address:
 //   /tv?period=week       today (default) | week | month | all
-//   /tv?limit=3           lifters shown per leaderboard (default 5, max 8)
 //
 // Keyboard: F = full screen, Space = pause, ← → = previous / next slide.
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import BoltMark from "@/components/BoltMark";
@@ -24,13 +25,26 @@ import QrCode from "@/components/tv/QrCode";
 import CountUp from "@/components/tv/CountUp";
 import { createClient } from "@/lib/supabase/client";
 import { fetchTvData, type TvBoard, type TvData } from "@/lib/data";
-import { MACHINES } from "@/lib/machines";
-import { fmtKg, kgEquivalent } from "@/lib/tvCopy";
-import { buildSlides, type Slide } from "@/lib/tvSlides";
-import { fetchTvPrize, prizeRankLabel, timeLeft, type TvPrize } from "@/lib/rewards";
+import { MACHINE_MAP, MACHINES, SPLITS } from "@/lib/machines";
+import { fmtKg } from "@/lib/tvCopy";
+import { buildLoop, cleanTvSlides, slideSeconds, type LoopInput, type Slide, type TvPartner } from "@/lib/tvSlides";
+import {
+  challengeStatus,
+  fetchTvFeed,
+  metricValue,
+  prizeRankLabel,
+  siteHost,
+  timeLeft,
+  tvPartnerLink,
+  weekdayName,
+  type Challenge,
+  type SponsorProduct,
+  type TvFeed,
+} from "@/lib/rewards";
 import type { Period } from "@/lib/period";
 
 const POLL_MS = 10_000;
+const FEED_MS = 60_000;
 // If we haven't managed to refresh for this long, say so on screen rather
 // than silently showing stale numbers as if they were live.
 const STALE_MS = 35_000;
@@ -49,31 +63,31 @@ function parsePeriod(raw: string | null): Period {
 function TvScreen() {
   const params = useSearchParams();
   const period = parsePeriod(params.get("period"));
-  const boardSec = Math.max(4, Number(params.get("interval")) || 8);
-  const limit = Math.min(8, Math.max(3, Number(params.get("limit")) || 5));
 
   const supabase = useMemo(() => createClient(), []);
   const [data, setData] = useState<TvData | null>(null);
+  const [feed, setFeed] = useState<TvFeed | null>(null);
   // 0 until mounted: the server's clock and the TV's would never match, which
   // made React throw away the server HTML (a hydration error).
   const [now, setNow] = useState(0);
-  const [currentKey, setCurrentKey] = useState<string | null>(null);
+  const [pos, setPos] = useState<{ loop: number; key: string | null }>({ loop: 0, key: null });
   const [paused, setPaused] = useState(false);
   const [idle, setIdle] = useState(false);
-  const [joinUrl, setJoinUrl] = useState("");
+  const [origin, setOrigin] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const lastOkRef = useRef(0);
 
   useEffect(() => {
-    setJoinUrl(`${window.location.origin}/join?src=tv`);
+    setOrigin(window.location.origin);
   }, []);
+  const joinUrl = origin ? `${origin}/join?src=tv` : "";
 
-  // ---- live data: poll, and keep showing the last good numbers on a failure
+  // ---- live boards: poll, and keep showing the last good numbers on a failure
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
-        const next = await fetchTvData(supabase, period, limit);
+        const next = await fetchTvData(supabase, period, 3, 3);
         if (cancelled) return;
         lastOkRef.current = Date.now();
         setData(next);
@@ -87,66 +101,80 @@ function TvScreen() {
       cancelled = true;
       clearInterval(t);
     };
-  }, [supabase, period, limit]);
+  }, [supabase, period]);
 
-  // ---- clock (also drives the "reconnecting" check)
-  useEffect(() => {
-    setNow(Date.now());
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  // ---- prize race (rewards): refreshed every minute; no slide without it
-  const [prize, setPrize] = useState<TvPrize | null>(null);
+  // ---- prizes, challenges, partners, winners + slide settings: every minute
   useEffect(() => {
     let cancelled = false;
     const load = () =>
-      fetchTvPrize(supabase).then(
-        (p) => !cancelled && setPrize(p),
+      fetchTvFeed(supabase).then(
+        (f) => !cancelled && setFeed(f),
         () => undefined
       );
     load();
-    const t = setInterval(load, 60000);
+    const t = setInterval(load, FEED_MS);
     return () => {
       cancelled = true;
       clearInterval(t);
     };
   }, [supabase]);
 
-  const slides = useMemo<Slide[]>(() => (data ? buildSlides(data, !!prize) : []), [data, prize]);
+  // ---- clock (also drives the "reconnecting" check and challenge countdowns)
+  useEffect(() => {
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const minute = Math.floor(now / 60000);
+
+  const settings = useMemo(() => cleanTvSlides(feed?.slides), [feed]);
+  const input = useMemo<LoopInput | null>(() => {
+    if (!data) return null;
+    const at = minute * 60000 || Date.now();
+    const challenges = (feed?.challenges || [])
+      .map((c) => ({ c, st: challengeStatus(c, at) }))
+      .filter(({ c, st }) => !st.ended && (st.live || new Date(c.starts_at).getTime() - at < 7 * 86400000))
+      .sort((a, b) => Number(b.st.live) - Number(a.st.live) || new Date(a.c.starts_at).getTime() - new Date(b.c.starts_at).getTime());
+    return {
+      boards: data.boards.filter((b) => b.entries.length > 0),
+      hasToday: data.activity.sets > 0,
+      hasPrize: !!feed?.season && feed.season.prizes.length > 0,
+      challenges: challenges.map((x) => x.c),
+      liveChallenge: challenges.some((x) => x.st.live),
+      partners: feed?.partners || [],
+      hasWinners: !!feed?.lastWinners && feed.lastWinners.winners.length > 0,
+    };
+  }, [data, feed, minute]);
+
+  const slides = useMemo<Slide[]>(() => (input ? buildLoop(input, settings, pos.loop) : []), [input, settings, pos.loop]);
   // Track the slide by key, so fresh data arriving mid-slide never makes the
   // show jump to a different slide.
   const idx = useMemo(() => {
     if (!slides.length) return 0;
-    const i = slides.findIndex((s) => s.key === currentKey);
+    const i = slides.findIndex((s) => s.key === pos.key);
     return i >= 0 ? i : 0;
-  }, [slides, currentKey]);
+  }, [slides, pos.key]);
   const current = slides[idx] ?? null;
 
   // `go` reads the latest slides through refs so it stays the same function
   // across data refreshes -- otherwise every 10-second poll would restart the
   // current slide's timer and long slides would never advance.
-  const slidesRef = useRef(slides);
-  const idxRef = useRef(idx);
-  slidesRef.current = slides;
-  idxRef.current = idx;
+  const ref = useRef({ slides, idx, input, settings, loop: pos.loop });
+  ref.current = { slides, idx, input, settings, loop: pos.loop };
   const go = useCallback((delta: number) => {
-    const list = slidesRef.current;
-    if (!list.length) return;
-    const n = list.length;
-    setCurrentKey(list[(((idxRef.current + delta) % n) + n) % n].key);
+    const { slides: list, idx: i, input: inp, settings: st, loop } = ref.current;
+    if (!list.length || !inp) return;
+    const j = i + delta;
+    if (j >= 0 && j < list.length) setPos({ loop, key: list[j].key });
+    else if (j >= list.length) setPos({ loop: loop + 1, key: null });
+    else {
+      const back = Math.max(0, loop - 1);
+      const prev = buildLoop(inp, st, back);
+      setPos({ loop: back, key: back === loop ? list[0].key : prev[prev.length - 1].key });
+    }
   }, []);
   const currentSlideKey = current?.key ?? null;
-
-  const seconds = !current
-    ? boardSec
-    : current.kind === "join"
-      ? 12
-      : current.kind === "totals"
-        ? 10
-        : current.kind === "board"
-          ? boardSec
-          : 9;
+  const seconds = current ? slideSeconds(current, settings) : 10;
 
   // ---- auto-advance
   useEffect(() => {
@@ -213,7 +241,27 @@ function TvScreen() {
 
   const stale = lastOkRef.current > 0 && now - lastOkRef.current > STALE_MS;
   const clock = now ? new Date(now).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
-  const host = joinUrl ? new URL(joinUrl).host : "";
+  const host = origin ? new URL(origin).host : "";
+  const ownQr = current?.kind === "join" || current?.kind === "partner";
+
+  let body: ReactNode;
+  if (!current || !data) {
+    body = (
+      <div className="tv-splash">
+        <span className="tv-dot big" />
+        Loading the floor…
+      </div>
+    );
+  } else if (current.kind === "join") body = <JoinSlide key={current.key} data={data} joinUrl={joinUrl} host={host} period={period} />;
+  else if (current.kind === "howto") body = <HowToSlide key={current.key} />;
+  else if (current.kind === "today") body = <TodaySlide key={current.key} data={data} period={period} />;
+  else if (current.kind === "open") body = <OpenSlide key={current.key} period={period} />;
+  else if (current.kind === "board") body = <BoardSlide key={current.key} board={current.board} period={period} />;
+  else if (current.kind === "prize" && feed?.season) body = <PrizeSlide key={current.key} feed={feed} now={now} />;
+  else if (current.kind === "challenge") body = <ChallengeSlide key={current.key} challenge={current.challenge} feed={feed} now={now} />;
+  else if (current.kind === "partner") body = <PartnerSlide key={current.key} partner={current.partner} product={current.product} origin={origin} />;
+  else if (current.kind === "winners" && feed?.lastWinners) body = <WinnersSlide key={current.key} feed={feed} />;
+  else body = <OpenSlide key={current.key} period={period} />;
 
   return (
     <div ref={rootRef} className={`tv${idle ? " tv-idle" : ""}`} onDoubleClick={toggleFullscreen} data-testid="tv-root">
@@ -234,36 +282,19 @@ function TvScreen() {
       </header>
 
       <main className="tv-stage" aria-live="off">
-        {!current || !data ? (
-          <div className="tv-splash">
-            <span className="tv-dot big" />
-            Loading the floor…
-          </div>
-        ) : current.kind === "join" ? (
-          <JoinSlide key={current.key} data={data} joinUrl={joinUrl} host={host} period={period} />
-        ) : current.kind === "totals" ? (
-          <TotalsSlide key={current.key} data={data} period={period} />
-        ) : current.kind === "groups" ? (
-          <GroupsSlide key={current.key} data={data} period={period} />
-        ) : current.kind === "open" ? (
-          <OpenSlide key={current.key} period={period} />
-        ) : current.kind === "prizes" ? (
-          prize ? <PrizeSlide key={current.key} prize={prize} now={now} /> : <OpenSlide key={current.key} period={period} />
-        ) : (
-          <BoardSlide key={current.key} board={current.board} period={period} />
-        )}
+        {body}
       </main>
 
       <footer className="tv-foot">
         <div className="tv-dots" aria-hidden>
           {slides.map((s, i) => (
-            <i key={`${s.key}-${i}`} className={i === idx ? "on" : ""} />
+            <i key={s.key} className={i === idx ? "on" : ""} />
           ))}
         </div>
-        <div className="tv-foot-msg">Tap the Racked sticker on any machine to log your set</div>
+        <div className="tv-foot-msg">Tap or scan the sticker on any machine to log your set</div>
       </footer>
 
-      {current && current.kind !== "join" && joinUrl && (
+      {current && !ownQr && joinUrl && (
         <div className="tv-corner-qr" data-testid="tv-corner-qr">
           <QrCode value={joinUrl} className="tv-qr small" label="QR code to join Racked" />
           <div>
@@ -282,41 +313,25 @@ function TvScreen() {
   );
 }
 
+// ---- Join: one line, one big QR code --------------------------------------
 function JoinSlide({ data, joinUrl, host, period }: { data: TvData; joinUrl: string; host: string; period: Period }) {
   const { lifters, pbs } = data.activity;
   return (
     <section className="tv-slide tv-join" data-testid="slide-join">
       <div className="tv-join-copy">
-        <div className="tv-eyebrow">New here? This gym is live.</div>
+        <div className="tv-eyebrow">New here? It&apos;s free</div>
         <h1 className="tv-hero">
-          Tap. Lift.
+          Get your name
           <br />
-          <span className="tv-grad">Get on the board.</span>
+          <span className="tv-grad">on this screen.</span>
         </h1>
-        <p className="tv-lede">Every machine here has a Racked sticker. Log your sets, beat your best, and see your name on this screen.</p>
-        <ol className="tv-steps">
-          <li style={{ animationDelay: "0.15s" }}>
-            <span className="tv-step-ic">
-              <Icon name="qr" />
-            </span>
-            <b>Scan the code</b>
-            <span>Sign in with Google in 10 seconds</span>
-          </li>
-          <li style={{ animationDelay: "0.3s" }}>
-            <span className="tv-step-ic">
-              <Icon name="nfc" />
-            </span>
-            <b>Tap a machine</b>
-            <span>Hold your phone to its sticker</span>
-          </li>
-          <li style={{ animationDelay: "0.45s" }}>
-            <span className="tv-step-ic">
-              <Icon name="trophy" />
-            </span>
-            <b>Climb the board</b>
-            <span>Your best lift shows up here, live</span>
-          </li>
-        </ol>
+        <p className="tv-lede">Sign in with Google, then tap or scan the sticker on any machine.</p>
+        <div className="tv-proof" data-testid="tv-proof">
+          <Icon name="flame" />
+          {lifters > 0
+            ? `${lifters} ${lifters === 1 ? "lifter is" : "lifters are"} on the boards ${PERIOD_WORD[period]}${pbs > 0 ? ` · ${pbs} new PB${pbs === 1 ? "" : "s"}` : ""}`
+            : `Nobody's lifted yet ${PERIOD_WORD[period]}. The first set takes #1`}
+        </div>
       </div>
       <div className="tv-join-qr">
         <div className="tv-qr-card">
@@ -325,104 +340,115 @@ function JoinSlide({ data, joinUrl, host, period }: { data: TvData; joinUrl: str
           <div className="tv-qr-url">{host}/join</div>
         </div>
         <div className="tv-qr-badge">Free · No app download</div>
-        <div className="tv-proof" data-testid="tv-proof">
-          <Icon name="flame" />
-          {lifters > 0
-            ? `${lifters} ${lifters === 1 ? "lifter is" : "lifters are"} on the boards ${PERIOD_WORD[period]}${pbs > 0 ? ` · ${pbs} new PB${pbs === 1 ? "" : "s"}` : ""}`
-            : `Every board is empty ${PERIOD_WORD[period]} — the first set takes #1`}
-        </div>
       </div>
     </section>
   );
 }
 
-function TotalsSlide({ data, period }: { data: TvData; period: Period }) {
-  const { lifters, sets, volume, pbs, machines } = data.activity;
-  const busiest = machines[0];
-  const kg = Math.round(volume);
+// ---- How it works: three big steps that light up in turn -------------------
+function HowToSlide() {
+  const steps: { icon: "nfc" | "dumbbell" | "trophy"; title: string; sub: string }[] = [
+    { icon: "nfc", title: "Tap or scan the sticker", sub: "On any machine" },
+    { icon: "dumbbell", title: "Log your set", sub: "Weight and reps" },
+    { icon: "trophy", title: "Climb the board", sub: "Your best shows up here" },
+  ];
   return (
-    <section className="tv-slide tv-totals" data-testid="slide-totals">
-      <div className="tv-totals-hero">
-        <div className="tv-eyebrow">The gym {PERIOD_WORD[period]}</div>
-        <div className="tv-mega" data-testid="tv-kg">
-          <CountUp value={kg} />
-          <small>kg</small>
-        </div>
-        <div className="tv-mega-label">moved by Racked lifters</div>
-        <div className="tv-equiv">{kgEquivalent(kg)}</div>
+    <section className="tv-slide tv-howto" data-testid="slide-howto">
+      <div className="tv-howto-head">
+        <div className="tv-eyebrow">How it works</div>
+        <h2 className="tv-title">
+          Tap. Log. <span className="tv-grad">Climb.</span>
+        </h2>
       </div>
-      <div className="tv-totals-grid">
-        <div className="tv-stat" style={{ animationDelay: "0.1s" }}>
-          <Icon name="user" />
-          <b>
-            <CountUp value={lifters} duration={900} />
-          </b>
-          <span>{lifters === 1 ? "Lifter" : "Lifters"}</span>
-        </div>
-        <div className="tv-stat" style={{ animationDelay: "0.2s" }}>
-          <Icon name="dumbbell" />
-          <b>
-            <CountUp value={sets} duration={1100} />
-          </b>
-          <span>Sets logged</span>
-        </div>
-        <div className="tv-stat accent" style={{ animationDelay: "0.3s" }}>
-          <Icon name="trophy" />
-          <b>
-            <CountUp value={pbs} duration={900} />
-          </b>
-          <span>New PBs</span>
-        </div>
-        <div className="tv-stat" style={{ animationDelay: "0.4s" }}>
-          <Icon name="flame" />
-          <b className="tv-stat-name">{busiest ? busiest.title : "—"}</b>
-          <span>{busiest ? `Busiest machine · ${busiest.lifters} ${busiest.lifters === 1 ? "lifter" : "lifters"}` : "Busiest machine"}</span>
-        </div>
-      </div>
+      <ol className="tv-howto-steps">
+        {steps.map((s, i) => (
+          <li key={s.title} style={{ ["--i" as string]: i }}>
+            <span className="tv-howto-n">{i + 1}</span>
+            <span className="tv-howto-ic">
+              <Icon name={s.icon} />
+            </span>
+            <b>{s.title}</b>
+            <span>{s.sub}</span>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
 
-function GroupsSlide({ data, period }: { data: TvData; period: Period }) {
-  const { groups, lifters } = data.activity;
-  const sorted = [...groups].sort((a, b) => b.lifters - a.lifters || b.sets - a.sets);
-  const maxLifters = Math.max(1, ...sorted.map((g) => g.lifters));
-  const top = sorted[0];
-  const quiet = sorted[sorted.length - 1];
-  const hasData = lifters > 0;
-
+// ---- A machine's top 3 -------------------------------------------------------
+function BoardSlide({ board, period }: { board: TvBoard; period: Period }) {
+  const unit = board.unit.toLowerCase();
+  const rows = board.entries.slice(0, 3);
+  const open = Math.max(0, 3 - rows.length);
+  const leader = rows.find((e) => !e.bestEver);
+  const record = rows.find((e) => e.bestEver);
+  const target = leader || record;
+  const word = PERIOD_WORD[period];
   return (
-    <section className="tv-slide tv-groups" data-testid="slide-activity">
-      <div>
-        <div className="tv-eyebrow">The floor {PERIOD_WORD[period]}</div>
-        <h2 className="tv-title">Who&apos;s hitting what</h2>
-        <p className="tv-sub">
-          {hasData
-            ? `${top.label} is the crowd favourite — ${top.lifters} of ${lifters} ${lifters === 1 ? "lifter" : "lifters"}.`
-            : `Nobody has logged a set ${PERIOD_WORD[period]} yet. Be the first.`}
-        </p>
-        {hasData && quiet && quiet.lifters < top.lifters && (
-          <div className="tv-callout">
-            <small>Up for grabs</small>
+    <section className="tv-slide tv-mboard" data-testid="slide-board">
+      <div className="tv-mboard-side">
+        <div className="tv-machine-no" aria-hidden>
+          {board.machineNumber}
+        </div>
+        <div className="tv-eyebrow">{period === "all" ? "All-time top 3" : `Top 3 ${word}`}</div>
+        <h2 className="tv-machine-name">{board.title}</h2>
+        {target && (
+          <div className="tv-beat" data-testid="tv-beat">
+            <small>{leader ? `Beat ${leader.name}?` : `Nobody yet ${word}. Beat the best ever?`}</small>
             <b>
-              {quiet.lifters === 0 ? `Nobody has trained ${quiet.label.toLowerCase()} yet. Who's first?` : `${quiet.label} is the quietest — easy top spot.`}
+              {fmtKg(target.weight)} {unit} × {target.reps}
             </b>
+            <span>Tap or scan the sticker on machine {board.machineNumber}</span>
           </div>
         )}
       </div>
-      <div className="tv-bars">
-        {sorted.map((g, i) => (
-          <div key={g.id} className={`tv-bar${hasData && i === 0 ? " top" : ""}`}>
-            <div className="lb">{g.label}</div>
-            <div className="track">
-              <div className="fill" style={{ width: `${hasData ? Math.max(4, (g.lifters / maxLifters) * 100) : 4}%`, animationDelay: `${i * 0.08}s` }} />
-            </div>
-            <div className="ct">
-              {g.lifters}
-              <small>
-                {g.lifters === 1 ? "lifter" : "lifters"} · {g.sets} {g.sets === 1 ? "set" : "sets"}
-              </small>
-            </div>
+      <ol className="tv-mrows">
+        {rows.map((e, i) => (
+          <li key={`${e.name}-${i}`} className={`tv-mrow${e.bestEver ? " ever" : ` r${Math.min(e.rank, 3)}`}`} style={{ ["--d" as string]: `${0.12 + i * 0.12}s` }}>
+            <span className="rk">{e.bestEver ? <Icon name="star" /> : e.rank}</span>
+            <span className="nm">
+              {e.name}
+              {e.bestEver && <small className="tag">Best ever</small>}
+            </span>
+            <span className="lift">
+              {fmtKg(e.weight)}
+              <small>{unit}</small> × {e.reps}
+            </span>
+          </li>
+        ))}
+        {Array.from({ length: open }, (_, i) => (
+          <li key={`open-${i}`} className="tv-mrow open" style={{ ["--d" as string]: `${0.12 + (rows.length + i) * 0.12}s` }}>
+            <span className="rk">{rows.length + i + 1}</span>
+            <span className="nm">Open</span>
+            <span className="lift">Be next</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+// ---- The gym today: one big number ------------------------------------------
+function TodaySlide({ data, period }: { data: TvData; period: Period }) {
+  const split = data.activity.split;
+  const max = Math.max(split.push, split.pull, split.legs);
+  return (
+    <section className="tv-slide tv-split" data-testid="slide-today">
+      <div className="tv-eyebrow">{period === "today" ? "Today at the gym" : `${PERIOD_WORD[period][0].toUpperCase()}${PERIOD_WORD[period].slice(1)} at the gym`}</div>
+      <div className="tv-split-row">
+        {SPLITS.map((x, i) => (
+          <div
+            key={x.id}
+            className={`tv-split-card${max > 0 && split[x.id] === max ? " top" : ""}`}
+            style={{ ["--d" as string]: `${i * 0.12}s` }}
+            data-testid={`tv-split-${x.id}`}
+          >
+            <span className="tv-split-word">{x.label}</span>
+            <b className="tv-split-n">
+              <CountUp value={split[x.id]} duration={1100} />
+            </b>
+            <span className="tv-split-l">{split[x.id] === 1 ? "person" : "people"}</span>
           </div>
         ))}
       </div>
@@ -430,53 +456,192 @@ function GroupsSlide({ data, period }: { data: TvData; period: Period }) {
   );
 }
 
-function PrizeSlide({ prize, now }: { prize: TvPrize; now: number }) {
-  const [first, ...rest] = prize.prizes;
-  const word = prize.period === "month" ? "month" : "week";
+// ---- This week's prize -------------------------------------------------------
+function PrizeSlide({ feed, now }: { feed: TvFeed; now: number }) {
+  const season = feed.season!;
+  const [first, second] = season.prizes;
+  const word = season.period === "month" ? "month" : "week";
+  const leader = feed.top[0] || (season.leader ? { name: season.leader.name, score: season.leader.score } : null);
+  const ends = now ? timeLeft(season.ends_at, now) : "";
   return (
-    <section className="tv-slide tv-prizes" data-testid="slide-prizes">
-      <div>
-        <div className="tv-eyebrow">This {word}&apos;s prize race{now ? ` · ends in ${timeLeft(prize.endsAt, now)}` : ""}</div>
+    <section className={`tv-slide tv-prize2${first?.image_url ? "" : " no-photo"}`} data-testid="slide-prizes">
+      <div className="tv-prize2-photo" aria-hidden>
+        {first?.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={first.image_url} alt="" onError={(e) => (e.currentTarget.style.display = "none")} />
+        ) : null}
+        <Icon name="gift" />
+      </div>
+      <div className="tv-prize2-copy">
+        <div className="tv-eyebrow">
+          {feed.prizeHeadline || `This ${word}'s prize`}
+          {ends ? ` · ends in ${ends}` : ""}
+        </div>
         <h2 className="tv-title">
-          {first ? (first.rank_from === first.rank_to && first.rank_from === 1 ? "#1 wins" : `${prizeRankLabel(first)} win`) : "Win"}
+          {first && !(first.rank_from === 1 && first.rank_to === 1) ? `${prizeRankLabel(first)} win` : "#1 wins"}
           <br />
-          <span className="tv-grad" style={first && first.title.length > 28 ? { fontSize: "0.78em" } : undefined}>
+          <span className="tv-grad" style={first && first.title.length > 34 ? { fontSize: "0.74em" } : undefined}>
             {first ? first.title : "a prize"}
           </span>
         </h2>
-        <p className="tv-sub">Every set, mission and streak earns XP. Most XP this {word} wins{prize.sponsors.length ? `, with prizes from ${prize.sponsors.join(" × ")}` : ""}.</p>
-        {rest.length > 0 && (
-          <div className="tv-prize-list">
-            {rest.map((p) => (
-              <div key={p.id} className="tv-prize-row">
-                <b>{prizeRankLabel(p)}</b>
-                <span>{p.title}</span>
-              </div>
-            ))}
+        <div className="tv-prize2-lead" data-testid="tv-prize-leader">
+          <Icon name="flame" />
+          {leader ? (
+            <span>
+              <b>{leader.name}</b> is winning · {Math.round(leader.score).toLocaleString("en-IN")} XP
+            </span>
+          ) : (
+            <span>Nobody yet. Your first set takes #1.</span>
+          )}
+        </div>
+        <p className="tv-sub">
+          Every set earns XP. Most XP this {word} wins.
+          {second ? ` ${prizeRankLabel(second)}: ${second.title}.` : ""}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+// ---- A challenge (live, or coming up) ---------------------------------------
+function ChallengeSlide({ challenge: c, feed, now }: { challenge: Challenge; feed: TvFeed | null; now: number }) {
+  const st = challengeStatus(c, now || Date.now());
+  const m = c.machine_id ? MACHINE_MAP[c.machine_id] : null;
+  const brand = c.sponsor_id ? feed?.sponsors.find((s) => s.id === c.sponsor_id) : null;
+  const machineName = m ? (c.mode && m.modes?.[c.mode] ? m.modes[c.mode].label : m.name) : null;
+  const rule =
+    c.metric === "best_lift" ? `Heaviest ${machineName ? `${machineName} ` : ""}set wins` : c.metric === "sets" ? `Most sets${machineName ? ` on ${machineName}` : ""} wins` : `Most kilos${machineName ? ` on ${machineName}` : ""} wins`;
+  const chip = st.live ? `Live now · ends in ${timeLeft(c.ends_at, now || Date.now())}` : c.repeats === "weekly" && c.weekday ? `Every ${weekdayName(c.weekday)}` : st.label;
+  return (
+    <section className="tv-slide tv-chal" data-testid="slide-challenge">
+      <div className="tv-chal-copy">
+        <div className={`tv-chip${st.live ? " live" : ""}`} data-testid="tv-chal-status">
+          {st.live && <i />}
+          {chip}
+        </div>
+        <h2 className="tv-title" style={c.title.length > 30 ? { fontSize: "3.3em" } : undefined}>
+          {c.title}
+        </h2>
+        <div className="tv-chal-rule">{rule}</div>
+        {c.prize && (
+          <div className="tv-chal-prize">
+            <Icon name="gift" />
+            <span>
+              Win <b>{c.prize.replace(/^an? /i, (x) => x.toLowerCase())}</b>
+            </span>
           </div>
         )}
       </div>
-      <div className="tv-prize-board">
-        <div className="tv-prize-board-head">{prize.title}</div>
-        {prize.top.length === 0 ? (
-          <div className="tv-sub">Nobody on the board yet. The first set this {word} takes #1.</div>
-        ) : (
-          prize.top.map((r, i) => (
-            <div key={r.rank} className={`tv-row${r.rank === 1 ? " lead" : ""}`} style={{ animationDelay: `${0.15 + i * 0.08}s` }}>
-              <div className="rk">{r.rank}</div>
-              <div className="nm">{r.name}</div>
-              <div className="lift">
-                {r.score.toLocaleString("en-IN")}
-                <small>XP</small>
-              </div>
-            </div>
-          ))
+      <div className="tv-chal-side">
+        {m && (
+          <div className="tv-chal-machine">
+            <span>Machine</span>
+            <b>{m.number}</b>
+          </div>
+        )}
+        <div className="tv-chal-lead" data-testid="tv-chal-leader">
+          {st.live && c.leader ? (
+            <>
+              <small>Leading now</small>
+              <b>{c.leader.name}</b>
+              <span>{metricValue(c.metric, Number(c.leader.value), c.leader.reps)}</span>
+            </>
+          ) : !st.live && c.last_result ? (
+            <>
+              <small>Last winner</small>
+              <b>{c.last_result.name}</b>
+              <span>{metricValue(c.metric, Number(c.last_result.value), c.last_result.reps)}</span>
+            </>
+          ) : (
+            <>
+              <small>{st.live ? "Leading now" : "Starts soon"}</small>
+              <b>{st.live ? "Nobody yet" : st.label.replace(/^Starts /, "")}</b>
+              <span>{st.live ? "First set takes the lead" : "Be ready"}</span>
+            </>
+          )}
+        </div>
+        {brand && (
+          <div className="tv-chal-brand">
+            {brand.logo_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={brand.logo_url} alt="" onError={(e) => (e.currentTarget.style.display = "none")} />
+            )}
+            <span>with {brand.name}</span>
+          </div>
         )}
       </div>
     </section>
   );
 }
 
+// ---- Partner ad: big photo, brand, product, website + QR --------------------
+function PartnerSlide({ partner: p, product, origin }: { partner: TvPartner; product: SponsorProduct | null; origin: string }) {
+  const photo = product?.image_url || p.cover_url || null;
+  const host = siteHost(product?.url || p.website_url);
+  const headline = p.tv_headline || p.tagline || null;
+  const link = origin && (product?.url || p.website_url) ? tvPartnerLink(origin, p.id, product?.id) : null;
+  return (
+    <section className={`tv-slide tv-ad${photo ? "" : " no-photo"}`} data-testid="slide-partner">
+      {photo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="tv-ad-bg" src={photo} alt="" onError={(e) => (e.currentTarget.style.display = "none")} />
+      )}
+      <div className="tv-ad-shade" aria-hidden />
+      <div className="tv-ad-copy">
+        <div className="tv-ad-brand">
+          {p.logo_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={p.logo_url} alt="" onError={(e) => (e.currentTarget.style.display = "none")} />
+          )}
+          <span data-testid="tv-ad-brand">{p.name}</span>
+        </div>
+        {headline && <h2 className="tv-ad-head">{headline}</h2>}
+        {product && (
+          <div className="tv-ad-product" data-testid="tv-ad-product">
+            <b>{product.title}</b>
+            {product.price_text && <span>{product.price_text}</span>}
+          </div>
+        )}
+        <div className="tv-ad-tag">Racked partner</div>
+      </div>
+      {link && (
+        <div className="tv-ad-qr" data-testid="tv-ad-qr">
+          <QrCode value={link} className="tv-qr" label={`QR code to visit ${p.name}`} />
+          <b>Scan to shop</b>
+          {host && <span data-testid="tv-ad-site">{host}</span>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ---- Last week's winners ------------------------------------------------------
+function WinnersSlide({ feed }: { feed: TvFeed }) {
+  const lw = feed.lastWinners!;
+  const top = lw.winners.slice(0, 3);
+  return (
+    <section className="tv-slide tv-win" data-testid="slide-winners">
+      <div className="tv-win-head">
+        <div className="tv-eyebrow">{lw.season} · winners</div>
+        <h2 className="tv-title">
+          Well lifted, <span className="tv-grad">{top[0].name}!</span>
+        </h2>
+      </div>
+      <div className="tv-win-row">
+        {top.map((w, i) => (
+          <div key={w.rank} className={`tv-win-card r${w.rank}`} style={{ ["--d" as string]: `${0.1 + i * 0.12}s` }}>
+            <span className="tv-win-rank">#{w.rank}</span>
+            <b>{w.name}</b>
+            {w.prize && <span className="tv-win-prize">{w.prize}</span>}
+          </div>
+        ))}
+      </div>
+      <p className="tv-sub">This week&apos;s race is on. You could be next.</p>
+    </section>
+  );
+}
+
+// ---- Nobody has lifted yet anywhere ------------------------------------------
 function OpenSlide({ period }: { period: Period }) {
   return (
     <section className="tv-slide tv-open" data-testid="slide-open">
@@ -485,7 +650,7 @@ function OpenSlide({ period }: { period: Period }) {
         <h2 className="tv-title">
           Every board is <span className="tv-grad">wide open.</span>
         </h2>
-        <p className="tv-sub">Log one set on any machine and you&apos;re #1 on its board — right here on this screen.</p>
+        <p className="tv-sub">Log one set on any machine and you&apos;re #1 on its board, right here on this screen.</p>
       </div>
       <div className="tv-open-grid">
         {MACHINES.map((m, i) => (
@@ -495,73 +660,6 @@ function OpenSlide({ period }: { period: Period }) {
             <i>#1 is free</i>
           </div>
         ))}
-      </div>
-    </section>
-  );
-}
-
-function BoardSlide({ board, period }: { board: TvBoard; period: Period }) {
-  const [first, ...others] = board.entries;
-  const podium = board.entries.slice(0, 3);
-  const rest = board.entries.slice(3);
-  const unit = board.unit.toLowerCase();
-  return (
-    <section className="tv-slide tv-board" data-testid="slide-board">
-      <div className="tv-board-side">
-        <div className="tv-eyebrow">{period === "today" ? "Today's leaderboard" : `Leaderboard · ${PERIOD_WORD[period]}`}</div>
-        <div className="tv-machine-no">{board.machineNumber}</div>
-        <h2 className="tv-machine-name">{board.title}</h2>
-        {first && (
-          <div className="tv-beat" data-testid="tv-beat">
-            <small>Think you can beat {first.name}?</small>
-            <b>
-              {fmtKg(first.weight)} {unit} × {first.reps}
-            </b>
-            <span>Tap the sticker on machine {board.machineNumber} and go for it.</span>
-          </div>
-        )}
-      </div>
-      <div className="tv-board-main">
-        <div className="tv-podium">
-          {[podium[1], podium[0], podium[2]].map((e, i) =>
-            e ? (
-              <div key={`${e.rank}-${e.name}`} className={`tv-pod p${e.rank <= 3 ? e.rank : 3}`} style={{ animationDelay: `${[0.15, 0, 0.3][i]}s` }}>
-                <div className="tv-pod-name">{e.name}</div>
-                <div className="tv-pod-lift">
-                  {fmtKg(e.weight)}
-                  <small>{unit}</small> × {e.reps}
-                </div>
-                <div className="tv-pod-block">
-                  {e.rank === 1 ? <Icon name="trophy" /> : null}
-                  <span>{e.rank}</span>
-                </div>
-              </div>
-            ) : (
-              <div key={`empty-${i}`} className={`tv-pod empty p${i === 0 ? 2 : 3}`}>
-                <div className="tv-pod-name">Open</div>
-                <div className="tv-pod-lift">Be next</div>
-                <div className="tv-pod-block">
-                  <span>{i === 0 ? 2 : 3}</span>
-                </div>
-              </div>
-            )
-          )}
-        </div>
-        {rest.length > 0 && (
-          <div className="tv-rows">
-            {rest.map((e, i) => (
-              <div key={`${e.rank}-${e.name}-${i}`} className="tv-row" style={{ animationDelay: `${0.4 + i * 0.07}s` }}>
-                <div className="rk">{e.rank}</div>
-                <div className="nm">{e.name}</div>
-                <div className="lift">
-                  {fmtKg(e.weight)}
-                  <small>{unit}</small> × {e.reps}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {others.length === 0 && <div className="tv-sub" style={{ marginTop: "2em" }}>Only one lifter so far — spots #2 and #3 are up for grabs.</div>}
       </div>
     </section>
   );

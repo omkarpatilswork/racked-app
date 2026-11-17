@@ -9,7 +9,7 @@ import LockedMachine from "@/components/LockedMachine";
 import ShareStudio from "@/components/share/ShareStudio";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
-import { fetchMachineLeaderboard, recordTap } from "@/lib/data";
+import { fetchMachineBoard, recordTap, type MachineBoardRow } from "@/lib/data";
 import { calculateMachineLevel } from "@/lib/gamification";
 import { claimTapRecord, resolveTapSource, useMachineLock } from "@/lib/machineLock";
 import { MACHINE_MAP, resolveMachineView } from "@/lib/machines";
@@ -17,7 +17,6 @@ import type { StoryData } from "@/lib/story";
 import type { Database } from "@/lib/database.types";
 
 type StatsRow = Database["public"]["Tables"]["machine_stats"]["Row"];
-type LbRowType = Database["public"]["Views"]["v_machine_leaderboard"]["Row"];
 
 export default function MachinePage({ params }: { params: { id: string } }) {
   return (
@@ -40,7 +39,7 @@ function MachinePageInner({ params }: { params: { id: string } }) {
   const lockStatus = useMachineLock(machine, searchParams.get("tap"));
 
   const [mine, setMine] = useState<StatsRow | null>(null);
-  const [board, setBoard] = useState<LbRowType[] | null>(null);
+  const [board, setBoard] = useState<MachineBoardRow[] | null>(null);
   const [mineLoaded, setMineLoaded] = useState(false);
   const [sharing, setSharing] = useState<StoryData | null>(null);
 
@@ -62,7 +61,7 @@ function MachinePageInner({ params }: { params: { id: string } }) {
     if (!machine || lockStatus !== "unlocked") return;
     let active = true;
     setBoard(null);
-    fetchMachineLeaderboard(supabase, machine.id, mode || "")
+    fetchMachineBoard(supabase, machine.id, mode || "", "all", 0)
       .then((rows) => active && setBoard(rows))
       .catch(() => active && setBoard([]));
     return () => {
@@ -235,12 +234,12 @@ function MachinePageInner({ params }: { params: { id: string } }) {
           ) : top3.length ? (
             top3.map((u) => (
               <LbRow
-                key={u.uid}
+                key={u.uid || `house-${u.display_name}-${u.rank}`}
                 rank={u.rank}
                 name={u.display_name}
                 avatarUrl={u.avatar_url}
                 best={`${u.pb_weight}${machine.unit}×${u.pb_reps}`}
-                isMe={session?.user.id === u.uid}
+                isMe={!!u.uid && session?.user.id === u.uid}
               />
             ))
           ) : (

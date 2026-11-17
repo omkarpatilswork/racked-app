@@ -186,7 +186,8 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await page.locator('[data-testid="lb-tab-all"]').click();
     await page.waitForURL(/tab=all/);
     await page.waitForSelector('[data-testid="podium"]');
-    check("ranks: All time tab", rpc(st, "leaderboard_overall").some((c) => c.includes('"all"')) && (await page.locator(".lb-row").count()) === 2);
+    await page.waitForFunction(() => document.querySelectorAll(".lb-row").length === 2, null, { timeout: 5000 }).catch(() => {});
+    check("ranks: All time tab", rpc(st, "leaderboard_overall").some((c) => c.includes('"all"')) && (await page.locator(".lb-row").count()) === 2, `${await page.locator(".lb-row").count()} rows; ${rpc(st, "leaderboard_overall").join(" ")}`);
     await page.locator('[data-testid="lb-tab-machine"]').click();
     await page.waitForURL(/tab=machine/);
     await page.waitForSelector('[data-testid="podium"]');
@@ -283,6 +284,49 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await sleep(600);
     check("rnr: brand cover photo saved", (rpc(st, "admin_save_sponsor")[0] || "").includes("rr-media/brands/"));
 
+    // partners: the TV ad switch + headline, app taps vs TV scans
+    const jd = page.locator('[data-testid="admin-sponsor"]').first();
+    check("rnr: brand shows TV scans apart from app taps", /43\s*app taps/.test(await text(page, '[data-testid="sponsor-stats"]')) && /9\s*TV scans/.test(await text(page, '[data-testid="sponsor-stats"]')), await text(page, '[data-testid="sponsor-stats"]'));
+    check("rnr: on-TV pill", (await jd.locator('[data-testid="sponsor-tv-pill"]').textContent()).includes("On TV") && (await page.locator('[data-testid="sponsor-tv-pill"]').nth(1).textContent()).includes("Not on TV"));
+    await jd.getByRole("button", { name: "Edit brand" }).click();
+    await page.waitForSelector('[data-testid="sponsor-form"]');
+    check("rnr: brand form has the TV switch (on)", (await page.locator('[data-testid="sponsor-on-tv"]').getAttribute("aria-checked")) === "true");
+    await page.locator("#sf-tvh").fill("Wear your name.");
+    await page.locator('[data-testid="save-sponsor"]').click();
+    await sleep(600);
+    const tvSave = rpc(st, "admin_save_sponsor").pop() || "";
+    check("rnr: TV headline + switch saved", tvSave.includes('"show_on_tv":true') && tvSave.includes('"tv_headline":"Wear your name."'), tvSave.slice(0, 400));
+    await page.locator('[data-testid="admin-sponsor"]').nth(1).getByRole("button", { name: "Edit brand" }).click();
+    await page.waitForSelector('[data-testid="sponsor-form"]');
+    check("rnr: a brand off the TV hides the headline box", (await page.locator('[data-testid="sponsor-on-tv"]').getAttribute("aria-checked")) === "false" && (await page.locator("#sf-tvh").count()) === 0);
+    await page.keyboard.press("Escape");
+    await sleep(400);
+
+    // TV: times per loop + seconds
+    await page.locator('[data-testid="rw-sec-tv"]').click();
+    await page.waitForSelector('[data-testid="rr-tv"]');
+    check("rnr TV: 8 kinds of slide", (await page.locator('[data-testid^="tv-kind-"]').count()) === 8);
+    check("rnr TV: the 4 key slides marked", (await page.locator('[data-testid^="tv-kind-"] .pill-yellow').count()) === 4);
+    check("rnr TV: one loop = 15 slides, about 2.5 min", (await text(page, '[data-testid="tv-loop-time"]')) === "15 slides · 2 min 31 s", await text(page, '[data-testid="tv-loop-time"]'));
+    check("rnr TV: link to open the TV", ((await page.locator('[data-testid="open-tv"]').getAttribute("href")) || "").endsWith("/tv"));
+    check("rnr TV: nothing to save yet", await page.locator('[data-testid="tv-save"]').isDisabled());
+    await page.locator('[data-testid="tv-times-board-up"]').click();
+    check("rnr TV: more boards -> longer loop", (await text(page, '[data-testid="tv-loop-time"]')) === "16 slides · 2 min 41 s", await text(page, '[data-testid="tv-loop-time"]'));
+    await page.locator('[data-testid="tv-times-howto-down"]').click();
+    await page.locator('[data-testid="tv-times-howto-down"]').click();
+    check("rnr TV: a slide can be switched off", (await text(page, '[data-testid="tv-kind-howto"]')).includes("Off") && (await page.locator('[data-testid="tv-secs-howto-up"]').isDisabled()) && (await page.locator('[data-testid="tv-times-howto-down"]').isDisabled()));
+    await page.locator('[data-testid="tv-times-join-down"]').click();
+    check("rnr TV: Join can't go below once", await page.locator('[data-testid="tv-times-join-down"]').isDisabled());
+    for (let i = 0; i < 3; i++) await page.locator('[data-testid="tv-secs-join-up"]').click();
+    check("rnr TV: loop preview starts with Join", ((await page.locator(".rr-tv-strip li").first().textContent()) || "").includes("Join"));
+    await page.locator('[data-testid="tv-save"]').click();
+    await sleep(600);
+    const tvs = rpc(st, "admin_save_rr_settings").pop() || "";
+    check("rnr TV: saved", tvs.includes('"board":{"times":5,"seconds":10}') && tvs.includes('"howto":{"times":0,"seconds":12}') && tvs.includes('"join":{"times":1,"seconds":15}'), tvs.slice(0, 400));
+    check("rnr TV: toast says the screen updates", (await page.locator(".toast").allTextContents()).some((t) => t.includes("TV updated")));
+    await page.locator('[data-testid="tv-defaults"]').click();
+    check("rnr TV: back to the suggested settings", (await text(page, '[data-testid="tv-loop-time"]')) === "15 slides · 2 min 31 s");
+
     // gym & page
     await page.locator('[data-testid="rw-sec-gym"]').click();
     await page.waitForSelector('[data-testid="rr-gym"]');
@@ -292,7 +336,7 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await page.getByRole("switch", { name: "Show the XP shop tab" }).click();
     await page.locator('[data-testid="save-gym"]').click();
     await sleep(600);
-    const g = rpc(st, "admin_save_rr_settings")[0] || "";
+    const g = rpc(st, "admin_save_rr_settings").pop() || "";
     check("rnr: gym + page settings saved", g.includes('"gym_location":"Baner"') && g.includes("rr-media/gym/") && g.includes('"show_shop":false'), g.slice(0, 300));
     check("rnr: logo preview shows", (await page.locator(".rr-gym-preview img").count()) >= 1);
     check("no page errors (rnr)", errors.length === 0, errors.join(" | "));
@@ -302,6 +346,10 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await m.page.waitForSelector('[data-testid="needs-0012"]');
     check("rnr: asks to run 0011 + 0012", (await text(m.page, '[data-testid="needs-0012"]')).includes("0012_rr_controls.sql"));
     await m.ctx.close();
+    const m13 = await open(browser, "/rnr?s=tv", (s) => ((s.profile.is_staff = true), delete s.rewards.settings.tv_slides, s));
+    await m13.page.waitForSelector('[data-testid="needs-0013"]');
+    check("rnr TV: asks to run 0013 first", (await text(m13.page, '[data-testid="needs-0013"]')).includes("0013_tv_house_lifts.sql"));
+    await m13.ctx.close();
     const mem = await open(browser, "/rnr");
     await mem.page.waitForSelector("text=Not a staff account");
     check("rnr: members are kept out", (await mem.page.locator('[data-testid="rr-console"]').count()) === 0);
@@ -313,7 +361,7 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
   const pages = [
     ["/rewards", "dark", {}], ["/rewards", "light", {}], ["/rewards?tab=partners", "dark", {}], ["/rewards?tab=shop", "light", {}], ["/rewards", "dark", { out: true }],
     ["/leaderboard", "dark", {}], ["/leaderboard", "light", {}], ["/leaderboard?tab=machine", "dark", {}], ["/profile", "light", {}],
-    ["/rnr", "dark", { staff: true }], ["/rnr?s=challenges", "light", { staff: true }], ["/rnr?s=partners", "dark", { staff: true }], ["/rnr?s=gym", "light", { staff: true }], ["/rnr?s=handout", "dark", { staff: true }],
+    ["/rnr", "dark", { staff: true }], ["/rnr?s=challenges", "light", { staff: true }], ["/rnr?s=partners", "dark", { staff: true }], ["/rnr?s=gym", "light", { staff: true }], ["/rnr?s=tv", "dark", { staff: true }], ["/rnr?s=tv", "light", { staff: true }], ["/rnr?s=handout", "dark", { staff: true }],
   ];
   for (const [url, theme, o] of pages) {
     const label = `${url} (${theme}${o.out ? ", signed out" : ""})`;

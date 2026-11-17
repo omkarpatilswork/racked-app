@@ -217,6 +217,25 @@ const rpcCalls = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" +
     await r.ctx.close();
   }
 
+  // 6b. machine boards (0013): house lifts on the board; a short period board
+  //     shows the machine's best-ever lifts below, marked, never ranked
+  {
+    const { ctx, page, st, errors } = await open(browser, "/leaderboard?tab=machine&machine=lat-pulldown-01&period=today", (s) => ((s.thinPeriods = ["today"]), s));
+    await page.waitForSelector('[data-testid="best-ever"]');
+    check("ranks: board from machine_board with fill", st.calls.some((c) => c.includes("rpc/machine_board") && c.includes('"p_period":"today"') && c.includes('"p_fill":3')));
+    check("ranks: today's #1 on the podium, other places open", (await page.locator(".podium-spot:not(.open)").count()) === 1 && (await page.locator(".podium-spot.open").count()) === 2);
+    check("ranks: 2 best-ever lifts listed below", (await page.locator('[data-testid="best-ever"] .lb-row').count()) === 2 && ((await page.locator('[data-testid="best-ever"]').textContent()) || "").includes("Best ever here"));
+    check("ranks: my best-ever lift doesn't give me a rank today", ((await page.locator('[data-testid="my-rank"]').textContent()) || "").includes("not on this board yet"));
+    check("no page errors (best ever)", errors.length === 0, errors.join(" | "));
+    await ctx.close();
+    const m = await open(browser, "/machine/lat-pulldown-01?tap=LP4K9X", (s) => (s.houseLifts.push({ id: 9, machine_id: "lat-pulldown-01", mode: "", name: "Ravi", weight: 70, reps: 6, lifted_on: "2026-10-01", created_at: new Date().toISOString(), added_by: "Omi" }), s));
+    await m.page.waitForSelector('[data-testid="log-cta"]');
+    await m.page.waitForFunction(() => document.body.textContent.includes("Ravi"), null, { timeout: 8000 }).catch(() => {});
+    check("machine page: a house lift is on the board like anyone else", ((await m.page.locator(".lb-row").first().textContent()) || "").includes("Ravi"));
+    check("machine page: all-time board, no filling", m.st.calls.some((c) => c.includes("rpc/machine_board") && c.includes('"p_period":"all"')));
+    await m.ctx.close();
+  }
+
   // 7. locked machine is helpful; guide open without tap
   {
     const { ctx, page } = await open(browser, "/machine/chest-press-02");
@@ -258,8 +277,8 @@ const rpcCalls = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" +
 
   // 10. no horizontal overflow at 360px; axe scan
   const axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
-  for (const [url, theme] of [["/home", "dark"], ["/home", "light"], ["/machine/lat-pulldown-01?tap=LP4K9X", "dark"], ["/machine/lat-pulldown-01/log?tap=LP4K9X", "dark"], ["/machine/lat-pulldown-01/log?tap=LP4K9X", "light"], ["/leaderboard", "dark"], ["/leaderboard", "light"], ["/profile", "dark"], ["/settings", "dark"], ["/settings", "light"], ["/machines", "dark"], ["/privacy", "dark"], ["/rewards", "dark"], ["/rewards", "light"]]) {
-    const { ctx, page, errors } = await open(browser, url, (s) => s, { width: 360, theme });
+  for (const [url, theme] of [["/home", "dark"], ["/home", "light"], ["/machine/lat-pulldown-01?tap=LP4K9X", "dark"], ["/machine/lat-pulldown-01/log?tap=LP4K9X", "dark"], ["/machine/lat-pulldown-01/log?tap=LP4K9X", "light"], ["/leaderboard", "dark"], ["/leaderboard", "light"], ["/leaderboard?tab=machine&period=today", "light"], ["/profile", "dark"], ["/settings", "dark"], ["/settings", "light"], ["/machines", "dark"], ["/privacy", "dark"], ["/rewards", "dark"], ["/rewards", "light"]]) {
+    const { ctx, page, errors } = await open(browser, url, (s) => (url.includes("period=today") && (s.thinPeriods = ["today"]), s), { width: 360, theme });
     await sleep(900);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     check(`no sideways scroll ${url} @360 (${theme})`, overflow <= 0, String(overflow));

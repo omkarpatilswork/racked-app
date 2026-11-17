@@ -49,8 +49,9 @@ It's also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-b
 | **Rewards** | Weekly missions, lifting-streak bonuses and badges earn bonus XP; a weekly prize race with gifts from partner brands; sponsor challenges; an XP shop for vouchers (spending XP never lowers your level); a partner showcase with click tracking for sponsor reports |
 | **Home feed** | A feed of sets and new best lifts, grouped by visit, with kudos |
 | **Progress photos** | Optional before-and-after photos, with kudos and reporting for moderation |
-| **Gym TV mode** | `/tv` turns the gym's TV into a live recruiting screen: a scan-to-join QR, today's kg moved, podium leaderboards with "think you can beat this?", what muscle groups the floor is hitting. First names only |
+| **Gym TV mode** | `/tv` turns the gym's TV into a live screen that teaches and recruits: a scan-to-join QR, how it works in three steps, each machine's top 3 ("beat this?"), today's kg moved, this week's prize, live challenges, partner ads with a QR to their shop, and last week's winners. Staff choose how often and how long each slide shows. First names only |
 | **Join page** | `/join` is where the TV's QR lands: today's live numbers, a lift to beat, one-tap Google sign-in |
+| **House lifts** | Staff can put a real lift on a machine's board for someone not on the app yet; short boards also fill up with the machine's best-ever lifts, clearly marked. Never fake names |
 | **Machine guides** | A form guide with animation for each machine, and a way to report problems with the machine |
 | **Share to Stories** | Instagram Story / WhatsApp Status images for a PB, a session, a rank, a streak, a badge, a win or your week. Every machine has its own design, and you can put the stats over your own gym photo |
 | **Admin tools** | A staff dashboard for machines, tap analytics, photo moderation and fair-play review, plus R&R Controls: a CMS for prizes (with photos), weekly challenges, partner brands, the XP shop and the gym's branding |
@@ -84,7 +85,7 @@ It's also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-b
 
 ## 04 · Built in public
 
-Racked began as a Claude Artifact prototype and became this deployable app in **September and October 2026**. Every feature shipped as a numbered database migration (the timeline below shows the first eight; **0009** added onboarding, account settings and deletion, and tighter photo privacy, **0010** added the staff console's fair-play tools, **0011** added Rewards, and **0012** added the R&R Controls CMS and weekly challenges, in November 2026):
+Racked began as a Claude Artifact prototype and became this deployable app in **September and October 2026**. Every feature shipped as a numbered database migration (the timeline below shows the first eight; **0009** added onboarding, account settings and deletion, and tighter photo privacy, **0010** added the staff console's fair-play tools, **0011** added Rewards, **0012** added the R&R Controls CMS and weekly challenges, and **0013** rebuilt the gym TV and added house lifts, in November 2026):
 
 <div align="center">
 <img src="docs/assets/timeline.svg" alt="Eight migrations: core schema, leaderboards, admin tools, tap source, gym TV, home feed, photos, Instagram handles" width="100%"/>
@@ -143,7 +144,8 @@ racked-app/
 │   ├── settings/            name, Instagram, theme, rest timer, sign out, delete account
 │   ├── welcome/             first-time onboarding
 │   ├── privacy/             plain-language data summary
-│   ├── tv/                  full-screen gym TV slideshow (join QR, totals, boards)
+│   ├── tv/                  full-screen gym TV slideshow (join, how-to, boards, prize, ads)
+│   ├── go/[id]/             counts a partner-ad QR scan, then opens the brand's site
 │   ├── join/                where the TV's QR code lands
 │   └── admin/               staff console (review queue, members, machine limits, feedback, activity) and photo moderation
 ├── components/              feed cards, share sheet, photo upload, landing/ (landing page), tv/, admin/, …

@@ -75,8 +75,8 @@ function Join() {
               Nice one, <span className="join-grad">{firstName(profile?.display_name)}</span>.
             </h1>
             <p>
-              Walk up to any machine and hold your phone near the Racked sticker to log your set. Your best lift goes
-              straight onto the gym TV.
+              Walk up to any machine and tap or scan the sticker on it to log your set. Your best lift goes straight
+              onto the gym TV.
             </p>
             <Link href="/home" className="btn" style={{ background: "#fff", color: "#111" }} data-testid="join-home">
               <Icon name="home" /> Go to my home
@@ -95,7 +95,8 @@ function Join() {
               Get on the board <span className="join-grad">today.</span>
             </h1>
             <p>
-              Free, no app to download. Sign in once with Google, then tap the sticker on any machine to log your set.
+              Free, no app to download. Sign in once with Google, then tap or scan the sticker on any machine to log your
+              set.
             </p>
             <button type="button" className="btn-slab join-google" onClick={join} disabled={busy} data-testid="join-google">
               <span>
@@ -130,8 +131,8 @@ function Join() {
               <div className="ob-step">
                 <div className="n">2</div>
                 <div>
-                  <b>Tap a machine</b>
-                  <span>Hold your phone near the Racked sticker (or scan its QR) and log weight and reps in two taps.</span>
+                  <b>Tap or scan the sticker on a machine</b>
+                  <span>Hold your phone near it, or scan its QR code, then log weight and reps in two taps.</span>
                 </div>
               </div>
               <div className="ob-step">

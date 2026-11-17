@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import ConfirmSheet from "@/components/ConfirmSheet";
 import ReasonSheet from "@/components/admin/ReasonSheet";
+import HouseLifts from "@/components/admin/HouseLifts";
 import { HEALTH_COLOR, HEALTH_LABEL, machineHealth } from "@/components/admin/OverviewTab";
 import { MigrationNotice, SkeletonList, needsMigration } from "@/components/admin/shared";
 import {
@@ -130,6 +131,8 @@ export default function MachinesTab({ supabase, onChanged }: { supabase: Supabas
         </div>
       </section>
 
+      <HouseLifts supabase={supabase} onChanged={onChanged} />
+
       <section>
         <div className="list-title" style={{ color: "var(--danger)" }}>
           Danger zone
@@ -137,7 +140,7 @@ export default function MachinesTab({ supabase, onChanged }: { supabase: Supabas
         <div className="card" style={{ borderColor: "color-mix(in srgb, var(--danger) 40%, var(--border))" }}>
           <div style={{ fontWeight: 800 }}>Reset everything</div>
           <p className="faint" style={{ fontSize: 13, margin: "4px 0 12px" }}>
-            Wipes every member&rsquo;s sets, PBs, check-ins, feedback, attendance, XP, claimed rewards and past prize races. Accounts, brands, shop items and prize settings are kept. Only for starting over.
+            Wipes every member&rsquo;s sets, PBs, check-ins, feedback, attendance, XP, claimed rewards and past prize races. Accounts, house lifts, brands, shop items and prize settings are kept. Only for starting over.
           </p>
           <button type="button" className="btn btn-danger btn-sm" onClick={() => setResetAll(true)}>
             Reset all gym data…

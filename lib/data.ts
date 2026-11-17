@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import type { Period } from "@/lib/period";
 import { periodSince } from "@/lib/period";
-import { MACHINES, MUSCLE_GROUPS, muscleGroupFor, type MuscleGroup } from "@/lib/machines";
+import { MACHINES, MUSCLE_GROUPS, muscleGroupFor, splitFor, type MuscleGroup, type Split } from "@/lib/machines";
 
 type Client = SupabaseClient<Database>;
 type MachineStatsRow = Database["public"]["Tables"]["machine_stats"]["Row"];
@@ -73,6 +73,48 @@ export async function fetchMachineLeaderboard(
   });
   if (error) throw error;
   return data || [];
+}
+
+// One machine's board in the app (0013): members + house lifts, and when
+// fewer than `fill` people lifted in the period, the machine's best-ever lifts
+// fill the spare places (best_ever = true). Falls back to the plain board
+// before 0013 is run.
+export type MachineBoardRow = {
+  machine_id: string;
+  mode: string;
+  uid: string | null;
+  display_name: string;
+  avatar_url: string | null;
+  pb_weight: number;
+  pb_reps: number;
+  xp: number;
+  level: number;
+  sets: number;
+  rank: number;
+  best_ever: boolean;
+  house: boolean;
+};
+
+export function isMissingFunction(err: unknown) {
+  const code = (err as { code?: string } | null)?.code;
+  return code === "PGRST202" || code === "42883";
+}
+
+export async function fetchMachineBoard(
+  supabase: Client,
+  machineId: string,
+  mode: string,
+  period: Period = "all",
+  fill = 3
+): Promise<MachineBoardRow[]> {
+  const rpc = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>;
+  const { data, error } = await rpc.call(supabase, "machine_board", { p_machine_id: machineId, p_mode: mode, p_period: period, p_fill: fill });
+  if (!error) {
+    return ((data as MachineBoardRow[]) || []).map((r) => ({ ...r, pb_weight: Number(r.pb_weight), rank: Number(r.rank), best_ever: !!r.best_ever, house: !!r.house }));
+  }
+  if (!isMissingFunction(error)) throw error;
+  const rows = await fetchMachineLeaderboard(supabase, machineId, mode, period);
+  return rows.map((r) => ({ ...r, pb_weight: Number(r.pb_weight), rank: Number(r.rank), best_ever: false, house: false }));
 }
 
 export async function fetchOverallLeaderboard(supabase: Client, period: Period = "all") {
@@ -262,7 +304,9 @@ export function overallFromStats(stats: Record<string, MachineStatsRow>) {
 // hand back: first names, best lifts and anonymous counts.
 // ---------------------------------------------------------------------------
 
-export type TvEntry = { rank: number; name: string; weight: number; reps: number; sets: number };
+// bestEver: not from this period -- one of the machine's best-ever lifts,
+// filling a spare place on a short board (0013).
+export type TvEntry = { rank: number; name: string; weight: number; reps: number; sets: number; bestEver: boolean };
 
 export type TvBoard = {
   key: string; // machineId__mode
@@ -285,6 +329,8 @@ export type TvMachineStat = { machineId: string; title: string; lifters: number;
 
 export type TvActivity = {
   groups: TvGroupStat[];
+  // distinct people who did push / pull / legs (someone who did both counts in both)
+  split: Record<Split, number>;
   // busiest first (distinct lifters, then sets); machines with nobody on them are left out
   machines: TvMachineStat[];
   lifters: number; // distinct people in the gym
@@ -295,17 +341,25 @@ export type TvActivity = {
 
 export type TvData = { boards: TvBoard[]; activity: TvActivity; fetchedAt: number };
 
-export async function fetchTvData(supabase: Client, period: Period, limit = 5): Promise<TvData> {
+export async function fetchTvData(supabase: Client, period: Period, limit = 5, fill = 0): Promise<TvData> {
+  const rpc = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>;
   const [boardsRes, activityRes] = await Promise.all([
-    supabase.rpc("tv_boards", { p_period: period, p_limit: limit }),
+    rpc.call(supabase, "machine_boards", { p_period: period, p_limit: limit, p_fill: fill }),
     supabase.rpc("tv_activity", { p_period: period }),
   ]);
-  if (boardsRes.error) throw boardsRes.error;
+  let boardRows = boardsRes.data as BoardRow[] | null;
+  if (boardsRes.error) {
+    // database update 0013 not run yet: the original boards (no house lifts / filling)
+    if (!isMissingFunction(boardsRes.error)) throw boardsRes.error;
+    const old = await supabase.rpc("tv_boards", { p_period: period, p_limit: limit });
+    if (old.error) throw old.error;
+    boardRows = old.data || [];
+  }
   if (activityRes.error) throw activityRes.error;
-  return buildTvData(boardsRes.data || [], activityRes.data || []);
+  return buildTvData(boardRows || [], activityRes.data || []);
 }
 
-type BoardRow = Database["public"]["Functions"]["tv_boards"]["Returns"][number];
+type BoardRow = Database["public"]["Functions"]["tv_boards"]["Returns"][number] & { best_ever?: boolean };
 type ActivityRow = Database["public"]["Functions"]["tv_activity"]["Returns"][number];
 
 // Pure (no network) so it can be unit-tested: turns the two RPC payloads into
@@ -321,6 +375,7 @@ export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[]):
       weight: Number(r.pb_weight),
       reps: Number(r.pb_reps),
       sets: Number(r.sets),
+      bestEver: !!r.best_ever,
     });
     byKey.set(key, list);
   });
@@ -347,6 +402,7 @@ export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[]):
   const machinePeople = new Map<string, Set<number>>();
   const machineSets = new Map<string, number>();
   const groupPeople = new Map<MuscleGroup, Set<number>>();
+  const splitPeople: Record<Split, Set<number>> = { push: new Set(), pull: new Set(), legs: new Set() };
   const groupSets = new Map<MuscleGroup, number>();
   let sets = 0;
   let volume = 0;
@@ -359,6 +415,8 @@ export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[]):
     if (!machinePeople.has(r.machine_id)) machinePeople.set(r.machine_id, new Set());
     machinePeople.get(r.machine_id)!.add(r.person);
     machineSets.set(r.machine_id, (machineSets.get(r.machine_id) || 0) + Number(r.sets));
+    const sp = splitFor(r.machine_id, r.mode);
+    if (sp) splitPeople[sp].add(r.person);
     const g = muscleGroupFor(r.machine_id, r.mode);
     if (!g) return;
     if (!groupPeople.has(g)) groupPeople.set(g, new Set());
@@ -379,7 +437,15 @@ export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[]):
 
   return {
     boards,
-    activity: { groups, machines, lifters: people.size, sets, volume, pbs },
+    activity: {
+      groups,
+      split: { push: splitPeople.push.size, pull: splitPeople.pull.size, legs: splitPeople.legs.size },
+      machines,
+      lifters: people.size,
+      sets,
+      volume,
+      pbs,
+    },
     fetchedAt: Date.now(),
   };
 }

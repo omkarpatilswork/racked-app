@@ -395,6 +395,39 @@ export function resolveMachineView(m: Machine, mode?: string | null) {
 
 // Which muscle group a logged set counts toward on the TV. Falls back to the
 // machine's own group when the mode has no override.
+// Push / Pull / Legs, for the gym TV's "today" slide (how many people did
+// each). Pec Fly is push and Rear Delt is pull on the same machine.
+// Deadlift counts as Pull, as in most push-pull-legs plans; change it here
+// if the gym thinks of it as a Legs lift.
+export type Split = "push" | "pull" | "legs";
+export const SPLITS: { id: Split; label: string }[] = [
+  { id: "push", label: "Push" },
+  { id: "pull", label: "Pull" },
+  { id: "legs", label: "Legs" },
+];
+const SPLIT_OF: Record<string, Split> = {
+  "lat-pulldown-01": "pull",
+  "chest-press-02": "push",
+  "rowing-03": "pull",
+  "pec-fly-rear-delt-04": "push",
+  "pec-fly-rear-delt-04:pec-fly": "push",
+  "pec-fly-rear-delt-04:rear-delt": "pull",
+  "shoulder-press-05": "push",
+  "biceps-preacher-06": "pull",
+  "squat-07": "legs",
+  "leg-press-08": "legs",
+  "leg-extension-09": "legs",
+  "deadlift-10": "pull",
+};
+const SPLIT_BY_GROUP: Record<MuscleGroup, Split> = { chest: "push", shoulders: "push", back: "pull", arms: "pull", legs: "legs" };
+
+export function splitFor(machineId: string, mode?: string | null): Split | null {
+  const exact = (mode && SPLIT_OF[`${machineId}:${mode}`]) || SPLIT_OF[machineId];
+  if (exact) return exact;
+  const g = muscleGroupFor(machineId, mode);
+  return g ? SPLIT_BY_GROUP[g] : null;
+}
+
 export function muscleGroupFor(machineId: string, mode?: string | null): MuscleGroup | null {
   const m = MACHINE_MAP[machineId];
   if (!m) return null;

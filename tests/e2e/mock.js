@@ -46,7 +46,8 @@ function rewardsFixtures() {
     { id: 2, rank_from: 2, rank_to: 5, title: "Partner coupons", description: "Discount coupons from Jersey Drip and The Clean Crate.", sponsor_ids: ["jersey-drip", "clean-crate"] },
   ];
   const season = { id: 7, title: "Week of 16 Nov", period: "week", starts_at: hrs(-30), ends_at: hrs(80), prizes, players: 6, leader: { name: "Asha", score: 520 } };
-  const settings = { gym_name: "Club 360", gym_location: "Baner, Pune", gym_logo_url: null, gym_logo_dark_url: null, gym_instagram_url: "https://instagram.com/club360", gym_website_url: null, prize_headline: null, rewards_note: "Winners collect at the front desk every Monday", show_partners: true, show_shop: true };
+  const settings = { gym_name: "Club 360", gym_location: "Baner, Pune", gym_logo_url: null, gym_logo_dark_url: null, gym_instagram_url: "https://instagram.com/club360", gym_website_url: null, prize_headline: null, rewards_note: "Winners collect at the front desk every Monday", show_partners: true, show_shop: true,
+    tv_slides: { join: { times: 2, seconds: 12 }, howto: { times: 2, seconds: 12 }, board: { times: 4, seconds: 10 }, today: { times: 2, seconds: 10 }, prize: { times: 1, seconds: 9 }, challenge: { times: 1, seconds: 9 }, partner: { times: 1, seconds: 8 }, winners: { times: 1, seconds: 8 } } };
   const shop = [
     { id: 11, sponsor_id: "clean-crate", title: "Protein oats, 1 pack", description: "One 60 g pack of The Clean Crate protein oats (15 g protein).", image_url: null, xp_cost: 600, code_mode: "desk", stock_left: 18, per_member_limit: 1, valid_until: null },
     { id: 12, sponsor_id: "jersey-drip", title: "₹150 off at Jersey Drip", description: "A discount on any jersey at jerseydrip.shop.", image_url: null, xp_cost: 1000, code_mode: "pool", stock_left: null, per_member_limit: 1, valid_until: null },
@@ -86,7 +87,8 @@ function rewardsFixtures() {
     seasons: [{ id: 6, title: "Week of 9 Nov", period: "week", starts_at: hrs(-198), ends_at: hrs(-30), awarded_at: null, winners: [] }],
     rewards: shop.map((r) => ({ ...r, how_to_use: null, stock: r.stock_left, active: r.id !== 14, sort: r.id, issued: r.id === 11 ? 2 : 0, codes_left: r.id === 12 ? 25 : 0, shared_code: null })),
     challenges: challenges.map((c) => ({ ...c, active: true, awarded_at: null, reward_id: null, top: challengeBoard.map((x) => ({ rank: x.rank, name: x.name, value: x.value, reps: x.reps })) })),
-    sponsors: sponsors.map((sp, i) => ({ ...sp, active: true, sort: i + 1, products: sp.products.map((p, j) => ({ ...p, active: true, sort: j + 1, sponsor_id: sp.id })), clicks_7d: 14 + i, clicks_30d: 52 + i, redeemed_30d: 3 })),
+    sponsors: sponsors.map((sp, i) => ({ ...sp, active: true, sort: i + 1, show_on_tv: i === 0, tv_headline: null, products: sp.products.map((p, j) => ({ ...p, active: true, sort: j + 1, sponsor_id: sp.id })), clicks_7d: 14 + i, clicks_30d: 52 + i, redeemed_30d: 3 })),
+    tv_scans_30d: { "jersey-drip": 9 },
     redemptions: [
       { id: 41, title: "Partner coupons", code: "RK-7F3A2C", source: "prize", status: "issued", rank: 3, xp_spent: 0, created_at: iso(60 * 24), fulfilled_at: null, member: "Omi Patil", sponsor_id: "jersey-drip" },
       { id: 42, title: "Protein oats, 1 pack", code: "RK-91BC0D", source: "shop", status: "issued", rank: null, xp_spent: 600, created_at: iso(300), fulfilled_at: null, member: "Asha Rao", sponsor_id: "clean-crate" },
@@ -155,6 +157,12 @@ function defaultState() {
       { machine_id: "leg-press-08", mode: "", rank: 2, name: "Asha", pb_weight: 120, pb_reps: 10, sets: 4 },
       { machine_id: "chest-press-02", mode: "", rank: 1, name: "Omi", pb_weight: 45, pb_reps: 8, sets: 3 },
       { machine_id: "pec-fly-rear-delt-04", mode: "pec-fly", rank: 1, name: "Neha", pb_weight: 30, pb_reps: 12, sets: 3 },
+      // short boards are filled with best-ever lifts (0013)
+      { machine_id: "chest-press-02", mode: "", rank: 2, name: "Vikram", pb_weight: 80, pb_reps: 8, sets: 6, best_ever: true },
+      { machine_id: "chest-press-02", mode: "", rank: 3, name: "Asha", pb_weight: 50, pb_reps: 10, sets: 12, best_ever: true },
+    ],
+    houseLifts: [
+      { id: 1, machine_id: "chest-press-02", mode: "", name: "Vikram", weight: 80, reps: 8, lifted_on: day(-20), created_at: iso(60 * 24 * 20), added_by: "Omi Patil" },
     ],
     tvActivity: [
       { person: 1, machine_id: "lat-pulldown-01", mode: "", sets: 4, volume: 1900, pbs: 1 },
@@ -239,7 +247,7 @@ async function setup(ctx, page, state, base) {
         case "sync_my_rewards": { const a = state.rewards.syncAwards; state.rewards.syncAwards = []; return json(r, a); }
         case "season_board": return json(r, state.rewards.board.slice(0, body.p_limit || 10).map((x) => ({ ...x, is_me: state.signedIn && x.is_me })));
         case "challenge_board": return json(r, state.rewards.challengeBoard.map((x) => ({ ...x, is_me: state.signedIn && x.is_me })));
-        case "track_sponsor_click": return json(r, null);
+        case "track_sponsor_click": { const sp = state.rewards.overview.sponsors.find((x) => x.id === body.p_sponsor_id); return json(r, sp ? sp.website_url : null); }
         case "redeem_reward": {
           const it = state.rewards.overview.shop.find((x) => x.id === body.p_reward_id);
           const w = state.rewards.my.wallet;
@@ -268,7 +276,35 @@ async function setup(ctx, page, state, base) {
         case "admin_save_product": { const p = body.p; const sp = state.rewards.admin.sponsors.find((y) => y.id === p.sponsor_id); if (p.id) { sp.products.forEach((x) => { if (String(x.id) === String(p.id)) Object.assign(x, { ...p, id: x.id }); }); return json(r, p.id); } const id = 200 + sp.products.length; sp.products.push({ ...p, id }); return json(r, id); }
         case "admin_delete_product": state.rewards.admin.sponsors.forEach((sp) => { sp.products = sp.products.filter((x) => x.id !== body.p_id); }); return json(r, null);
         case "admin_bonus_xp": return json(r, null);
-        case "tv_boards": return json(r, state.tvBoards);
+        case "tv_boards": return json(r, state.tvBoards.filter((x) => !x.best_ever).map(({ best_ever, ...x }) => x));
+        case "machine_boards": return json(r, state.tvBoards.filter((x) => (body.p_fill > 0 || !x.best_ever) && x.rank <= (body.p_limit || 5)).map((x) => ({ best_ever: false, ...x })));
+        case "machine_board": {
+          const rows = state.machineBoard.filter((x) => x.machine_id === body.p_machine_id).map((x) => ({ best_ever: false, house: false, ...x }));
+          const house = state.houseLifts.filter((h) => h.machine_id === body.p_machine_id && h.mode === (body.p_mode || "")).map((h) => ({ machine_id: h.machine_id, mode: h.mode, uid: null, display_name: h.name, avatar_url: null, pb_weight: h.weight, pb_reps: h.reps, xp: 0, level: 1, sets: 1, house: true, best_ever: false }));
+          let all = [...rows, ...house].sort((a, b) => b.pb_weight - a.pb_weight || b.pb_reps - a.pb_reps).map((x, i) => ({ ...x, rank: i + 1 }));
+          if (state.thinPeriods && body.p_period !== "all" && state.thinPeriods.includes(body.p_period)) {
+            // only the first lifter counts this period; the rest fill in as best-ever lifts
+            all = all.map((x, i) => (i === 0 ? x : { ...x, best_ever: true })).slice(0, Math.max(1, body.p_fill || 0));
+          }
+          return json(r, all);
+        }
+        case "tv_feed": {
+          const ov = state.rewards.overview;
+          return json(r, { ...ov, tv_slides: state.rewards.settings.tv_slides || null,
+            tv_partners: ov.sponsors.filter((x) => x.show_on_tv !== false).map((x) => ({ id: x.id, tv_headline: x.tv_headline || null })),
+            season_top: ov.season ? state.rewards.board.slice(0, 5).map(({ is_me, ...x }) => x) : [] });
+        }
+        case "admin_house_lifts": return state.profile.is_staff ? json(r, state.houseLifts) : staffOnly();
+        case "admin_save_house_lift": {
+          const p = body.p;
+          const lim = state.limits.find((x) => x.machine_id === p.machine_id);
+          if (lim && Number(p.weight) > lim.max_weight) return json(r, { code: "22023", message: `That's more than this machine goes up to (${lim.max_weight} kg max)` }, 400);
+          if (p.id) { const x = state.houseLifts.find((h) => h.id === p.id); Object.assign(x, p); return json(r, x.id); }
+          const id = 100 + state.houseLifts.length;
+          state.houseLifts.push({ ...p, id, weight: Number(p.weight), reps: Number(p.reps), created_at: new Date().toISOString(), added_by: state.profile.display_name });
+          return json(r, id);
+        }
+        case "admin_delete_house_lift": state.houseLifts = state.houseLifts.filter((h) => h.id !== body.p_id); return json(r, null);
         case "tv_activity": return json(r, state.tvActivity);
         case "feed_posts": return json(r, state.posts);
         case "feed_photos": return json(r, state.feedPhotos);

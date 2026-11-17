@@ -4,6 +4,7 @@
 // calls those functions and shapes the results for the screens.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import type { TvPartner } from "@/lib/tvSlides";
 
 export type Client = SupabaseClient<Database>;
 
@@ -32,6 +33,9 @@ export type Sponsor = {
   logo_url: string | null;
   category: string | null;
   cover_url?: string | null;
+  // on the gym TV (0013)
+  show_on_tv?: boolean;
+  tv_headline?: string | null;
   products: SponsorProduct[];
 };
 export type Prize = { id: number; rank_from: number; rank_to: number; title: string; description: string | null; sponsor_ids: string[]; image_url?: string | null };
@@ -57,6 +61,7 @@ export type RrSettings = {
   rewards_note: string | null;
   show_partners: boolean;
   show_shop: boolean;
+  tv_slides?: unknown; // 0013: times per loop + seconds, per kind of TV slide
 };
 export type CodeMode = "shared" | "pool" | "desk";
 export type ShopItem = {
@@ -218,33 +223,88 @@ export function trackSponsorClick(supabase: Client, sponsorId: string, productId
   );
 }
 
-// The gym TV's prize slide: this season's prizes + top 5 (first names only).
-export type TvPrize = { title: string; period: "week" | "month"; endsAt: string; prizes: Prize[]; top: BoardRow[]; sponsors: string[] };
-export async function fetchTvPrize(supabase: Client): Promise<TvPrize | null> {
-  const ov = await fetchRewardsOverview(supabase);
-  if (!ov.season || ov.season.prizes.length === 0) return null;
-  const top = await fetchSeasonBoard(supabase, ov.season.id, 5).catch(() => [] as BoardRow[]);
-  const ids = new Set(ov.season.prizes.flatMap((p) => p.sponsor_ids || []));
+// Everything the gym TV shows besides the boards: the prize race, challenges,
+// partner ads, last week's winners and the slide settings (tv_feed(), 0013).
+// Before 0013 is run it's pieced together from the Rewards page data.
+export type TvFeed = {
+  slides: unknown;
+  prizeHeadline: string | null;
+  season: Season | null;
+  top: BoardRow[];
+  partners: TvPartner[];
+  sponsors: Sponsor[];
+  challenges: Challenge[];
+  lastWinners: RewardsOverview["last_winners"];
+};
+
+type TvFeedRaw = RewardsOverview & {
+  tv_slides?: unknown;
+  tv_partners?: { id: string; tv_headline: string | null }[];
+  season_top?: { rank: number; name: string; score: number }[];
+};
+
+export async function fetchTvFeed(supabase: Client): Promise<TvFeed> {
+  let raw: TvFeedRaw;
+  try {
+    raw = await call<TvFeedRaw>(supabase, "tv_feed");
+  } catch (e) {
+    if (!isMissingRewards(e)) throw e;
+    raw = await fetchRewardsOverview(supabase);
+    raw.season_top = raw.season ? await fetchSeasonBoard(supabase, raw.season.id, 5).catch(() => []) : [];
+  }
+  const sponsors = raw.sponsors || [];
+  const onTv = raw.tv_partners ? new Map(raw.tv_partners.map((p) => [p.id, p.tv_headline])) : null;
+  const partners: TvPartner[] = sponsors
+    .filter((sp) => !onTv || onTv.has(sp.id))
+    .map((sp) => ({
+      id: sp.id,
+      name: sp.name,
+      tagline: sp.tagline,
+      logo_url: sp.logo_url,
+      cover_url: sp.cover_url ?? null,
+      website_url: sp.website_url,
+      products: sp.products || [],
+      tv_headline: onTv?.get(sp.id) ?? null,
+    }));
   return {
-    title: ov.season.title,
-    period: ov.season.period,
-    endsAt: ov.season.ends_at,
-    prizes: ov.season.prizes,
-    top: top.map((r) => ({ ...r, is_me: false })),
-    sponsors: ov.sponsors.filter((s) => ids.has(s.id)).map((s) => s.name),
+    slides: raw.tv_slides ?? raw.settings?.tv_slides ?? null,
+    prizeHeadline: raw.settings?.prize_headline ?? null,
+    season: raw.season,
+    top: (raw.season_top || []).map((r) => ({ rank: Number(r.rank), name: r.name, score: Number(r.score), is_me: false })),
+    partners,
+    sponsors,
+    challenges: raw.challenges || [],
+    lastWinners: raw.last_winners,
   };
+}
+
+// The link behind a partner's QR code on the TV: our own /go/<brand> page
+// counts the scan, then sends the phone on to the brand's site.
+export function tvPartnerLink(origin: string, sponsorId: string, productId?: number | null) {
+  const q = new URLSearchParams({ src: "tv" });
+  if (productId) q.set("p", String(productId));
+  return `${origin}/go/${encodeURIComponent(sponsorId)}?${q}`;
+}
+
+export function siteHost(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).host.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
 }
 
 // ---- helpers -------------------------------------------------------------
 // Tag sponsor links so the brands can see visits from Racked in their analytics.
-export function sponsorLink(url: string | null | undefined, content?: string): string | null {
+export function sponsorLink(url: string | null | undefined, content?: string, medium: "app" | "tv" = "app"): string | null {
   if (!url) return null;
   try {
     const u = new URL(url);
     if (!/^https?:$/.test(u.protocol)) return null;
     u.searchParams.set("utm_source", "racked");
-    u.searchParams.set("utm_medium", "app");
-    u.searchParams.set("utm_campaign", "rewards");
+    u.searchParams.set("utm_medium", medium);
+    u.searchParams.set("utm_campaign", medium === "tv" ? "gym-tv" : "rewards");
     if (content) u.searchParams.set("utm_content", content);
     return u.toString();
   } catch {
@@ -467,6 +527,7 @@ export type AdminRrData = Omit<AdminRewardsData, "challenges"> & {
   settings: RrSettings;
   series: AdminSeries[];
   challenges: AdminChallengeRow[];
+  tv_scans_30d?: Record<string, number>; // 0013: TV QR scans per brand
 };
 
 export async function adminRrData(supabase: Client): Promise<AdminRrData> {
@@ -483,6 +544,7 @@ export async function adminRrData(supabase: Client): Promise<AdminRrData> {
     challenges: (d.challenges || []).map((c) => ({ ...c, top: (c.top || []).map((t) => ({ ...t, value: Number(t.value) })) })),
     sponsors: d.sponsors || [],
     redemptions: d.redemptions || [],
+    tv_scans_30d: d.tv_scans_30d || {},
   };
 }
 export const adminSaveSeries = (s: Client, p: Record<string, unknown>) => call<number>(s, "admin_save_series", { p });

@@ -13,7 +13,7 @@ import CountUp from "@/components/tv/CountUp";
 import { BadgesSection, MissionsCard, StreakCard } from "@/components/rewards/parts";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
-import { fetchMachineLeaderboard, fetchOverallLeaderboard } from "@/lib/data";
+import { fetchMachineBoard, fetchOverallLeaderboard } from "@/lib/data";
 import { useGym } from "@/lib/gym";
 import { MACHINE_MAP, MACHINES, resolveMachineView } from "@/lib/machines";
 import { PERIOD_OPTIONS, type Period } from "@/lib/period";
@@ -33,7 +33,8 @@ import {
 import type { StoryData } from "@/lib/story";
 
 type Tab = "week" | "all" | "machine";
-type Row = { key: string; rank: number; name: string; avatar: string | null; value: number; label: string; isMe: boolean };
+// ever: one of the machine's best-ever lifts filling a short period board (0013)
+type Row = { key: string; rank: number; name: string; avatar: string | null; value: number; label: string; isMe: boolean; ever?: boolean };
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "week", label: "This week" },
@@ -105,16 +106,17 @@ function LeaderboardInner() {
         next = list.map((u, i) => ({ key: u.uid, rank: i + 1, name: u.display_name, avatar: u.avatar_url, value: u.total_xp, label: "XP", isMe: u.uid === myUid }));
       } else {
         if (!selM) return;
-        const list = await fetchMachineLeaderboard(supabase, machineSel, mode, period);
+        const list = await fetchMachineBoard(supabase, machineSel, mode, period, 3);
         const unit = selM.unit === "KG" ? "kg" : selM.unit.toLowerCase();
         next = list.map((u) => ({
-          key: u.uid,
+          key: u.uid ? `${u.uid}${u.best_ever ? "-ever" : ""}` : `house-${u.display_name}-${u.rank}`,
           rank: u.rank,
           name: u.display_name,
           avatar: u.avatar_url,
           value: Number(u.pb_weight),
           label: `${unit} × ${u.pb_reps}`,
-          isMe: u.uid === myUid,
+          isMe: !!u.uid && u.uid === myUid && !u.best_ever,
+          ever: u.best_ever,
         }));
       }
       setRows(next);
@@ -166,7 +168,9 @@ function LeaderboardInner() {
     };
   }, [supabase, myUid]);
 
-  const list = rows || [];
+  const all = rows || [];
+  const list = all.filter((r) => !r.ever);
+  const ever = all.filter((r) => r.ever);
   const podium = list.slice(0, 3);
   const rest = list.slice(3);
   const mine = list.find((r) => r.isMe) || null;
@@ -321,7 +325,7 @@ function LeaderboardInner() {
               <Icon name="refresh" /> Try again
             </button>
           </div>
-        ) : list.length === 0 ? (
+        ) : all.length === 0 ? (
           <div className="card empty lbx-empty">
             <span className="tapin-icons" style={{ margin: "0 auto 10px" }} aria-hidden="true">
               <Icon name="trophy" />
@@ -334,6 +338,26 @@ function LeaderboardInner() {
             {tab === "machine" && <div className="eyebrow" style={{ marginBottom: 12 }}>{subject}</div>}
             <Podium rows={podium} prizePlaces={tab === "week" && weekSource === "season" ? prizePlaces : 0} />
             {rest.length > 0 && <BoardRows rows={rest} prizePlaces={tab === "week" && weekSource === "season" ? prizePlaces : 0} />}
+            {ever.length > 0 && (
+              <div className="lbx-ever" data-testid="best-ever">
+                <div className="lbx-ever-head">
+                  <Icon name="star" /> Best ever here · the lifts to beat
+                </div>
+                {ever.map((u, i) => (
+                  <div key={u.key} className="lb-row ever" style={{ ["--d" as string]: `${0.35 + i * 0.06}s` }}>
+                    <div className="rank">
+                      <Icon name="star" />
+                      <span className="sr-only">Best ever</span>
+                    </div>
+                    <Avatar name={u.name} url={u.avatar} />
+                    <div className="name">{u.name}</div>
+                    <div className="best num">
+                      {u.value.toLocaleString("en-IN")} <small>{u.label}</small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
 

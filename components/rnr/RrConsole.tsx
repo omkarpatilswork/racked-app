@@ -10,6 +10,18 @@ import GymMark from "@/components/GymMark";
 import { gymFromRow, setGymCache } from "@/lib/gym";
 import { adminMemberSearch, friendlyDbError, type StaffMember } from "@/lib/data";
 import { MACHINES, MACHINE_MAP } from "@/lib/machines";
+import {
+  buildLoop,
+  cleanTvSlides,
+  DEFAULT_TV_SLIDES,
+  loopSeconds,
+  SECONDS_MAX,
+  SECONDS_MIN,
+  SLIDE_KINDS,
+  TIMES_MAX,
+  type SlideKind,
+  type TvSlideSettings,
+} from "@/lib/tvSlides";
 import { toast } from "@/lib/toast";
 import {
   adminAddRewardCodes,
@@ -49,6 +61,7 @@ const SECTIONS = [
   { key: "partners", label: "Partners", icon: "star" },
   { key: "shop", label: "XP shop", icon: "ticket" },
   { key: "handout", label: "Hand out", icon: "check" },
+  { key: "tv", label: "TV", icon: "tv" },
   { key: "gym", label: "Gym & page", icon: "home" },
 ] as const;
 type Section = (typeof SECTIONS)[number]["key"];
@@ -136,6 +149,8 @@ export default function RrConsole({ supabase, section, onSection }: { supabase: 
         <ChallengesAdmin supabase={supabase} data={data} reload={load} />
       ) : section === "partners" ? (
         <PartnersAdmin supabase={supabase} data={data} reload={load} />
+      ) : section === "tv" ? (
+        <TvSection supabase={supabase} data={data} reload={load} />
       ) : (
         <GymSection supabase={supabase} settings={data.settings} reload={load} />
       )}
@@ -1467,7 +1482,7 @@ function PartnersAdmin({ supabase, data, reload }: SectionProps) {
     <>
       <div className="row">
         <p className="faint" style={{ margin: 0, fontSize: 13, flex: 1 }}>
-          Brands shown on the Rewards page. Clicks are counted so you can report back to them.
+          Brands on the Rewards page and the gym TV. App taps and TV QR scans are counted so you can report back to them.
         </p>
         <button type="button" className="btn btn-yellow btn-sm" onClick={() => setEditing({ active: true })} data-testid="new-sponsor">
           + New
@@ -1497,16 +1512,23 @@ function PartnersAdmin({ supabase, data, reload }: SectionProps) {
                 </div>
                 </div>
               </div>
-              <span className={`pill ${sp.active ? "pill-yellow" : "rw-pill"}`}>{sp.active ? "Shown" : "Hidden"}</span>
+              <span style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                <span className={`pill ${sp.active ? "pill-yellow" : "rw-pill"}`}>{sp.active ? "Shown" : "Hidden"}</span>
+                {sp.active && sp.show_on_tv !== undefined && (
+                  <span className="pill rw-pill" data-testid="sponsor-tv-pill">
+                    <Icon name="tv" /> {sp.show_on_tv ? "On TV" : "Not on TV"}
+                  </span>
+                )}
+              </span>
             </div>
             <div className="rw-stats" data-testid="sponsor-stats">
               <div>
-                <b className="num">{sp.clicks_7d}</b>
-                <span>clicks · 7 days</span>
+                <b className="num">{Math.max(0, sp.clicks_30d - (data.tv_scans_30d?.[sp.id] || 0))}</b>
+                <span>app taps · 30 days</span>
               </div>
               <div>
-                <b className="num">{sp.clicks_30d}</b>
-                <span>clicks · 30 days</span>
+                <b className="num">{data.tv_scans_30d?.[sp.id] || 0}</b>
+                <span>TV scans · 30 days</span>
               </div>
               <div>
                 <b className="num">{sp.redeemed_30d}</b>
@@ -1607,6 +1629,8 @@ function SponsorForm({
     category: value.category || "",
     sort: String(value.sort ?? 0),
     active: value.active ?? true,
+    show_on_tv: value.show_on_tv ?? true,
+    tv_headline: value.tv_headline || "",
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -1650,6 +1674,22 @@ function SponsorForm({
             <i />
           </span>
         </button>
+        <button type="button" className="list-row" role="switch" aria-checked={f.show_on_tv} onClick={() => set("show_on_tv", !f.show_on_tv)} style={{ padding: "12px 2px" }} data-testid="sponsor-on-tv">
+          <span style={{ flex: 1 }}>
+            Show an ad on the gym TV
+            <span className="faint" style={{ display: "block", fontSize: 12.5 }}>
+              Big product photo, name, price, website and a QR code to their site
+            </span>
+          </span>
+          <span className="switch" aria-hidden="true">
+            <i />
+          </span>
+        </button>
+        {f.show_on_tv && (
+          <Field id="sf-tvh" label="TV headline (optional)" hint="A few big words for the TV ad. Empty = the tagline.">
+            <input id="sf-tvh" className="field" maxLength={60} value={f.tv_headline} onChange={(e) => set("tv_headline", e.target.value)} placeholder="Your name. Your number. Your jersey." />
+          </Field>
+        )}
       </div>
       {err && (
         <p className="field-error" role="alert">
@@ -1768,6 +1808,215 @@ function ProductForm({
   );
 }
 
+// ---- the gym TV --------------------------------------------------------------------
+const KIND_SHORT: Record<string, string> = {
+  join: "Join",
+  howto: "How it works",
+  board: "Board",
+  open: "Board",
+  today: "Push/Pull/Legs",
+  prize: "Prize",
+  challenge: "Challenge",
+  partner: "Ad",
+  winners: "Winners",
+};
+
+function fmtDuration(sec: number) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m ? `${m} min${s ? ` ${s} s` : ""}` : `${s} s`;
+}
+
+function TvSection({ supabase, data, reload }: SectionProps) {
+  const supported = data.settings.tv_slides !== undefined;
+  const saved = useMemo(() => cleanTvSlides(data.settings.tv_slides), [data.settings.tv_slides]);
+  const [f, setF] = useState<TvSlideSettings>(saved);
+  const [busy, setBusy] = useState(false);
+  const dirty = JSON.stringify(f) !== JSON.stringify(saved);
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
+
+  // a loop where every kind has something to show (one board per machine)
+  const preview = useMemo(() => {
+    const boards = MACHINES.map((m) => ({ key: m.id, machineId: m.id, mode: "", machineNumber: m.number, title: m.name, unit: m.unit, entries: [] }));
+    const anyLive = (data.challenges || []).some((c) => new Date(c.starts_at).getTime() <= Date.now() && new Date(c.ends_at).getTime() > Date.now());
+    const slides = buildLoop(
+      {
+        boards,
+        hasToday: true,
+        hasPrize: true,
+        challenges: [{ id: 0 } as never],
+        liveChallenge: anyLive,
+        partners: data.sponsors.filter((s) => s.active && s.show_on_tv !== false).map((s) => ({ ...s, tv_headline: s.tv_headline ?? null, products: s.products })),
+        hasWinners: true,
+      },
+      f,
+      0
+    );
+    return { slides, seconds: loopSeconds(slides, f) };
+  }, [f, data]);
+
+  const step = (kind: SlideKind, key: "times" | "seconds", d: number) =>
+    setF((x) => {
+      const def = SLIDE_KINDS.find((k) => k.kind === kind)!;
+      const v = x[kind][key] + d;
+      const next = key === "times" ? Math.min(TIMES_MAX, Math.max(def.minTimes, v)) : Math.min(SECONDS_MAX, Math.max(SECONDS_MIN, v));
+      return { ...x, [kind]: { ...x[kind], [key]: next } };
+    });
+
+  async function save() {
+    setBusy(true);
+    try {
+      await adminSaveRrSettings(supabase, { tv_slides: f });
+      toast("TV updated. The screen picks it up within a minute.");
+      reload();
+    } catch (e) {
+      toast(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!supported) {
+    return (
+      <div className="card" data-testid="needs-0013">
+        <div className="row" style={{ justifyContent: "flex-start", gap: 12 }}>
+          <span className="tapin-icons" aria-hidden="true">
+            <Icon name="tv" />
+          </span>
+          <div>
+            <b>Turn on TV controls</b>
+            <div className="faint" style={{ fontSize: 13, marginTop: 2 }}>
+              Run database update <span className="num">0013_tv_house_lifts.sql</span> in Supabase → SQL Editor, then refresh.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stack-lg" data-testid="rr-tv">
+      <div className="row">
+        <p className="faint" style={{ margin: 0, fontSize: 13, flex: 1 }}>
+          What the gym TV shows, how many times in each loop and for how long. Key slides teach people how to join, so they come round most often.
+        </p>
+        {origin && (
+          <a className="btn btn-ghost btn-sm" href={`${origin}/tv`} target="_blank" rel="noreferrer" data-testid="open-tv">
+            <Icon name="external" /> Open TV
+          </a>
+        )}
+      </div>
+
+      <section className="card rr-tv-loop" aria-label="One loop of the TV" data-testid="tv-loop">
+        <div className="row">
+          <b>One loop</b>
+          <span className="pill num" data-testid="tv-loop-time">
+            {preview.slides.length} slides · {fmtDuration(preview.seconds)}
+          </span>
+        </div>
+        <ol className="rr-tv-strip">
+          {preview.slides.map((sl) => (
+            <li key={sl.key} className={`k-${sl.kind}`}>
+              {KIND_SHORT[sl.kind]}
+            </li>
+          ))}
+        </ol>
+        <p className="faint" style={{ margin: 0, fontSize: 12.5 }}>
+          Slides with nothing to show are skipped (no prize set, nobody lifted today yet). Machine boards and partner ads take turns, so each loop shows the next ones.
+        </p>
+      </section>
+
+      <div className="stack">
+        {SLIDE_KINDS.map((k) => {
+          const v = f[k.kind];
+          return (
+            <article key={k.kind} className={`card rr-tv-row${v.times === 0 ? " off" : ""}`} data-testid={`tv-kind-${k.kind}`}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <b>{k.label}</b>
+                  {k.key && <span className="pill pill-yellow">Key</span>}
+                  {v.times === 0 && <span className="pill rw-pill">Off</span>}
+                </div>
+                <div className="faint" style={{ fontSize: 12.5, marginTop: 2 }}>
+                  {k.hint}
+                </div>
+              </div>
+              <div className="rr-tv-steppers">
+                <Stepper
+                  label="Times per loop"
+                  name={`${k.label}: times per loop`}
+                  value={v.times}
+                  min={k.minTimes}
+                  max={TIMES_MAX}
+                  onStep={(d) => step(k.kind, "times", d)}
+                  testId={`tv-times-${k.kind}`}
+                />
+                <Stepper
+                  label="Seconds"
+                  name={`${k.label}: seconds`}
+                  value={v.seconds}
+                  min={SECONDS_MIN}
+                  max={SECONDS_MAX}
+                  disabled={v.times === 0}
+                  onStep={(d) => step(k.kind, "seconds", d)}
+                  testId={`tv-secs-${k.kind}`}
+                />
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="btn-row">
+        <button type="button" className="btn btn-ghost" onClick={() => setF(DEFAULT_TV_SLIDES)} disabled={busy} data-testid="tv-defaults">
+          Reset to suggested
+        </button>
+        <button type="button" className="btn btn-yellow" onClick={save} disabled={busy || !dirty} data-testid="tv-save">
+          {busy ? "Saving…" : dirty ? "Save TV settings" : "Saved"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Stepper({
+  label,
+  name,
+  value,
+  min,
+  max,
+  disabled,
+  onStep,
+  testId,
+}: {
+  label: string;
+  name: string;
+  value: number;
+  min: number;
+  max: number;
+  disabled?: boolean;
+  onStep: (d: number) => void;
+  testId: string;
+}) {
+  return (
+    <div className={`rr-stepper${disabled ? " disabled" : ""}`} role="group" aria-label={name} data-testid={testId}>
+      <span className="rr-stepper-label">{label}</span>
+      <div className="rr-stepper-ctl">
+        <button type="button" aria-label={`Less: ${name}`} disabled={disabled || value <= min} onClick={() => onStep(-1)} data-testid={`${testId}-down`}>
+          <Icon name="minus" />
+        </button>
+        <output className="num" aria-live="polite">
+          {value}
+        </output>
+        <button type="button" aria-label={`More: ${name}`} disabled={disabled || value >= max} onClick={() => onStep(1)} data-testid={`${testId}-up`}>
+          <Icon name="plus" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ---- gym & page ------------------------------------------------------------------
 function GymSection({ supabase, settings, reload }: { supabase: Client; settings: RrSettings; reload: () => void }) {
   const [f, setF] = useState({
@@ -1794,7 +2043,7 @@ function GymSection({ supabase, settings, reload }: { supabase: Client; settings
     try {
       await adminSaveRrSettings(supabase, f);
       setGymCache(gymFromRow(f));
-      toast("Saved. It shows across the app, TV and share cards.");
+      toast("Saved. It shows across the app and on share cards.");
       reload();
     } catch (e) {
       setErr(errMsg(e));
