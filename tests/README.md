@@ -17,6 +17,7 @@ node tests/sql/0010_staff_moderation.test.mjs
 node tests/sql/0011_rewards.test.mjs
 node tests/sql/0012_rr_controls.test.mjs
 node tests/sql/0013_tv_house_lifts.test.mjs
+node tests/sql/0014_social_feed.test.mjs
 ```
 
 They apply every file in `supabase/migrations/` in order to a throwaway
@@ -38,9 +39,10 @@ npx next dev -p 3111
 
 # terminal 2
 node tests/e2e/app.e2e.js
+node tests/e2e/home.e2e.js     # Home feed, + button, comments, R&R Feed, Reports
 node tests/e2e/staff.e2e.js    # staff console incl. house lifts
 node tests/e2e/tv.e2e.js      # gym TV, /go and /join (takes ~5 min)
-node tests/e2e/rewards.e2e.js  # Rewards, Ranks, Home cards, Profile gym card, R&R Controls (incl. TV)
+node tests/e2e/rewards.e2e.js  # Rewards, Ranks, Home feed reward cards, Profile gym card, R&R Controls (incl. TV)
 node tests/e2e/share.e2e.js    # story images + share studio
 node tests/e2e/landing.e2e.js # landing page + / -> /home routing (takes ~4 min)
 ```

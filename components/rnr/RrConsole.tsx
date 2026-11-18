@@ -6,6 +6,7 @@ import ConfirmSheet from "@/components/ConfirmSheet";
 import Sheet from "@/components/Sheet";
 import { LoadError, SkeletonList, needsMigration } from "@/components/admin/shared";
 import PhotoField from "@/components/rnr/PhotoField";
+import FeedAdmin from "@/components/rnr/FeedAdmin";
 import GymMark from "@/components/GymMark";
 import { gymFromRow, setGymCache } from "@/lib/gym";
 import { adminMemberSearch, friendlyDbError, type StaffMember } from "@/lib/data";
@@ -57,6 +58,7 @@ import {
 
 const SECTIONS = [
   { key: "race", label: "This week's prize", icon: "gift" },
+  { key: "feed", label: "Feed", icon: "megaphone" },
   { key: "challenges", label: "Challenges", icon: "flame" },
   { key: "partners", label: "Partners", icon: "star" },
   { key: "shop", label: "XP shop", icon: "ticket" },
@@ -151,6 +153,8 @@ export default function RrConsole({ supabase, section, onSection }: { supabase: 
         <PartnersAdmin supabase={supabase} data={data} reload={load} />
       ) : section === "tv" ? (
         <TvSection supabase={supabase} data={data} reload={load} />
+      ) : section === "feed" ? (
+        <FeedAdmin supabase={supabase} data={data} />
       ) : (
         <GymSection supabase={supabase} settings={data.settings} reload={load} />
       )}

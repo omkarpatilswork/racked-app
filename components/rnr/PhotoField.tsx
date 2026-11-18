@@ -22,7 +22,7 @@ export default function PhotoField({
   hint?: string;
   value: string;
   onChange: (url: string) => void;
-  folder: "prizes" | "brands" | "products" | "gym" | "shop";
+  folder: "prizes" | "brands" | "products" | "gym" | "shop" | "feed";
   shape?: "wide" | "square" | "logo";
   testId?: string;
 }) {

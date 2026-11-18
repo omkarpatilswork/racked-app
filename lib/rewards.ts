@@ -552,7 +552,7 @@ export const adminSaveRrSettings = (s: Client, p: Partial<RrSettings>) => call<n
 
 // Photos for prizes, brands and products: shrunk in the browser, then put in
 // the public "rr-media" bucket (staff only can upload).
-export async function uploadRrPhoto(supabase: Client, file: File, folder: "prizes" | "brands" | "products" | "gym" | "shop"): Promise<string> {
+export async function uploadRrPhoto(supabase: Client, file: File, folder: "prizes" | "brands" | "products" | "gym" | "shop" | "feed"): Promise<string> {
   if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new Error("Use a PNG, JPG or WebP picture");
   const keepPng = file.type === "image/png"; // logos keep their see-through background
   const blob = await shrinkImage(file, folder === "gym" || folder === "brands" ? 1200 : 1600, keepPng ? "image/png" : "image/jpeg");

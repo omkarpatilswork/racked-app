@@ -127,6 +127,13 @@ const ART: Record<string, { tone: keyof typeof TONES; motif: Motif }> = {
   "deadlift-10": { tone: "red", motif: "dots" },
 };
 
+// Each machine's colours + drawing, for the feed's PR cards (same look as the
+// story images).
+export function machineArt(machineId: string) {
+  const art = ART[machineId] || { tone: "red" as const, motif: "rings" as Motif };
+  return { tone: TONES[art.tone], toneName: art.tone, motif: art.motif, pose: POSES[machineId] || null };
+}
+
 // ---- fonts ------------------------------------------------------------------
 function displayFamily() {
   const v = typeof window !== "undefined" ? getComputedStyle(document.documentElement).getPropertyValue("--font-display").trim() : "";

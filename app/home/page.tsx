@@ -1,21 +1,24 @@
 "use client";
 
+// Home = the gym's feed (PRs, pump checks, posts, transformations, gym
+// notices and offers, the prize race, challenges, winners). Above it, just a
+// hello, one line of your numbers, a "you're at a machine" banner when it
+// matters, and a composer bar. Posting and the 10 machines live in the + menu.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Topbar from "@/components/Topbar";
 import Icon from "@/components/Icon";
-import HomeFeed from "@/components/HomeFeed";
-import PumpCheckCard from "@/components/PumpCheckCard";
+import HomeFeed from "@/components/feed/HomeFeed";
 import SignInSheet from "@/components/SignInSheet";
 import Avatar from "@/components/Avatar";
 import StaffNotices from "@/components/StaffNotices";
-import RewardsTeaser from "@/components/rewards/RewardsTeaser";
 import GymMark from "@/components/GymMark";
 import ShareStudio from "@/components/share/ShareStudio";
 import type { StoryData } from "@/lib/story";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAttendance, fetchMyStats, fetchWeekSummary, overallFromStats, type WeekSummary } from "@/lib/data";
+import { openCreate } from "@/lib/feed";
 import { calculateMachineLevel } from "@/lib/gamification";
 import { computeStreaks, dateStr, type AttendanceMap } from "@/lib/streaks";
 import { getActiveMachineId } from "@/lib/machineLock";
@@ -43,9 +46,7 @@ export default function HomePage() {
           ) : undefined
         }
       />
-      <div className="page stack-lg home-page">
-        {loading ? <HomeSkeleton /> : session ? <SignedInHome /> : <SignedOutHome />}
-      </div>
+      <div className={`page home-page${session ? " hx" : " stack-lg"}`}>{loading ? <HomeSkeleton /> : session ? <SignedInHome /> : <SignedOutHome />}</div>
     </>
   );
 }
@@ -53,12 +54,9 @@ export default function HomePage() {
 function HomeSkeleton() {
   return (
     <div aria-busy="true" aria-label="Loading">
-      <div className="skeleton sk-line" style={{ width: 120, marginBottom: 10 }} />
-      <div className="skeleton" style={{ height: 34, width: "70%", marginBottom: 18 }} />
-      <div className="bento">
-        <div className="skeleton" style={{ height: 120, borderRadius: 22 }} />
-        <div className="skeleton" style={{ height: 120, borderRadius: 22 }} />
-      </div>
+      <div className="skeleton" style={{ height: 28, width: "60%", marginBottom: 12 }} />
+      <div className="skeleton" style={{ height: 34, width: "90%", marginBottom: 16, borderRadius: 99 }} />
+      <div className="fx-skel-card" />
     </div>
   );
 }
@@ -90,13 +88,7 @@ function SignedInHome() {
   const streaks = attendance ? computeStreaks(attendance) : null;
   const lvl = overall ? calculateMachineLevel(overall.totalXp) : null;
   const pct = lvl ? Math.min(100, Math.round((100 * lvl.into) / lvl.need)) : 0;
-  const last7 = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return !!attendance?.[dateStr(d)];
-  });
   const active = activeId ? MACHINE_MAP[activeId] : null;
-  const today = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" });
 
   function shareWeek() {
     if (!week) return;
@@ -116,112 +108,71 @@ function SignedInHome() {
 
   return (
     <>
-      <header>
-        <div className="eyebrow">{today}</div>
-        <h1 style={{ fontSize: 27, margin: "6px 0 0" }}>
-          {greeting()}
-          {firstName ? `, ${firstName}` : ""}
-        </h1>
-        <div style={{ marginTop: 10 }}>
-          <GymMark variant="chip" label="Training at" />
+      <header className="hx-top">
+        <div className="hx-hello">
+          <h1>
+            {greeting()}
+            {firstName ? `, ${firstName}` : ""}
+          </h1>
+          <GymMark variant="chip" label="at" />
+        </div>
+        <div className="hx-you" data-testid="you-line">
+          <Link href="/leaderboard#progress" className="hx-stat" data-testid="tile-streak" aria-label={`${streaks ? streaks.current : 0} day streak, best ${streaks?.best ?? 0}`}>
+            <span className="hx-v">
+              <Icon name="flame" />
+              <b className="t-value num">{streaks ? streaks.current : "–"}</b>
+            </span>
+            <span className="hx-l">day streak</span>
+          </Link>
+          <Link href="/profile" className="hx-stat" data-testid="tile-level" aria-label={lvl ? `Level ${lvl.level}, ${lvl.need - lvl.into} XP to the next` : "Your level"}>
+            <span className="hx-v">
+              <span className="hx-ring" style={{ ["--p" as string]: pct }} aria-hidden="true" />
+              <b className="num">{lvl ? lvl.level : "–"}</b>
+            </span>
+            <span className="hx-l">level</span>
+          </Link>
+          <div className="hx-stat" data-testid="tile-week">
+            <span className="hx-v">
+              <Icon name="bolt" />
+              <b className="num">{week ? week.sets : "–"}</b>
+            </span>
+            <span className="hx-l">{week?.sets === 1 ? "set" : "sets"} this week</span>
+            {week && week.sets > 0 && (
+              <button type="button" className="hx-share" onClick={shareWeek} aria-label="Share your week" data-testid="share-week">
+                <Icon name="share" />
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       <StaffNotices supabase={supabase} uid={uid} />
 
-      {active ? (
-        <Link href={`/machine/${active.id}/log`} className="action-card resume-card" data-testid="resume-card">
-          <div className="glyph yellow">
-            <Icon name="flame" />
-          </div>
-          <div className="body">
-            <div className="eyebrow accent" style={{ fontSize: 10 }}>
-              You&rsquo;re at
-            </div>
-            <div className="title">{active.name}</div>
-            <div className="sub">Tap to log your next set</div>
-          </div>
-          <div className="chev">
-            <Icon name="chev" />
-          </div>
+      {active && (
+        <Link href={`/machine/${active.id}/log`} className="hx-resume" data-testid="resume-card">
+          <span className="hx-resume-no num" aria-hidden="true">
+            {active.number}
+          </span>
+          <span className="hx-resume-copy">
+            <small>You&rsquo;re at</small>
+            <b>{active.name}</b>
+          </span>
+          <span className="hx-resume-go">
+            Log a set <Icon name="chev" />
+          </span>
         </Link>
-      ) : (
-        <div className="tapin-card" data-testid="tapin-card">
-          <div className="tapin-icons" aria-hidden="true">
-            <Icon name="nfc" />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <b>At a machine?</b>
-            <span>Hold your phone to its sticker, or scan the QR code, to log a set.</span>
-          </div>
-        </div>
       )}
 
-      <Link href="/machines" className="action-card machines-card" data-testid="machines-card">
-        <div className="glyph">
-          <Icon name="grid" />
-        </div>
-        <div className="body">
-          <div className="title">All {MACHINES.length} machines</div>
-          <div className="sub">Find a machine, see how to use it and who&rsquo;s top</div>
-        </div>
-        <div className="chev">
-          <Icon name="chev" />
-        </div>
-      </Link>
+      <div className="hx-compose" data-testid="composer">
+        <Avatar name={profile?.display_name} url={profile?.avatar_url} size={36} />
+        <button type="button" className="hx-compose-field" onClick={() => openCreate("post")} data-testid="composer-open">
+          Share a PR, photo or note…
+        </button>
+        <button type="button" className="hx-compose-ic" onClick={() => openCreate("photo")} aria-label="Post a photo" data-testid="composer-photo">
+          <Icon name="image" />
+        </button>
+      </div>
 
-      <RewardsTeaser supabase={supabase} />
-
-      <section className="bento" aria-label="Your stats">
-        <div className="tile accent-tile tall" data-testid="tile-streak">
-          <div className="t-label">
-            <Icon name="flame" /> Streak
-          </div>
-          <div>
-            <div className="t-value">
-              {streaks ? streaks.current : "–"}
-              <small>{streaks?.current === 1 ? "day" : "days"}</small>
-            </div>
-            <div className="week-dots" role="img" aria-label={`${last7.filter(Boolean).length} of the last 7 days at the gym`}>
-              {last7.map((on, i) => (
-                <i key={i} className={on ? "on" : ""} />
-              ))}
-            </div>
-            <div className="t-sub">Best {streaks?.best ?? 0} · last 7 days</div>
-          </div>
-        </div>
-        <Link href="/profile" className="tile" data-testid="tile-level">
-          <div className="row" style={{ alignItems: "flex-start" }}>
-            <div className="t-label">Level</div>
-            <div className="ring" style={{ ["--p" as string]: pct, width: 34, height: 34 }} aria-hidden="true" />
-          </div>
-          <div>
-            <div className="t-value" style={{ marginTop: 4 }}>{lvl ? lvl.level : "–"}</div>
-            <div className="t-sub">{lvl ? `${lvl.need - lvl.into} XP to next` : " "}</div>
-          </div>
-        </Link>
-        <div className="tile" data-testid="tile-week">
-          <div className="row" style={{ alignItems: "flex-start" }}>
-            <div className="t-label">This week</div>
-            {week && week.sets > 0 && (
-              <button type="button" className="share-mini tile-share" onClick={shareWeek} aria-label="Share your week" data-testid="share-week">
-                <Icon name="share" />
-              </button>
-            )}
-          </div>
-          <div>
-            <div className="t-value" style={{ fontSize: 24 }}>
-              {week ? week.volume.toLocaleString() : "–"}
-              <small>kg</small>
-            </div>
-            <div className="t-sub">
-              {week ? `${week.sets} set${week.sets === 1 ? "" : "s"} · ${week.pbs} PB${week.pbs === 1 ? "" : "s"}` : " "}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <PumpCheckCard />
       <HomeFeed />
       {share && <ShareStudio story={share} title="Share your week" onClose={() => setShare(null)} />}
     </>

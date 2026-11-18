@@ -123,6 +123,23 @@ function defaultState() {
       { post_id: 13, is_mine: false, display_name: "Rahul Mehta", avatar_url: null, instagram_handle: null, machine_id: "leg-press-08", mode: "", sets: 5, weight: 140, reps: 10, volume: 7000, xp: 90, has_pb: false, started_at: iso(200), created_at: iso(180), kudos_count: 0, kudos_mine: false, kudos_names: [] },
     ],
     feedPhotos: [],
+    // 0014: member posts, gym notices / offers, milestones, comments
+    wallPosts: [
+      { id: 301, kind: "text", body: "Anyone up for legs at 7 tomorrow? Need a spotter for squats.", machine_id: "squat-07", mode: "", weeks_apart: null, created_at: iso(8), edited: false, is_mine: false, hidden: false, display_name: "Rahul Mehta", avatar_url: null, instagram_handle: null, media: [], kudos_count: 2, kudos_mine: false, kudos_names: ["Asha", "Neha"] },
+      { id: 302, kind: "photo", body: "Back day done. New gloves from Jersey Drip.", machine_id: "lat-pulldown-01", mode: "", weeks_apart: null, created_at: iso(25), edited: false, is_mine: false, hidden: false, display_name: "Neha Kulkarni", avatar_url: null, instagram_handle: "neha.lifts", media: [{ path: "u4/p1.jpg", label: null }, { path: "u4/p2.jpg", label: null }], kudos_count: 5, kudos_mine: false, kudos_names: ["Rahul", "Asha"] },
+      { id: 303, kind: "transformation", body: "12 weeks of showing up.", machine_id: null, mode: "", weeks_apart: 12, created_at: iso(140), edited: false, is_mine: false, hidden: false, display_name: "Asha Rao", avatar_url: null, instagram_handle: "asha.lifts", media: [{ path: "u1/before.jpg", label: "before" }, { path: "u1/after.jpg", label: "after" }], kudos_count: 11, kudos_mine: true, kudos_names: ["Rahul", "Neha"] },
+      { id: 304, kind: "text", body: "First week on Racked. Hooked.", machine_id: null, mode: "", weeks_apart: null, created_at: iso(400), edited: false, is_mine: true, hidden: false, display_name: "Omi Patil", avatar_url: null, instagram_handle: "omi.lifts", media: [], kudos_count: 0, kudos_mine: false, kudos_names: [] },
+    ],
+    gymPosts: [
+      { id: 41, kind: "notice", title: "Closed Sunday for Diwali", body: "Open again Monday from 6 am. Happy Diwali!", image_url: null, code: null, cta_label: null, cta_url: null, reward_id: null, pinned: true, starts_at: iso(600), ends_at: new Date(now + 3 * 86400000).toISOString(), sponsor: null, reward: null, active: true },
+      { id: 42, kind: "offer", title: "15% off any jersey", body: "For Club 360 members this week. Your name and number printed free.", image_url: null, code: "RACKED15", cta_label: "Shop jerseys", cta_url: "https://jerseydrip.shop", reward_id: 12, pinned: false, starts_at: iso(60), ends_at: null, sponsor: { id: "jersey-drip", name: "Jersey Drip", logo_url: null, website_url: "https://jerseydrip.shop" }, reward: { id: 12, title: "₹150 off at Jersey Drip", xp_cost: 1000 }, active: true },
+    ],
+    milestones: [
+      { id: 901, kind: "streak", title: "14-day lifting streak", is_mine: false, name: "Rahul", avatar_url: null, days: 14, at: iso(50) },
+      { id: 902, kind: "badge", title: "Explorer", is_mine: false, name: "Neha", avatar_url: null, days: null, at: iso(300) },
+    ],
+    comments: { "wall:302": [{ id: 71, body: "Those gloves are clean", created_at: iso(20), is_mine: false, hidden: false, display_name: "Rahul Mehta", avatar_url: null }] },
+    feedReports: { posts: [], comments: [] },
     overall: [
       { uid: "u1", display_name: "Asha Rao", avatar_url: null, total_xp: 2400, total_sets: 120, total_volume: 52000, pb_count: 14, unlocked: 8 },
       { uid: "u2", display_name: "Rahul Mehta", avatar_url: null, total_xp: 1900, total_sets: 98, total_volume: 61000, pb_count: 11, unlocked: 7 },
@@ -276,6 +293,54 @@ async function setup(ctx, page, state, base) {
         case "admin_save_product": { const p = body.p; const sp = state.rewards.admin.sponsors.find((y) => y.id === p.sponsor_id); if (p.id) { sp.products.forEach((x) => { if (String(x.id) === String(p.id)) Object.assign(x, { ...p, id: x.id }); }); return json(r, p.id); } const id = 200 + sp.products.length; sp.products.push({ ...p, id }); return json(r, id); }
         case "admin_delete_product": state.rewards.admin.sponsors.forEach((sp) => { sp.products = sp.products.filter((x) => x.id !== body.p_id); }); return json(r, null);
         case "admin_bonus_xp": return json(r, null);
+        case "home_feed": {
+          const f = body.p_filter || "all";
+          const before = body.p_before ? new Date(body.p_before).getTime() : Infinity;
+          const lim = body.p_limit || 15;
+          const info = (k) => { const l = (state.comments[k] || []).filter((c) => !c.hidden); const last = l[l.length - 1]; return { comment_count: l.length, last_comment: last ? { name: last.display_name.split(" ")[0], body: last.body, is_mine: !!last.is_mine } : null }; };
+          const items = [
+            ...(f === "all" || f === "prs" ? state.posts.filter((p) => f === "all" || p.has_pb).map((p) => ({ type: "set", id: p.post_id, at: p.created_at, ...p, ...info(`set:${p.post_id}`) })) : []),
+            ...(f === "all" || f === "photos" ? state.feedPhotos.map((p) => ({ type: "pump", id: p.item_id, at: p.created_at, ...p, ...info(`photo:${p.item_id}`) })) : []),
+            ...state.wallPosts.filter((w) => (!w.hidden || w.is_mine) && (f === "all" || (f === "photos" && w.kind === "photo") || (f === "transformations" && w.kind === "transformation") || (f === "posts" && w.kind === "text"))).map((w) => ({ type: "wall", at: w.created_at, ...w, ...info(`wall:${w.id}`) })),
+            ...(f === "all" || f === "gym" ? state.gymPosts.filter((g) => g.active && !g.pinned).map((g) => ({ type: "gym", at: g.starts_at, ...g })) : []),
+            ...(f === "all" ? state.milestones.map((m) => ({ type: "milestone", ...m })) : []),
+          ].filter((i) => new Date(i.at).getTime() < before).sort((a, b) => new Date(b.at) - new Date(a.at));
+          const page = items.slice(0, lim);
+          return json(r, { items: page, pinned: !body.p_before && (f === "all" || f === "gym") ? state.gymPosts.filter((g) => g.active && g.pinned) : [], has_more: items.length > lim });
+        }
+        case "create_wall_post": {
+          if (/(https?:\/\/|www\.|\.com\b)/i.test(body.p_body || "")) return json(r, { code: "RK201", message: "Links can't be posted. Write it out instead." }, 400);
+          const id = 400 + state.wallPosts.length;
+          state.wallPosts.unshift({ id, kind: body.p_kind, body: body.p_body, machine_id: body.p_machine_id, mode: body.p_mode || "", weeks_apart: body.p_weeks, created_at: new Date().toISOString(), edited: false, is_mine: true, hidden: false, display_name: state.profile.display_name, avatar_url: null, instagram_handle: state.profile.instagram_handle, media: (body.p_media || []).map((m) => ({ path: m.path, label: m.label })), kudos_count: 0, kudos_mine: false, kudos_names: [] });
+          return json(r, id);
+        }
+        case "edit_wall_post": { const w = state.wallPosts.find((x) => x.id === body.p_id); if (w) Object.assign(w, { body: body.p_body, machine_id: body.p_machine_id, mode: body.p_mode || "", edited: true }); return json(r, null); }
+        case "delete_wall_post": { const w = state.wallPosts.find((x) => x.id === body.p_id); state.wallPosts = state.wallPosts.filter((x) => x.id !== body.p_id); return json(r, w ? w.media.map((m) => m.path) : []); }
+        case "toggle_wall_kudos": { const w = state.wallPosts.find((x) => x.id === body.p_id); w.kudos_mine = !w.kudos_mine; w.kudos_count += w.kudos_mine ? 1 : -1; return json(r, { count: w.kudos_count, mine: w.kudos_mine }); }
+        case "report_wall_post": return json(r, null);
+        case "list_comments": return json(r, state.comments[`${body.p_type}:${body.p_id}`] || []);
+        case "add_comment": {
+          if (/(https?:\/\/|www\.|\.com\b)/i.test(body.p_body || "")) return json(r, { code: "RK201", message: "Links can't be posted. Write it out instead." }, 400);
+          const k = `${body.p_type}:${body.p_id}`;
+          const c = { id: 800 + Object.values(state.comments).flat().length, body: body.p_body, created_at: new Date().toISOString(), is_mine: true, hidden: false, display_name: state.profile.display_name, avatar_url: null };
+          state.comments[k] = [...(state.comments[k] || []), c];
+          return json(r, c);
+        }
+        case "delete_comment": Object.keys(state.comments).forEach((k) => (state.comments[k] = state.comments[k].filter((c) => c.id !== body.p_id))); return json(r, null);
+        case "report_comment": return json(r, null);
+        case "admin_gym_posts": return state.profile.is_staff ? json(r, state.gymPosts.map((g) => ({ ...g, sponsor_id: g.sponsor ? g.sponsor.id : null, updated_at: g.starts_at, status: !g.active ? "off" : new Date(g.starts_at) > new Date() ? "scheduled" : g.ends_at && new Date(g.ends_at) < new Date() ? "ended" : "live" }))) : staffOnly();
+        case "admin_save_gym_post": {
+          const p = body.p;
+          if (p.cta_url && !/^https?:\/\//.test(p.cta_url)) return json(r, { code: "22023", message: "The button link must start with https://" }, 400);
+          if (p.id) { const g = state.gymPosts.find((x) => String(x.id) === String(p.id)); Object.assign(g, { ...p, id: g.id, pinned: p.pinned ?? g.pinned, active: p.active ?? g.active }); return json(r, g.id); }
+          const id = 50 + state.gymPosts.length;
+          state.gymPosts.push({ ...p, id, pinned: !!p.pinned, active: p.active ?? true, starts_at: p.starts_at || new Date().toISOString(), sponsor: p.sponsor_id ? { id: p.sponsor_id, name: p.sponsor_id === "jersey-drip" ? "Jersey Drip" : "The Clean Crate", logo_url: null, website_url: null } : null, reward: null });
+          return json(r, id);
+        }
+        case "admin_delete_gym_post": state.gymPosts = state.gymPosts.filter((g) => g.id !== body.p_id); return json(r, null);
+        case "admin_feed_reports": return state.profile.is_staff ? json(r, state.feedReports) : staffOnly();
+        case "admin_set_post_hidden": state.feedReports.posts = state.feedReports.posts.filter((x) => x.id !== body.p_id); return json(r, null);
+        case "admin_set_comment_hidden": state.feedReports.comments = state.feedReports.comments.filter((x) => x.id !== body.p_id); return json(r, null);
         case "tv_boards": return json(r, state.tvBoards.filter((x) => !x.best_ever).map(({ best_ever, ...x }) => x));
         case "machine_boards": return json(r, state.tvBoards.filter((x) => (body.p_fill > 0 || !x.best_ever) && x.rank <= (body.p_limit || 5)).map((x) => ({ best_ever: false, ...x })));
         case "machine_board": {
@@ -374,6 +439,7 @@ async function setup(ctx, page, state, base) {
     }
     if (u.includes("/object/sign/")) return r.fulfill({ status: 200, contentType: "image/jpeg", body: IMG });
     if (u.includes("/object/public/rr-media/")) return r.fulfill({ status: 200, contentType: "image/jpeg", body: IMG });
+    if (u.includes("/object/pump-photos/") && r.request().method() === "POST") { state.calls.push("storage:upload pump-photos/" + u.split("/object/pump-photos/")[1]); return json(r, { Key: "pump-photos/x", Id: "x" }); }
     if (u.includes("/object/rr-media/") && r.request().method() === "POST") { state.calls.push("storage:upload " + u.split("/object/rr-media/")[1]); return json(r, { Key: "rr-media/x", Id: "x" }); }
     if (u.includes("/object/list/")) { state.calls.push("storage:list"); return json(r, state.storageFiles || []); }
     if (r.request().method() === "DELETE") { state.calls.push("storage:delete " + (r.request().postData() || "")); state.storageFiles = []; return json(r, []); }

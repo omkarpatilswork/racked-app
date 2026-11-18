@@ -110,7 +110,7 @@ function RrControls() {
             <GymMark variant="chip" />
             <h1 style={{ fontSize: 26, margin: "10px 0 0" }}>R&amp;R Controls</h1>
             <p className="faint" style={{ margin: "4px 0 0", fontSize: 13 }}>
-              Rewards &amp; recognition: everything members see on the Rewards page.
+              Rewards &amp; recognition: everything members see on Rewards, the Home feed and the gym TV.
             </p>
           </div>
           <Avatar name={profile?.display_name} url={profile?.avatar_url} size={44} />

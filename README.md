@@ -47,14 +47,14 @@ It's also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-b
 | **Live leaderboards** | Overall and per-machine rankings for today, the week, the month or all time, updated the moment anyone logs a set |
 | **XP, levels and streaks** | XP per set, a level per machine, attendance streaks and a calendar of the days you trained |
 | **Rewards** | Weekly missions, lifting-streak bonuses and badges earn bonus XP; a weekly prize race with gifts from partner brands; sponsor challenges; an XP shop for vouchers (spending XP never lowers your level); a partner showcase with click tracking for sponsor reports |
-| **Home feed** | A feed of sets and new best lifts, grouped by visit, with kudos |
+| **Home feed** | The gym's own feed: PRs, workouts, pump checks, members' posts, photos and transformations, gym notices, partner offers, and this week's prize, challenges and winners. Filters, kudos (double-tap), comments, reporting and staff review. A **+** in the bottom bar posts text, photos, a transformation or a pump check, and lists all 10 machines |
 | **Progress photos** | Optional before-and-after photos, with kudos and reporting for moderation |
 | **Gym TV mode** | `/tv` turns the gym's TV into a live screen that teaches and recruits: a scan-to-join QR, how it works in three steps, each machine's top 3 ("beat this?"), today's kg moved, this week's prize, live challenges, partner ads with a QR to their shop, and last week's winners. Staff choose how often and how long each slide shows. First names only |
 | **Join page** | `/join` is where the TV's QR lands: today's live numbers, a lift to beat, one-tap Google sign-in |
 | **House lifts** | Staff can put a real lift on a machine's board for someone not on the app yet; short boards also fill up with the machine's best-ever lifts, clearly marked. Never fake names |
 | **Machine guides** | A form guide with animation for each machine, and a way to report problems with the machine |
 | **Share to Stories** | Instagram Story / WhatsApp Status images for a PB, a session, a rank, a streak, a badge, a win or your week. Every machine has its own design, and you can put the stats over your own gym photo |
-| **Admin tools** | A staff dashboard for machines, tap analytics, photo moderation and fair-play review, plus R&R Controls: a CMS for prizes (with photos), weekly challenges, partner brands, the XP shop and the gym's branding |
+| **Admin tools** | A staff dashboard for machines, tap analytics, fair-play review and reports (posts, comments and photos members flagged), plus R&R Controls: a CMS for prizes (with photos), weekly challenges, partner brands, gym notices and offers on the feed, the XP shop, the TV and the gym's branding |
 
 ## 03 · How it works
 
@@ -85,7 +85,7 @@ It's also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-b
 
 ## 04 · Built in public
 
-Racked began as a Claude Artifact prototype and became this deployable app in **September and October 2026**. Every feature shipped as a numbered database migration (the timeline below shows the first eight; **0009** added onboarding, account settings and deletion, and tighter photo privacy, **0010** added the staff console's fair-play tools, **0011** added Rewards, **0012** added the R&R Controls CMS and weekly challenges, and **0013** rebuilt the gym TV and added house lifts, in November 2026):
+Racked began as a Claude Artifact prototype and became this deployable app in **September and October 2026**. Every feature shipped as a numbered database migration (the timeline below shows the first eight; **0009** added onboarding, account settings and deletion, and tighter photo privacy, **0010** added the staff console's fair-play tools, **0011** added Rewards, **0012** added the R&R Controls CMS and weekly challenges, **0013** rebuilt the gym TV and added house lifts, and **0014** turned Home into a social feed with posts, comments, notices and offers, in November 2026):
 
 <div align="center">
 <img src="docs/assets/timeline.svg" alt="Eight migrations: core schema, leaderboards, admin tools, tap source, gym TV, home feed, photos, Instagram handles" width="100%"/>

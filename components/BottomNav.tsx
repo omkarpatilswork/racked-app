@@ -4,9 +4,11 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "@/components/Icon";
+import CreateHub from "@/components/create/CreateHub";
+import { openCreate } from "@/lib/feed";
 
-// Machines live on Home (big "All machines" card), so the bar is
-// Home · Ranks · Rewards · You.
+// Home · Ranks · + · Rewards · You. The + opens posting (post, transformation,
+// pump check) and "log a set" with all 10 machines (components/create).
 const TABS = [
   { href: "/home", label: "Home", icon: "home" },
   { href: "/leaderboard", label: "Ranks", icon: "trophy" },
@@ -41,22 +43,35 @@ export default function BottomNav() {
 
   if (hidden) return null;
 
+  const link = (tab: (typeof TABS)[number]) => {
+    const active =
+      tab.href === "/home"
+        ? pathname === "/home" || pathname.startsWith("/machines") || pathname.startsWith("/machine/")
+        : tab.href === "/profile"
+          ? pathname.startsWith("/profile") || pathname.startsWith("/settings")
+          : pathname.startsWith(tab.href);
+    return (
+      <Link key={tab.href} href={tab.href} aria-current={active ? "page" : undefined}>
+        <Icon name={tab.icon} />
+        {tab.label}
+      </Link>
+    );
+  };
+
   return (
-    <nav className="bottom-nav" aria-label="Main">
-      {TABS.map((tab) => {
-        const active =
-          tab.href === "/home"
-            ? pathname === "/home" || pathname.startsWith("/machines") || pathname.startsWith("/machine/")
-            : tab.href === "/profile"
-              ? pathname.startsWith("/profile") || pathname.startsWith("/settings")
-              : pathname.startsWith(tab.href);
-        return (
-          <Link key={tab.href} href={tab.href} aria-current={active ? "page" : undefined}>
-            <Icon name={tab.icon} />
-            {tab.label}
-          </Link>
-        );
-      })}
-    </nav>
+    <>
+      <nav className="bottom-nav" aria-label="Main">
+        {link(TABS[0])}
+        {link(TABS[1])}
+        <button type="button" className="nav-plus" onClick={() => openCreate("menu")} aria-label="Create: post, photo, transformation, pump check or log a set" data-testid="nav-plus">
+          <span>
+            <Icon name="plus" />
+          </span>
+        </button>
+        {link(TABS[2])}
+        {link(TABS[3])}
+      </nav>
+      <CreateHub />
+    </>
   );
 }

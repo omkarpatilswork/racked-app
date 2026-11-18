@@ -140,7 +140,8 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await ctx.close();
     const h = await open(browser, "/home", (s) => ((s.missingRpc.my_rewards = true), (s.missingRpc.sync_my_rewards = true), (s.missingRpc.rewards_overview = true), s));
     await h.page.waitForSelector('[data-testid="tile-week"]');
-    check("before 0011: home has no rewards cards", (await h.page.locator('[data-testid="rw-teaser"]').count()) === 0);
+    await h.page.waitForSelector('[data-testid="feed-text"]');
+    check("before 0011: home feed has no prize / challenge / won cards", (await h.page.locator('[data-testid="feed-prize"], [data-testid="feed-challenge"], [data-testid="rw-won-card"], [data-testid="feed-winners"]').count()) === 0);
     check("before 0011: home still fine", h.errors.length === 0, h.errors.join(" | "));
     await h.ctx.close();
     const l = await open(browser, "/leaderboard", (s) => ((s.missingRpc.season_board = true), (s.missingRpc.rewards_overview = true), (s.missingRpc.my_rewards = true), s));
@@ -153,14 +154,16 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
   // 6. Home
   {
     const { ctx, page, errors } = await open(browser, "/home");
-    await page.waitForSelector('[data-testid="rw-teaser"]');
+    await page.waitForSelector('[data-testid="feed-prize"]');
     check("home: Training at Club 360", (await text(page, 'header [data-testid="gym-mark"]')).includes("Club 360"));
-    const t = await text(page, '[data-testid="rw-teaser"]');
-    check("home: this week's prize + who's winning", /This week.s prize/.test(t) && t.includes("Gift hamper") && t.includes("Asha is winning · you're #3"), t);
-    check("home: no big XP card", !t.includes("XP to spend"));
-    check("home: live Friday challenge", (await text(page, '[data-testid="rw-live-challenge"]')).includes("Live now") && (await text(page, '[data-testid="rw-live-challenge"]')).includes("Rahul leads"));
-    check("home: 'You won' card", (await text(page, '[data-testid="rw-won-card"]')).includes("RK-7F3A2C"));
-    check("home: machines card", (await page.locator('[data-testid="machines-card"]').getAttribute("href")) === "/machines");
+    const t = await text(page, '[data-testid="feed-prize"]');
+    check("home feed: this week's prize + who's winning", /This week.s prize/.test(t) && t.includes("Gift hamper") && t.includes("Asha leads") && t.includes("You're #3"), t);
+    check("home feed: prize card opens Rewards", (await page.locator('[data-testid="feed-prize"]').getAttribute("href")) === "/rewards");
+    const ch = await text(page, '[data-testid="feed-challenge"]');
+    check("home feed: live Friday challenge", ch.includes("Live now") && ch.includes("Rahul leads"), ch);
+    check("home feed: 'You won' card on top", (await text(page, '[data-testid="rw-won-card"]')).includes("RK-7F3A2C"));
+    check("home feed: last week's winners", (await text(page, '[data-testid="feed-winners"]')).includes("Asha"));
+    check("home: no old reward boxes", (await page.locator('[data-testid="rw-teaser"], [data-testid="rw-live-challenge"], [data-testid="machines-card"]').count()) === 0);
     check("no page errors (home)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }

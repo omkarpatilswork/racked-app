@@ -41,7 +41,8 @@ export default function Sheet({
         ) || []
       );
     // focus the first field if there is one, otherwise the sheet itself
-    const first = focusables().find((el) => el.tagName === "INPUT") || node;
+    // (a field marked data-autofocus wins, e.g. the post composer's text box)
+    const first = node?.querySelector<HTMLElement>("[data-autofocus]") || focusables().find((el) => el.tagName === "INPUT") || node;
     first?.focus({ preventScroll: true });
 
     function onKey(e: KeyboardEvent) {

@@ -715,7 +715,7 @@ export function friendlyDbError(err: unknown): string | null {
   // RK004 odd weight step, RK005 too fast / daily cap (0010_staff_moderation.sql)
   // RK101-RK112: rewards (not available, out of stock, already claimed, need
   // more XP, already awarded, still running...) (0011_rewards.sql)
-  if (e && e.code && /^RK(00[1-5]|1[01]\d)$/.test(e.code) && e.message) return e.message;
+  if (e && e.code && /^RK(00[1-5]|1[01]\d|20\d)$/.test(e.code) && e.message) return e.message;
   return null;
 }
 

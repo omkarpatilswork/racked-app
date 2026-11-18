@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import { LoadError, SkeletonList } from "@/components/admin/shared";
-import { fetchAdminFeedback, fetchAdminSetCount, fetchAdminTapCounts, sumTapCounts, type TapCounts } from "@/lib/data";
+import { fetchAdminFeedback, fetchAdminPhotoReports, fetchAdminSetCount, fetchAdminTapCounts, sumTapCounts, type TapCounts } from "@/lib/data";
+import { adminFeedReports } from "@/lib/feed";
 import { MACHINES } from "@/lib/machines";
 import { PERIOD_OPTIONS, type Period } from "@/lib/period";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -36,6 +37,20 @@ export default function OverviewTab({
   const [feedback, setFeedback] = useState<FeedbackRow[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [reload, setReload] = useState(0);
+  const [reports, setReports] = useState<number | null>(null);
+
+  // reported posts + comments (0014) + pump photos, for the badge on "Reports"
+  useEffect(() => {
+    let active = true;
+    Promise.allSettled([adminFeedReports(supabase), fetchAdminPhotoReports(supabase)]).then(([f, p]) => {
+      if (!active) return;
+      const n = (f.status === "fulfilled" ? f.value.posts.length + f.value.comments.length : 0) + (p.status === "fulfilled" ? p.value.length : 0);
+      setReports(n);
+    });
+    return () => {
+      active = false;
+    };
+  }, [supabase, reload]);
 
   useEffect(() => {
     let active = true;
@@ -183,13 +198,20 @@ export default function OverviewTab({
         </div>
       </section>
 
-      <Link href="/admin/photos" className="action-card">
+      <Link href="/admin/photos" className="action-card" data-testid="reports-link">
         <div className="glyph">
-          <Icon name="camera" />
+          <Icon name="flag" />
         </div>
         <div className="body">
-          <div className="title">Photo reports</div>
-          <div className="sub">Review reported or hidden pump photos</div>
+          <div className="title">
+            Reports
+            {reports ? (
+              <span className="count" style={{ marginLeft: 8 }} data-testid="reports-count">
+                {reports}
+              </span>
+            ) : null}
+          </div>
+          <div className="sub">Reported posts, comments and pump photos</div>
         </div>
         <div className="chev">
           <Icon name="chev" />

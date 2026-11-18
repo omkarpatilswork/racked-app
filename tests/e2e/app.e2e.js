@@ -282,6 +282,8 @@ const rpcCalls = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" +
     await sleep(900);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     check(`no sideways scroll ${url} @360 (${theme})`, overflow <= 0, String(overflow));
+    // let entrance animations finish so contrast is measured at full opacity
+    await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect && a.effect.getTiming().iterations !== Infinity).map((a) => a.finished.catch(() => null))));
     await page.addScriptTag({ content: axeSrc });
     const res = await page.evaluate(async () => {
       // eslint-disable-next-line no-undef
