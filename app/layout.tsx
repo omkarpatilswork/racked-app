@@ -11,6 +11,7 @@ import BottomNav from "@/components/BottomNav";
 import ToastHost from "@/components/ToastHost";
 import NetworkStatus from "@/components/NetworkStatus";
 import OnboardingGate from "@/components/OnboardingGate";
+import BodySheetHost from "@/components/BodySheet";
 import AppEffects from "@/components/AppEffects";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
@@ -49,7 +50,7 @@ export const metadata: Metadata = {
     siteName: "Racked by Bijlee",
     url: "/",
     locale: "en_IN",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Racked by Bijlee Run Club: Tap. Lift. Get on the board." }],
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Racked by Bijlee Run Club: Tap. Log. Win." }],
   },
   twitter: {
     card: "summary_large_image",
@@ -87,6 +88,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         <AuthProvider>
           <OnboardingGate />
+          <BodySheetHost />
           <div id="app">
             <main id="main">{children}</main>
             <BottomNav />

@@ -131,12 +131,16 @@ const rpc = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" + name
     await page.locator("#hl-side").selectOption("rear-delt");
     await page.locator("#hl-kg").fill("35");
     await page.locator("#hl-reps").fill("12");
+    await page.locator('[data-testid="save-house-lift"]').click();
+    check("house lift needs a body weight + board (0015)", ((await page.locator('[data-testid="house-lift-form"] .field-error').textContent()) || "").includes("body weight"));
+    await page.locator("#hl-bw").fill("58");
+    await page.locator("#hl-div").selectOption("women");
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
     check("date defaults to today (gym time)", (await page.locator("#hl-date").inputValue()) === today);
     await page.locator('[data-testid="save-house-lift"]').click();
     await sleep(700);
     const saved = rpc(st, "admin_save_house_lift")[0] || "";
-    check("house lift saved", saved.includes('"name":"Meera"') && saved.includes('"mode":"rear-delt"') && saved.includes('"weight":35') && saved.includes('"reps":12'), saved);
+    check("house lift saved", saved.includes('"name":"Meera"') && saved.includes('"mode":"rear-delt"') && saved.includes('"weight":35') && saved.includes('"reps":12') && saved.includes('"body_kg":58') && saved.includes('"division":"women"'), saved);
     check("list updates + toast", (await page.locator('[data-testid="house-lift"]').count()) === 2 && (await page.locator(".toast").allTextContents()).some((t) => t.includes("Meera")));
     await page.locator('[data-testid="add-house-lift"]').click();
     await page.waitForSelector('[data-testid="house-lift-form"]');
@@ -144,6 +148,8 @@ const rpc = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" + name
     await page.locator("#hl-machine").selectOption("lat-pulldown-01");
     await page.locator("#hl-kg").fill("500");
     await page.locator("#hl-reps").fill("5");
+    await page.locator("#hl-bw").fill("80");
+    await page.locator("#hl-div").selectOption("men");
     await page.locator('[data-testid="save-house-lift"]').click();
     await sleep(700);
     check("over the machine's max: the database's reason shows", ((await page.locator('[data-testid="house-lift-form"] .field-error').textContent()) || "").includes("150 kg"));

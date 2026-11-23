@@ -10,6 +10,8 @@ import ShareStudio from "@/components/share/ShareStudio";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMachineBoard, recordTap, type MachineBoardRow } from "@/lib/data";
+import { useMyBody } from "@/components/BodySheet";
+import { defaultBoard, fmtBw, openBodySheet } from "@/lib/body";
 import { calculateMachineLevel } from "@/lib/gamification";
 import { claimTapRecord, resolveTapSource, useMachineLock } from "@/lib/machineLock";
 import { MACHINE_MAP, resolveMachineView } from "@/lib/machines";
@@ -42,6 +44,9 @@ function MachinePageInner({ params }: { params: { id: string } }) {
   const [board, setBoard] = useState<MachineBoardRow[] | null>(null);
   const [mineLoaded, setMineLoaded] = useState(false);
   const [sharing, setSharing] = useState<StoryData | null>(null);
+  const body = useMyBody();
+  const myBody = body && body !== "off" ? body : null;
+  const division = defaultBoard(myBody);
 
   // Guarded on lockStatus === "unlocked" so a locked page (someone who
   // clicked here from elsewhere in the app instead of tapping the sticker)
@@ -61,13 +66,14 @@ function MachinePageInner({ params }: { params: { id: string } }) {
     if (!machine || lockStatus !== "unlocked") return;
     let active = true;
     setBoard(null);
-    fetchMachineBoard(supabase, machine.id, mode || "", "all", 0)
+    if (body === null && session) return; // wait for your board (Men / Women)
+    fetchMachineBoard(supabase, machine.id, mode || "", "all", 0, division)
       .then((rows) => active && setBoard(rows))
       .catch(() => active && setBoard([]));
     return () => {
       active = false;
     };
-  }, [machine, mode, lockStatus, supabase]);
+  }, [machine, mode, lockStatus, supabase, division, body, session]);
 
   useEffect(() => {
     if (!machine || !uid || lockStatus !== "unlocked") {
@@ -156,6 +162,15 @@ function MachinePageInner({ params }: { params: { id: string } }) {
                     <span style={{ opacity: 0.5, margin: "0 6px" }}>×</span>
                     {mine.pb_reps}
                   </div>
+                  {myBody?.body_kg ? (
+                    <div className="hero-bw" data-testid="machine-bw">
+                      {fmtBw(Number(mine.pb_weight) / myBody.body_kg)} body weight
+                    </div>
+                  ) : body && body !== "off" ? (
+                    <button type="button" className="hero-bw add" onClick={openBodySheet} data-testid="machine-add-bw">
+                      Add body weight to rank by ×BW
+                    </button>
+                  ) : null}
                 </div>
                 {challenge && gap !== null && (
                   <div style={{ textAlign: "right" }}>
@@ -223,7 +238,7 @@ function MachinePageInner({ params }: { params: { id: string } }) {
 
         <section className="card">
           <div className="section-head">
-            <h3>Top on this machine</h3>
+            <h3>{top3[0]?.ratio != null ? `Top on this machine · ${division === "women" ? "Women" : "Men"}` : "Top on this machine"}</h3>
             <Link href={`/leaderboard?tab=machines&machine=${machine.id}${mode ? `&mode=${mode}` : ""}`}>See all</Link>
           </div>
           {board === null ? (
@@ -238,7 +253,7 @@ function MachinePageInner({ params }: { params: { id: string } }) {
                 rank={u.rank}
                 name={u.display_name}
                 avatarUrl={u.avatar_url}
-                best={`${u.pb_weight}${machine.unit}×${u.pb_reps}`}
+                best={u.ratio != null ? `${fmtBw(u.ratio)} BW · ${u.pb_reps} reps` : `${u.pb_weight}${machine.unit}×${u.pb_reps}`}
                 isMe={!!u.uid && session?.user.id === u.uid}
               />
             ))

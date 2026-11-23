@@ -44,7 +44,7 @@ It's also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-b
 |---|---|
 | **Landing page** | `/` explains Racked to new visitors: a scroll-driven walkthrough of tap → log → PB → leaderboard on a phone, the live gym TV, and one big "Start lifting" button. Members go straight to the app at `/home` |
 | **Tap to log** | Each machine's NFC tag (or QR code) opens that machine: your history, your best lift and a quick set logger |
-| **Live leaderboards** | Overall and per-machine rankings for today, the week, the month or all time, updated the moment anyone logs a set |
+| **Live leaderboards** | Per-machine rankings by strength for your size (×BW: kg lifted ÷ body weight), with Men's and Women's boards, for today, the week, the month or all time, updated the moment anyone logs a set |
 | **XP, levels and streaks** | XP per set, a level per machine, attendance streaks and a calendar of the days you trained |
 | **Rewards** | Weekly missions, lifting-streak bonuses and badges earn bonus XP; a weekly prize race with gifts from partner brands; sponsor challenges; an XP shop for vouchers (spending XP never lowers your level); a partner showcase with click tracking for sponsor reports |
 | **Home feed** | The gym's own feed: PRs, workouts, pump checks, members' posts, photos and transformations, gym notices, partner offers, and this week's prize, challenges and winners. Filters, kudos (double-tap), comments, reporting and staff review. A **+** in the bottom bar posts text, photos, a transformation or a pump check, and lists all 10 machines |
@@ -85,7 +85,7 @@ It's also an experiment for **[EZZ BILL](https://github.com/omkarpatilswork/ez-b
 
 ## 04 · Built in public
 
-Racked began as a Claude Artifact prototype and became this deployable app in **September and October 2026**. Every feature shipped as a numbered database migration (the timeline below shows the first eight; **0009** added onboarding, account settings and deletion, and tighter photo privacy, **0010** added the staff console's fair-play tools, **0011** added Rewards, **0012** added the R&R Controls CMS and weekly challenges, **0013** rebuilt the gym TV and added house lifts, and **0014** turned Home into a social feed with posts, comments, notices and offers, in November 2026):
+Racked began as a Claude Artifact prototype and became this deployable app in **September and October 2026**. Every feature shipped as a numbered database migration (the timeline below shows the first eight; **0009** added onboarding, account settings and deletion, and tighter photo privacy, **0010** added the staff console's fair-play tools, **0011** added Rewards, **0012** added the R&R Controls CMS and weekly challenges, **0013** rebuilt the gym TV and added house lifts, and **0014** turned Home into a social feed with posts, comments, notices and offers, and **0015** ranked everything by strength for your size with Men's and Women's boards, in November 2026. Removable sample data lives in `supabase/demo/`):
 
 <div align="center">
 <img src="docs/assets/timeline.svg" alt="Eight migrations: core schema, leaderboards, admin tools, tap source, gym TV, home feed, photos, Instagram handles" width="100%"/>

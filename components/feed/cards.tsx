@@ -535,10 +535,16 @@ export function PrizeCard({ ov, me, now }: { ov: RewardsOverview; me: MyRewards 
   const leader = s.leader;
   const mine = me?.season;
   const word = s.period === "month" ? "month" : "week";
+  const strength = ov.scoring === "strength";
+  const unit = strength ? "pts" : "XP";
+  const race = mine?.division === "women" ? "Women's" : "Men's";
   let you: string | null = null;
-  if (mine?.rank === 1) you = "You're #1. Hold on to it!";
-  else if (mine?.rank && mine.ahead) you = `You're #${mine.rank} · ${fmtXp(mine.ahead.score - mine.score + 1)} XP to pass ${mine.ahead.name}`;
+  if (strength && me && !me.body?.body_kg) you = "Add your body weight to race for it";
+  else if (strength && me && !mine?.division) you = "Prizes are for the Men's and Women's races";
+  else if (mine?.rank === 1) you = strength ? `You're #1 on the ${race} board. Hold on to it!` : "You're #1. Hold on to it!";
+  else if (mine?.rank && mine.ahead) you = `You're #${mine.rank}${strength ? ` (${race})` : ""} · ${fmtXp(mine.ahead.score - mine.score + 1)} ${unit} to pass ${mine.ahead.name}`;
   else if (mine) you = "Log a set to get on the board";
+  const leaders = strength ? s.leaders : null;
   return (
     <Link href="/rewards" className="fx-card fx-prize" data-testid="feed-prize">
       <span className="fx-prize-art" aria-hidden="true">
@@ -553,10 +559,21 @@ export function PrizeCard({ ov, me, now }: { ov: RewardsOverview; me: MyRewards 
         <span className="fx-prize-eyebrow">
           {ov.settings?.prize_headline || `This ${word}'s prize`} · <span className="nowrap">{timeLeft(s.ends_at, now)} left</span>
         </span>
-        <b className="fx-prize-title">{prize ? `${prizeRankLabel(prize)} wins ${prize.title}` : s.title}</b>
-        <span className="fx-prize-lead">
-          <Icon name="flame" /> {leader ? `${leader.name} leads · ${fmtXp(leader.score)} XP` : "Nobody yet. First set takes #1"}
-        </span>
+        <b className="fx-prize-title">{prize ? (strength && prize.rank_from === 1 && prize.rank_to === 1 ? `#1 Men & #1 Women win ${prize.title}` : `${prizeRankLabel(prize)} wins ${prize.title}`) : s.title}</b>
+        {leaders ? (
+          <span className="fx-prize-lead two" data-testid="prize-leaders">
+            <span>
+              <Icon name="flame" /> Men: {leaders.men ? `${leaders.men.name} · ${fmtXp(leaders.men.score)} pts` : "open"}
+            </span>
+            <span>
+              <Icon name="flame" /> Women: {leaders.women ? `${leaders.women.name} · ${fmtXp(leaders.women.score)} pts` : "open"}
+            </span>
+          </span>
+        ) : (
+          <span className="fx-prize-lead">
+            <Icon name="flame" /> {leader ? `${leader.name} leads · ${fmtXp(leader.score)} XP` : "Nobody yet. First set takes #1"}
+          </span>
+        )}
         {you && <span className="fx-prize-you">{you}</span>}
       </span>
       <Icon name="chev" />
@@ -564,9 +581,11 @@ export function PrizeCard({ ov, me, now }: { ov: RewardsOverview; me: MyRewards 
   );
 }
 
-export function ChallengeCard({ c, now }: { c: Challenge; now: number }) {
+export function ChallengeCard({ c, now, strength = false }: { c: Challenge; now: number; strength?: boolean }) {
   const st = challengeStatus(c, now);
   const m = c.machine_id ? MACHINE_MAP[c.machine_id] : null;
+  const lead = (l: { name: string; value: number; reps: number | null } | null | undefined) =>
+    l ? `${l.name} · ${metricValue(c.metric, Number(l.value), l.reps, strength)}` : "open";
   return (
     <article className={`fx-card fx-chal${st.live ? " live" : ""}`} data-testid="feed-challenge">
       <span className="fx-chal-status">
@@ -581,13 +600,22 @@ export function ChallengeCard({ c, now }: { c: Challenge; now: number }) {
       )}
       <div className="fx-chal-foot">
         <span>
-          {st.live && c.leader ? (
+          {st.live && strength && c.leaders && (c.leaders.men || c.leaders.women) ? (
+            <span className="fx-chal-leads">
+              <span>
+                Men <b>{lead(c.leaders.men)}</b>
+              </span>
+              <span>
+                Women <b>{lead(c.leaders.women)}</b>
+              </span>
+            </span>
+          ) : st.live && c.leader ? (
             <>
-              <b>{c.leader.name}</b> leads · {metricValue(c.metric, Number(c.leader.value), c.leader.reps)}
+              <b>{c.leader.name}</b> leads · {metricValue(c.metric, Number(c.leader.value), c.leader.reps, strength)}
             </>
           ) : c.last_result ? (
             <>
-              Last winner <b>{c.last_result.name}</b> · {metricValue(c.metric, Number(c.last_result.value), c.last_result.reps)}
+              Last winner <b>{c.last_result.name}</b> · {metricValue(c.metric, Number(c.last_result.value), c.last_result.reps, strength)}
             </>
           ) : (
             <>{c.players > 0 ? `${c.players} in` : "Be the first in"}</>
@@ -602,6 +630,36 @@ export function ChallengeCard({ c, now }: { c: Challenge; now: number }) {
 }
 
 export function WinnersCard({ w }: { w: NonNullable<RewardsOverview["last_winners"]> }) {
+  const split = w.winners.some((x) => x.division === "men" || x.division === "women");
+  if (split) {
+    const men = w.winners.filter((x) => x.division === "men").slice(0, 3);
+    const women = w.winners.filter((x) => x.division === "women").slice(0, 3);
+    const firsts = [men[0]?.name, women[0]?.name].filter(Boolean).join(" and ");
+    return (
+      <article className="fx-card fx-winners" data-testid="feed-winners">
+        <span className="fx-prize-eyebrow">{w.season} · winners</span>
+        <h3 className="fx-chal-title">Well lifted, {firsts}!</h3>
+        <div className="fx-win-split">
+          {[
+            ["Men", men],
+            ["Women", women],
+          ].map(([label, list]) => (
+            <div key={label as string}>
+              <span className="fx-win-board">{label as string}</span>
+              <ol className="fx-win-list">
+                {(list as typeof men).map((x) => (
+                  <li key={x.rank}>
+                    <span className={`fx-win-rank r${x.rank}`}>{x.rank}</span>
+                    <b>{x.name}</b>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </div>
+      </article>
+    );
+  }
   const top = w.winners.slice(0, 3);
   return (
     <article className="fx-card fx-winners" data-testid="feed-winners">

@@ -17,7 +17,7 @@ grant usage on schema storage, auth to authenticated, anon; grant select, insert
 grant execute on function auth.uid() to authenticated, anon;
 create function storage.foldername(n text) returns text[] language sql as $$ select string_to_array(n,'/') $$;
 `);
-for (const f of fs.readdirSync(R).sort()) await db.exec(fs.readFileSync(R + f, "utf8"));
+for (const f of fs.readdirSync(R).sort().filter((f) => f < "0015")) await db.exec(fs.readFileSync(R + f, "utf8")); // 0015 changes the race to strength points
 const A = "11111111-1111-1111-1111-111111111111", B = "22222222-2222-2222-2222-222222222222", S = "33333333-3333-3333-3333-333333333333";
 await db.exec(`insert into auth.users(id,email,raw_user_meta_data) values
   ('${A}','asha.rao@x.com','{"full_name":"Asha Rao"}'),('${B}','bo@x.com','{"full_name":"Bo Lee"}'),('${S}','s@x.com','{"full_name":"Staff Sam"}')`);

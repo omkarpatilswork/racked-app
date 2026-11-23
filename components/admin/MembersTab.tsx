@@ -14,6 +14,7 @@ import {
   fetchMemberStats,
   type StaffMember,
 } from "@/lib/data";
+import { CHOICE_LABEL, adminMemberBody, adminSetMemberBody, type BoardChoice, type MyBody } from "@/lib/body";
 import { REMOVE_SET_REASONS, RESET_MEMBER_REASONS, fmtNum, machineLabel } from "@/lib/fairplay";
 import { MACHINE_MAP } from "@/lib/machines";
 import { timeAgo } from "@/lib/time";
@@ -117,6 +118,87 @@ export default function MembersTab({ supabase, onChanged }: { supabase: Supabase
   );
 }
 
+// Body weight + board (0015): what the member entered, and a desk weigh-in.
+function MemberBody({ supabase, member }: { supabase: SupabaseClient<Database>; member: StaffMember }) {
+  const [b, setB] = useState<MyBody | null | "off">(null);
+  const [kg, setKg] = useState("");
+  const [div, setDiv] = useState<BoardChoice | "">("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    adminMemberBody(supabase, member.id).then(
+      (x) => {
+        if (!alive) return;
+        setB(x);
+        setKg(x.body_kg != null ? String(x.body_kg) : "");
+        setDiv(x.division || "");
+      },
+      (e) => alive && setB(needsMigration(e) ? "off" : null)
+    );
+    return () => {
+      alive = false;
+    };
+  }, [supabase, member.id]);
+  if (b === "off") return null;
+  const ok = Number(kg) >= 25 && Number(kg) <= 300;
+  return (
+    <section className="card" data-testid="member-body">
+      <div className="row">
+        <div>
+          <div style={{ fontWeight: 800 }}>Body weight &amp; board</div>
+          <div className="faint" style={{ fontSize: 12.5, marginTop: 2 }}>
+            {b === null
+              ? "Loading…"
+              : b.body_kg == null
+                ? "Not added yet: not on the ×BW boards"
+                : `${b.division ? CHOICE_LABEL[b.division] : "No board"} · ${b.body_kg} kg · ${b.checked_at ? `weighed at the desk ${new Date(b.checked_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}${b.checked_by ? ` by ${b.checked_by}` : ""}` : "their own entry"}`}
+          </div>
+        </div>
+      </div>
+      <div className="rw-form-row" style={{ marginTop: 10 }}>
+        <div style={{ flex: 1 }}>
+          <label className="field-label" htmlFor="mb-kg">
+            On the scale (kg)
+          </label>
+          <input id="mb-kg" className="field num" inputMode="decimal" type="number" step="0.1" value={kg} onChange={(e) => setKg(e.target.value)} data-testid="mb-kg" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label className="field-label" htmlFor="mb-div">
+            Board
+          </label>
+          <select id="mb-div" className="field" value={div} onChange={(e) => setDiv(e.target.value as BoardChoice)} data-testid="mb-div">
+            <option value="">Keep</option>
+            <option value="men">Men</option>
+            <option value="women">Women</option>
+            <option value="open">Prefer not to say</option>
+          </select>
+        </div>
+      </div>
+      <button
+        type="button"
+        className="btn btn-outline btn-sm"
+        style={{ marginTop: 10 }}
+        disabled={busy || !ok}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            const x = await adminSetMemberBody(supabase, member.id, Number(kg), div || null);
+            setB(x);
+            toast("Weigh-in saved. Their sets in weeks not yet awarded use it.");
+          } catch {
+            toast("That didn't go through. Try again.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+        data-testid="mb-save"
+      >
+        Save weigh-in
+      </button>
+    </section>
+  );
+}
+
 function MemberDetail({
   supabase,
   member,
@@ -201,6 +283,8 @@ function MemberDetail({
           </div>
         </div>
       </section>
+
+      <MemberBody supabase={supabase} member={member} />
 
       {failed ? (
         <LoadError onRetry={() => setReload((x) => x + 1)} />

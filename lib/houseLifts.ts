@@ -24,6 +24,10 @@ export type HouseLift = {
   lifted_on: string; // YYYY-MM-DD
   created_at: string;
   added_by: string | null;
+  // 0015: boards rank by ×BW, so a house lift needs a body weight + board
+  body_kg?: number | null;
+  division?: "men" | "women" | null;
+  ratio?: number | null;
 };
 
 export type HouseLiftInput = {
@@ -34,6 +38,8 @@ export type HouseLiftInput = {
   weight: number;
   reps: number;
   lifted_on: string;
+  body_kg?: number | null;
+  division?: "men" | "women" | null;
 };
 
 export async function fetchHouseLifts(supabase: Client): Promise<HouseLift[]> {

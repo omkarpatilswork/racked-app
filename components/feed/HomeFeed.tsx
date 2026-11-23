@@ -490,7 +490,7 @@ export default function HomeFeed() {
             if (r.k === "winners") return ov?.last_winners ? <WinnersCard key={r.key} w={ov.last_winners} /> : null;
             if (r.k === "challenge") {
               const c = ov?.challenges.find((x) => x.id === r.id);
-              return c ? <ChallengeCard key={r.key} c={c} now={now} /> : null;
+              return c ? <ChallengeCard key={r.key} c={c} now={now} strength={ov?.scoring === "strength"} /> : null;
             }
             const it = decorate(r.item);
             switch (it.type) {

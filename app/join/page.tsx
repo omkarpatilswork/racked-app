@@ -92,11 +92,11 @@ function Join() {
               <GymMark variant="chip" onDark label="Live at" />
             </div>
             <h1>
-              Get on the board <span className="join-grad">today.</span>
+              Tap. Log. <span className="join-grad">Win.</span>
             </h1>
             <p>
-              Free, no app to download. Sign in once with Google, then tap or scan the sticker on any machine to log your
-              set.
+              Free, no app to download. Sign in once with Google, tap or scan the sticker on any machine, log your set and
+              win weekly prizes from our partners.
             </p>
             <button type="button" className="btn-slab join-google" onClick={join} disabled={busy} data-testid="join-google">
               <span>
@@ -210,10 +210,17 @@ function LiveCard({ live }: { live: TvData | null }) {
               <span className="eyebrow">Think you can beat this?</span>
               <div className="join-beat-row">
                 <b>{leader.name}</b>
-                <span>
-                  {leader.weight}
-                  <small>{top.unit.toLowerCase()}</small> × {leader.reps}
-                </span>
+                {leader.ratio != null ? (
+                  <span>
+                    {leader.ratio.toFixed(2)}
+                    <small>× body weight</small>
+                  </span>
+                ) : (
+                  <span>
+                    {leader.weight}
+                    <small>{top.unit.toLowerCase()}</small> × {leader.reps}
+                  </span>
+                )}
               </div>
               <div className="join-beat-sub">
                 #1 on {top.title} · machine {top.machineNumber}

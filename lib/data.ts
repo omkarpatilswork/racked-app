@@ -85,7 +85,7 @@ export type MachineBoardRow = {
   uid: string | null;
   display_name: string;
   avatar_url: string | null;
-  pb_weight: number;
+  pb_weight: number; // kg: only on your own row once boards rank by ×BW (0015)
   pb_reps: number;
   xp: number;
   level: number;
@@ -93,6 +93,8 @@ export type MachineBoardRow = {
   rank: number;
   best_ever: boolean;
   house: boolean;
+  ratio: number | null; // ×BW (0015); null = an older kg board
+  is_me?: boolean;
 };
 
 export function isMissingFunction(err: unknown) {
@@ -100,21 +102,39 @@ export function isMissingFunction(err: unknown) {
   return code === "PGRST202" || code === "42883";
 }
 
+// division: "men" | "women" | "all" (0015: ranked by ×BW). Falls back to the
+// kg boards when 0015 (or 0013) isn't run yet.
 export async function fetchMachineBoard(
   supabase: Client,
   machineId: string,
   mode: string,
   period: Period = "all",
-  fill = 3
+  fill = 3,
+  division: "men" | "women" | "all" = "all"
 ): Promise<MachineBoardRow[]> {
   const rpc = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>;
+  const bw = await rpc.call(supabase, "strength_board", { p_machine_id: machineId, p_mode: mode, p_period: period, p_division: division, p_fill: fill });
+  if (!bw.error) {
+    type BwRow = Omit<MachineBoardRow, "pb_weight" | "pb_reps"> & { weight: number | null; reps: number };
+    return ((bw.data as BwRow[]) || []).map((r) => ({
+      ...r,
+      pb_weight: r.weight == null ? 0 : Number(r.weight),
+      pb_reps: Number(r.reps),
+      ratio: r.ratio == null ? null : Number(r.ratio),
+      rank: Number(r.rank),
+      best_ever: !!r.best_ever,
+      house: !!r.house,
+      is_me: !!r.is_me,
+    }));
+  }
+  if (!isMissingFunction(bw.error)) throw bw.error;
   const { data, error } = await rpc.call(supabase, "machine_board", { p_machine_id: machineId, p_mode: mode, p_period: period, p_fill: fill });
   if (!error) {
-    return ((data as MachineBoardRow[]) || []).map((r) => ({ ...r, pb_weight: Number(r.pb_weight), rank: Number(r.rank), best_ever: !!r.best_ever, house: !!r.house }));
+    return ((data as MachineBoardRow[]) || []).map((r) => ({ ...r, pb_weight: Number(r.pb_weight), rank: Number(r.rank), best_ever: !!r.best_ever, house: !!r.house, ratio: null }));
   }
   if (!isMissingFunction(error)) throw error;
   const rows = await fetchMachineLeaderboard(supabase, machineId, mode, period);
-  return rows.map((r) => ({ ...r, pb_weight: Number(r.pb_weight), rank: Number(r.rank), best_ever: false, house: false }));
+  return rows.map((r) => ({ ...r, pb_weight: Number(r.pb_weight), rank: Number(r.rank), best_ever: false, house: false, ratio: null }));
 }
 
 export async function fetchOverallLeaderboard(supabase: Client, period: Period = "all") {
@@ -306,7 +326,9 @@ export function overallFromStats(stats: Record<string, MachineStatsRow>) {
 
 // bestEver: not from this period -- one of the machine's best-ever lifts,
 // filling a spare place on a short board (0013).
-export type TvEntry = { rank: number; name: string; weight: number; reps: number; sets: number; bestEver: boolean };
+// ratio: ×BW (0015 boards; then weight is 0 and not shown). On the older kg
+// boards ratio is null.
+export type TvEntry = { rank: number; name: string; weight: number; reps: number; sets: number; bestEver: boolean; ratio: number | null };
 
 export type TvBoard = {
   key: string; // machineId__mode
@@ -316,6 +338,9 @@ export type TvBoard = {
   title: string; // "Lat Pulldown" or "Pec Fly" for a dual machine's mode
   unit: string;
   entries: TvEntry[];
+  // 0015: the Men's and Women's boards (ranked by ×BW). Empty on kg boards.
+  men: TvEntry[];
+  women: TvEntry[];
 };
 
 export type TvGroupStat = {
@@ -339,46 +364,61 @@ export type TvActivity = {
   pbs: number;
 };
 
-export type TvData = { boards: TvBoard[]; activity: TvActivity; fetchedAt: number };
+export type TvData = { boards: TvBoard[]; activity: TvActivity; fetchedAt: number; strength: boolean };
 
 export async function fetchTvData(supabase: Client, period: Period, limit = 5, fill = 0): Promise<TvData> {
   const rpc = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>;
-  const [boardsRes, activityRes] = await Promise.all([
-    rpc.call(supabase, "machine_boards", { p_period: period, p_limit: limit, p_fill: fill }),
+  const [strengthRes, activityRes] = await Promise.all([
+    rpc.call(supabase, "strength_boards", { p_period: period, p_limit: limit, p_fill: fill }),
     supabase.rpc("tv_activity", { p_period: period }),
   ]);
+  if (activityRes.error) throw activityRes.error;
+  if (!strengthRes.error) {
+    type SRow = { machine_id: string; mode: string; division: "men" | "women"; rank: number; name: string; reps: number; ratio: number; sets: number; best_ever: boolean };
+    const rows = ((strengthRes.data as SRow[]) || []).map((r) => ({ ...r, pb_weight: 0, pb_reps: r.reps })) as unknown as BoardRow[];
+    return buildTvData(rows, activityRes.data || [], true);
+  }
+  if (!isMissingFunction(strengthRes.error)) throw strengthRes.error;
+  // database update 0015 not run yet: the kg boards (0013), or the original ones
+  const boardsRes = await rpc.call(supabase, "machine_boards", { p_period: period, p_limit: limit, p_fill: fill });
   let boardRows = boardsRes.data as BoardRow[] | null;
   if (boardsRes.error) {
-    // database update 0013 not run yet: the original boards (no house lifts / filling)
     if (!isMissingFunction(boardsRes.error)) throw boardsRes.error;
     const old = await supabase.rpc("tv_boards", { p_period: period, p_limit: limit });
     if (old.error) throw old.error;
     boardRows = old.data || [];
   }
-  if (activityRes.error) throw activityRes.error;
   return buildTvData(boardRows || [], activityRes.data || []);
 }
 
-type BoardRow = Database["public"]["Functions"]["tv_boards"]["Returns"][number] & { best_ever?: boolean };
+type BoardRow = Database["public"]["Functions"]["tv_boards"]["Returns"][number] & { best_ever?: boolean; division?: "men" | "women"; ratio?: number };
 type ActivityRow = Database["public"]["Functions"]["tv_activity"]["Returns"][number];
 
 // Pure (no network) so it can be unit-tested: turns the two RPC payloads into
 // ordered boards (machine order, then mode order) and the muscle-group tally.
-export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[]): TvData {
+export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[], strength = false): TvData {
   const byKey = new Map<string, TvEntry[]>();
+  const byDiv = new Map<string, TvEntry[]>();
   boardRows.forEach((r) => {
     const key = `${r.machine_id}__${r.mode || ""}`;
-    const list = byKey.get(key) || [];
-    list.push({
+    const entry: TvEntry = {
       rank: Number(r.rank),
       name: r.name,
       weight: Number(r.pb_weight),
       reps: Number(r.pb_reps),
       sets: Number(r.sets),
       bestEver: !!r.best_ever,
-    });
+      ratio: r.ratio == null ? null : Number(r.ratio),
+    };
+    const list = byKey.get(key) || [];
+    list.push(entry);
     byKey.set(key, list);
+    if (r.division) {
+      const dk = `${key}__${r.division}`;
+      byDiv.set(dk, [...(byDiv.get(dk) || []), entry]);
+    }
   });
+  const sortRank = (a: TvEntry, b: TvEntry) => a.rank - b.rank;
 
   // One board per machine / mode, in the order of the gym floor (01, 02, ...).
   const boards: TvBoard[] = [];
@@ -393,7 +433,11 @@ export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[]):
         machineNumber: m.number,
         title: mode ? m.modes![mode].label : m.name,
         unit: m.unit,
-        entries: (byKey.get(key) || []).sort((a, b) => a.rank - b.rank),
+        entries: strength
+          ? (byKey.get(key) || []).slice().sort((a, b) => Number(a.bestEver) - Number(b.bestEver) || (b.ratio ?? 0) - (a.ratio ?? 0))
+          : (byKey.get(key) || []).sort(sortRank),
+        men: (byDiv.get(`${key}__men`) || []).sort(sortRank),
+        women: (byDiv.get(`${key}__women`) || []).sort(sortRank),
       });
     });
   });
@@ -447,6 +491,7 @@ export function buildTvData(boardRows: BoardRow[], activityRows: ActivityRow[]):
       pbs,
     },
     fetchedAt: Date.now(),
+    strength,
   };
 }
 
@@ -665,9 +710,20 @@ export async function togglePhotoKudos(supabase: Client, itemId: number) {
 
 // path -> temporary https link (valid for `seconds`). Missing/forbidden files
 // are simply left out of the result.
+// Sample pictures from supabase/demo/demo_seed.sql ("demo/<who>/<file>") are
+// bundled with the app in public/demo/, not stored in the bucket.
+export function demoPhotoUrl(path: string) {
+  return path.startsWith("demo/") ? `/demo/${path.split("/").pop()}` : null;
+}
+
 export async function fetchSignedUrls(supabase: Client, paths: string[], seconds = 3600) {
   const out: Record<string, string> = {};
-  const unique = [...new Set(paths.filter(Boolean))];
+  const all = [...new Set(paths.filter(Boolean))];
+  all.forEach((p) => {
+    const demo = demoPhotoUrl(p);
+    if (demo) out[p] = demo;
+  });
+  const unique = all.filter((p) => !out[p]);
   if (unique.length === 0) return out;
   const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(unique, seconds);
   if (error) throw error;
@@ -715,7 +771,7 @@ export function friendlyDbError(err: unknown): string | null {
   // RK004 odd weight step, RK005 too fast / daily cap (0010_staff_moderation.sql)
   // RK101-RK112: rewards (not available, out of stock, already claimed, need
   // more XP, already awarded, still running...) (0011_rewards.sql)
-  if (e && e.code && /^RK(00[1-5]|1[01]\d|20\d)$/.test(e.code) && e.message) return e.message;
+  if (e && e.code && /^RK(00[1-5]|1[01]\d|20\d|30\d)$/.test(e.code) && e.message) return e.message;
   return null;
 }
 

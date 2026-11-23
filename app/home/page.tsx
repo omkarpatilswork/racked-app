@@ -8,6 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Topbar from "@/components/Topbar";
 import Icon from "@/components/Icon";
+import { shouldAskBody, useMyBody } from "@/components/BodySheet";
+import { openBodySheet } from "@/lib/body";
 import HomeFeed from "@/components/feed/HomeFeed";
 import SignInSheet from "@/components/SignInSheet";
 import Avatar from "@/components/Avatar";
@@ -70,6 +72,9 @@ function SignedInHome() {
   const [week, setWeek] = useState<WeekSummary | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [share, setShare] = useState<StoryData | null>(null);
+  const body = useMyBody();
+  const [askBody, setAskBody] = useState(false);
+  useEffect(() => setAskBody(shouldAskBody()), [body]);
 
   useEffect(() => {
     setActiveId(getActiveMachineId());
@@ -148,6 +153,21 @@ function SignedInHome() {
 
       <StaffNotices supabase={supabase} uid={uid} />
 
+      {body && body !== "off" && body.body_kg == null && askBody && (
+        <div className="hx-bodycta" data-testid="home-add-body">
+          <span className="hx-bodycta-ic" aria-hidden="true">
+            <Icon name="scale" />
+          </span>
+          <span className="hx-bodycta-copy">
+            <b>Get on the strength boards</b>
+            <span>Boards and prizes rank by ×BW: what you lift ÷ your body weight. Men&rsquo;s and Women&rsquo;s.</span>
+          </span>
+          <button type="button" className="btn btn-primary btn-sm" onClick={openBodySheet} data-testid="home-add-body-btn">
+            Add
+          </button>
+        </div>
+      )}
+
       {active && (
         <Link href={`/machine/${active.id}/log`} className="hx-resume" data-testid="resume-card">
           <span className="hx-resume-no num" aria-hidden="true">
@@ -189,10 +209,10 @@ function SignedOutHome() {
           <GymMark variant="chip" onDark label="Live at" />
         </div>
         <h1 style={{ fontSize: 30, margin: "10px 0 10px" }}>
-          Tap. Lift. Get on the <em>board.</em>
+          Tap. Log. <em>Win.</em>
         </h1>
         <p style={{ margin: "0 0 22px", fontSize: 15 }}>
-          Tap a machine with your phone, log the set, beat your best — and see what the rest of the gym is lifting.
+          Tap a machine with your phone, log the set and win weekly prizes. Boards rank by strength for your size, with Men&rsquo;s and Women&rsquo;s boards.
         </p>
         <button type="button" className="btn-slab" onClick={() => setSignIn(true)} data-testid="hero-signin">
           <span>

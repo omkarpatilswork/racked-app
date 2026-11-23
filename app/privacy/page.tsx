@@ -31,7 +31,11 @@ export default function PrivacyPage() {
             <b>What you log:</b> each set (machine, weight, reps, time), your personal bests, XP, levels and the days you trained.
           </li>
           <li>
-            <b>Only if you add them:</b> your Instagram handle, pre/post workout photos, kudos you give, and feedback you send about a machine.
+            <b>Only if you add them:</b> your Instagram handle, pre/post workout photos, posts and comments, kudos you give, and feedback you send about a machine.
+          </li>
+          <li>
+            <b>For the strength boards:</b> your body weight and your board (Men, Women or Prefer not to say). Each set remembers your body
+            weight on the day, so boards can rank by ×BW (kg lifted ÷ body weight).
           </li>
           <li>
             <b>Machine taps:</b> which machine was tapped or scanned and when, so the gym can see which equipment gets used.
@@ -49,6 +53,10 @@ export default function PrivacyPage() {
           </li>
           <li>
             <b>The gym TV screen</b> (public, shown in the gym) shows first names and top lifts only.
+          </li>
+          <li>
+            <b>Your body weight</b> is never shown to other members or on the TV: boards show ×BW instead of kg. Only you and gym staff (who
+            weigh prize winners at the desk) see the number. Which board you&rsquo;re on (Men&rsquo;s or Women&rsquo;s) shows wherever you rank.
           </li>
           <li>
             <b>Gym staff</b> can see logged sets and machine feedback, plus photos that are shared or have been reported — so they can keep

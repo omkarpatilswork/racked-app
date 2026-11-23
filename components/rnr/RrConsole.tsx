@@ -10,6 +10,7 @@ import FeedAdmin from "@/components/rnr/FeedAdmin";
 import GymMark from "@/components/GymMark";
 import { gymFromRow, setGymCache } from "@/lib/gym";
 import { adminMemberSearch, friendlyDbError, type StaffMember } from "@/lib/data";
+import { adminSetMemberBody } from "@/lib/body";
 import { MACHINES, MACHINE_MAP } from "@/lib/machines";
 import {
   buildLoop,
@@ -172,6 +173,7 @@ function RaceSection({ supabase, data, sponsors, reload }: SectionProps & { spon
   const [busy, setBusy] = useState(false);
   const [editPrizes, setEditPrizes] = useState(false);
   const s = data.season;
+  const strength = data.scoring === "strength";
 
   async function setPeriod(p: "week" | "month") {
     if (p === data.period) return;
@@ -232,10 +234,43 @@ function RaceSection({ supabase, data, sponsors, reload }: SectionProps & { spon
           </div>
           <span className="pill rw-pill">{s.period === "month" ? "Monthly" : "Weekly"}</span>
         </div>
-        <div className="list-title" style={{ marginTop: 14 }}>
-          Live top 10
-        </div>
-        {data.live_board.length === 0 ? (
+        {strength && data.live_boards ? (
+          <div className="rr-race-split" data-testid="rr-live-boards">
+            {(["men", "women"] as const).map((d) => (
+              <div key={d}>
+                <div className="list-title" style={{ marginTop: 14 }}>
+                  {d === "men" ? "Men" : "Women"} · live top 10
+                </div>
+                {data.live_boards![d].length === 0 ? (
+                  <p className="faint" style={{ fontSize: 13, margin: 0 }}>
+                    Nobody yet.
+                  </p>
+                ) : (
+                  <ol className="rw-board" style={{ marginTop: 4 }}>
+                    {data.live_boards![d].map((r) => (
+                      <li key={r.rank}>
+                        <span className="r num">{r.rank}</span>
+                        <span className="n">
+                          {r.name}
+                          {r.demo && <span className="pill rw-pill" style={{ marginLeft: 6, fontSize: 10.5 }}>Sample</span>}
+                          {r.flagged > 0 && <span className="flag-pill" style={{ marginLeft: 8 }}>{r.flagged} to review</span>}
+                        </span>
+                        <span className="s num">{fmtXp(r.score)} pts</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            ))}
+            <p className="field-hint">Strength points: each member&rsquo;s best ×BW (kg ÷ body weight) on every machine this week × 100, added up. Sample members never win.</p>
+          </div>
+        ) : null}
+        {strength && data.live_boards ? null : (
+          <div className="list-title" style={{ marginTop: 14 }}>
+            Live top 10
+          </div>
+        )}
+        {strength && data.live_boards ? null : data.live_board.length === 0 ? (
           <p className="faint" style={{ fontSize: 13, margin: 0 }}>
             Nobody has earned XP this season yet.
           </p>
@@ -256,6 +291,7 @@ function RaceSection({ supabase, data, sponsors, reload }: SectionProps & { spon
       </section>
 
       {data.to_award.map((t) => {
+        if (strength && t.boards) return <AwardCardBw key={t.id} supabase={supabase} t={t} onAward={() => setAwarding(t)} reload={reload} />;
         const flagged = t.board.filter((b) => b.flagged > 0 && b.prize);
         return (
           <section key={t.id} className="card rw-award-card" data-testid="rw-to-award">
@@ -313,7 +349,9 @@ function RaceSection({ supabase, data, sponsors, reload }: SectionProps & { spon
                 <div key={x.id} className="card" style={{ padding: 14 }}>
                   <b>{x.title}</b>
                   <div className="faint" style={{ fontSize: 13, marginTop: 4 }}>
-                    {x.winners.length ? x.winners.map((w) => `#${w.rank} ${w.name}`).join(" · ") : "No winners"}
+                    {x.winners.length
+                      ? x.winners.map((w) => `${w.division === "men" ? "Men " : w.division === "women" ? "Women " : ""}#${w.rank} ${w.name}`).join(" · ")
+                      : "No winners"}
                   </div>
                 </div>
               ))}
@@ -326,8 +364,9 @@ function RaceSection({ supabase, data, sponsors, reload }: SectionProps & { spon
         title={`Award ${awarding?.title ?? ""}?`}
         body={
           <>
-            Each winner gets their prize and a claim code in the app (and the top 3 get the Podium badge). This can&rsquo;t be undone, so check the
-            Review queue first.
+            {strength
+              ? "The Men's and Women's winners each get their prize and a claim code in the app (top 3 get the Podium badge). Weigh the winners at the desk first. This can't be undone."
+              : "Each winner gets their prize and a claim code in the app (and the top 3 get the Podium badge). This can't be undone, so check the Review queue first."}
           </>
         }
         confirmLabel="Award prizes"
@@ -364,6 +403,107 @@ function RaceSection({ supabase, data, sponsors, reload }: SectionProps & { spon
         />
       )}
     </>
+  );
+}
+
+// A finished week, Men's and Women's races (0015): who wins what, their body
+// weight as they entered it, and a quick desk weigh-in before awarding.
+function AwardCardBw({
+  supabase,
+  t,
+  onAward,
+  reload,
+}: {
+  supabase: Client;
+  t: AdminRrData["to_award"][number];
+  onAward: () => void;
+  reload: () => void;
+}) {
+  const [weigh, setWeigh] = useState<{ uid: string; name: string; kg: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const boards = t.boards!;
+  const all = [...boards.men, ...boards.women];
+  const flagged = all.filter((b) => b.flagged > 0 && b.prize);
+  const unchecked = all.filter((b) => b.prize && !b.checked_at);
+  return (
+    <section className="card rw-award-card" data-testid="rw-to-award">
+      <div className="eyebrow accent">Ended · ready to award</div>
+      <div style={{ fontWeight: 800, fontSize: 17, marginTop: 2 }}>{t.title}</div>
+      {flagged.length > 0 && (
+        <p className="flag-pill" style={{ marginTop: 10, whiteSpace: "normal" }}>
+          {flagged.map((f) => f.name).join(", ")} still {flagged.length === 1 ? "has" : "have"} sets waiting in Review. Approve or remove them first so the board is right.
+        </p>
+      )}
+      {unchecked.length > 0 && (
+        <p className="field-hint" style={{ marginTop: 8 }}>
+          Weigh the winners at the desk before you award: tap <b>Weigh in</b> to enter what the scale says. It corrects their sets for the weeks not yet awarded.
+        </p>
+      )}
+      {(["men", "women"] as const).map((d) => (
+        <div key={d}>
+          <div className="list-title" style={{ marginTop: 12 }}>
+            {d === "men" ? "Men" : "Women"}
+          </div>
+          {boards[d].length === 0 ? (
+            <p className="faint" style={{ fontSize: 13, margin: 0 }}>
+              Nobody on this board.
+            </p>
+          ) : (
+            <ol className="rw-board" style={{ marginTop: 4 }}>
+              {boards[d].map((b) => (
+                <li key={b.uid} data-testid={`award-row-${d}`}>
+                  <span className="r num">{b.rank}</span>
+                  <span className="n">
+                    {b.name}
+                    <span className="faint" style={{ display: "block", fontSize: 12, fontWeight: 600 }}>
+                      {b.prize || "No prize"} · {b.body_kg ? `${b.body_kg} kg ${b.checked_at ? "(weighed)" : "(their entry)"}` : "no body weight"}
+                    </span>
+                  </span>
+                  <span className="s num">{fmtXp(b.score)} pts</span>
+                  {b.prize && (
+                    <button type="button" className={`btn btn-sm ${b.checked_at ? "btn-ghost" : "btn-outline"}`} onClick={() => setWeigh({ uid: b.uid, name: b.name, kg: b.body_kg ? String(b.body_kg) : "" })} data-testid="weigh-in">
+                      {b.checked_at ? <Icon name="check" /> : null} Weigh in
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      ))}
+      <button type="button" className="btn btn-yellow" style={{ marginTop: 12 }} onClick={onAward} disabled={all.length === 0} data-testid="award-season">
+        <Icon name="trophy" /> Award prizes
+      </button>
+      {weigh && (
+        <Sheet open onClose={busy ? () => undefined : () => setWeigh(null)} title={`Weigh in: ${weigh.name}`} testId="weigh-sheet">
+          <Field id="wi-kg" label="Body weight on the scale (kg)" hint="Saved as checked at the desk. Their sets in weeks not yet awarded use it.">
+            <input id="wi-kg" className="field num" inputMode="decimal" type="number" step="0.1" value={weigh.kg} onChange={(e) => setWeigh({ ...weigh, kg: e.target.value })} data-testid="weigh-kg" />
+          </Field>
+          <button
+            type="button"
+            className="btn btn-yellow"
+            style={{ marginTop: 14 }}
+            disabled={busy || !(Number(weigh.kg) >= 25 && Number(weigh.kg) <= 300)}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await adminSetMemberBody(supabase, weigh.uid, Number(weigh.kg));
+                toast("Weighed in. The board is updated.");
+                setWeigh(null);
+                reload();
+              } catch (err) {
+                toast(errMsg(err));
+              } finally {
+                setBusy(false);
+              }
+            }}
+            data-testid="weigh-save"
+          >
+            {busy ? "Saving…" : "Save weigh-in"}
+          </button>
+        </Sheet>
+      )}
+    </section>
   );
 }
 
@@ -970,17 +1110,40 @@ function ChallengesAdmin({ supabase, data, reload }: SectionProps) {
               <article key={c.id} className="card rw-award-card" style={{ padding: 16 }} data-testid="round-to-award">
                 <div className="eyebrow accent">Ended {shortDate(c.ends_at)}</div>
                 <div style={{ fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>{c.title}</div>
-                <ol className="rw-board" style={{ marginTop: 8 }}>
-                  {c.top.map((t) => (
-                    <li key={t.rank}>
-                      <span className="r num">{t.rank}</span>
-                      <span className="n">{t.name}</span>
-                      <span className="s num">{metricValue(c.metric, t.value, t.reps)}</span>
-                    </li>
-                  ))}
-                </ol>
+                {c.tops ? (
+                  (["men", "women"] as const).map((d) => (
+                    <div key={d}>
+                      <div className="list-title" style={{ marginTop: 10 }}>
+                        {d === "men" ? "Men" : "Women"}
+                      </div>
+                      <ol className="rw-board" style={{ marginTop: 4 }}>
+                        {c.tops![d].length === 0 && <li className="faint">Nobody</li>}
+                        {c.tops![d].map((t) => (
+                          <li key={t.rank}>
+                            <span className="r num">{t.rank}</span>
+                            <span className="n">
+                              {t.name}
+                              {t.demo && <span className="pill rw-pill" style={{ marginLeft: 6, fontSize: 10.5 }}>Sample</span>}
+                            </span>
+                            <span className="s num">{metricValue(c.metric, Number(t.value), t.reps, true)}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  ))
+                ) : (
+                  <ol className="rw-board" style={{ marginTop: 8 }}>
+                    {c.top.map((t) => (
+                      <li key={t.rank}>
+                        <span className="r num">{t.rank}</span>
+                        <span className="n">{t.name}</span>
+                        <span className="s num">{metricValue(c.metric, t.value, t.reps, data.scoring === "strength")}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
                 <button type="button" className="btn btn-yellow btn-sm" style={{ marginTop: 10 }} onClick={() => setAwarding(c)} data-testid="award-challenge">
-                  <Icon name="trophy" /> Award {c.winners > 1 ? `top ${c.winners}` : "the winner"}
+                  <Icon name="trophy" /> Award {c.tops ? (c.winners > 1 ? `top ${c.winners} Men + Women` : "the Men's and Women's winners") : c.winners > 1 ? `top ${c.winners}` : "the winner"}
                 </button>
               </article>
             ))}
@@ -1013,7 +1176,7 @@ function ChallengesAdmin({ supabase, data, reload }: SectionProps) {
                   <div className="eyebrow">{x.sponsor_id ? names[x.sponsor_id] || x.sponsor_id : "Racked"}</div>
                   <div style={{ fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>{x.title}</div>
                   <div className="faint" style={{ fontSize: 12.5, marginTop: 2 }}>
-                    {when(x)} · {metricLabel(x.metric)}
+                    {when(x)} · {metricLabel(x.metric, data.scoring === "strength")}
                     {x.machine_id && MACHINE_MAP[x.machine_id] ? ` · ${MACHINE_MAP[x.machine_id].name}` : ""}
                   </div>
                   {x.prize && (
@@ -1075,7 +1238,7 @@ function ChallengesAdmin({ supabase, data, reload }: SectionProps) {
                     <div className="eyebrow">{c.sponsor_id ? names[c.sponsor_id] || c.sponsor_id : "Racked"}</div>
                     <div style={{ fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>{c.title}</div>
                     <div className="faint" style={{ fontSize: 12.5, marginTop: 2 }}>
-                      {metricLabel(c.metric)}
+                      {metricLabel(c.metric, data.scoring === "strength")}
                       {c.machine_id && MACHINE_MAP[c.machine_id] ? ` · ${MACHINE_MAP[c.machine_id].name}` : ""} · {shortDate(c.starts_at)} → {shortDate(c.ends_at)}
                     </div>
                   </div>
@@ -1105,7 +1268,7 @@ function ChallengesAdmin({ supabase, data, reload }: SectionProps) {
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <b>{c.title}</b>
                     <span className="faint" style={{ display: "block", fontSize: 12.5 }}>
-                      {shortDate(c.starts_at)} · {c.top[0] ? `${c.top[0].name} · ${metricValue(c.metric, c.top[0].value, c.top[0].reps)}` : "No entries"}
+                      {shortDate(c.starts_at)} · {c.top[0] ? `${c.top[0].name} · ${metricValue(c.metric, c.top[0].value, c.top[0].reps, data.scoring === "strength")}` : "No entries"}
                     </span>
                   </span>
                 </li>
@@ -1842,7 +2005,7 @@ function TvSection({ supabase, data, reload }: SectionProps) {
 
   // a loop where every kind has something to show (one board per machine)
   const preview = useMemo(() => {
-    const boards = MACHINES.map((m) => ({ key: m.id, machineId: m.id, mode: "", machineNumber: m.number, title: m.name, unit: m.unit, entries: [] }));
+    const boards = MACHINES.map((m) => ({ key: m.id, machineId: m.id, mode: "", machineNumber: m.number, title: m.name, unit: m.unit, entries: [], men: [], women: [] }));
     const anyLive = (data.challenges || []).some((c) => new Date(c.starts_at).getTime() <= Date.now() && new Date(c.ends_at).getTime() > Date.now());
     const slides = buildLoop(
       {

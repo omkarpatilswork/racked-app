@@ -1,5 +1,7 @@
 "use client";
 
+import DivisionTabs from "@/components/DivisionTabs";
+import type { BoardView } from "@/lib/body";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Sheet from "@/components/Sheet";
@@ -596,6 +598,8 @@ export function BoardSheet({
   sub,
   rows,
   format,
+  division,
+  onDivision,
 }: {
   open: boolean;
   onClose: () => void;
@@ -603,6 +607,8 @@ export function BoardSheet({
   sub?: string;
   rows: (BoardRow | ChallengeRow)[] | null;
   format: (r: BoardRow | ChallengeRow) => string;
+  division?: BoardView | null; // 0015: Men · Women · All
+  onDivision?: (d: BoardView) => void;
 }) {
   return (
     <Sheet open={open} onClose={onClose} title={title} testId="board-sheet">
@@ -611,6 +617,7 @@ export function BoardSheet({
           {sub}
         </p>
       )}
+      {division && onDivision && <DivisionTabs value={division} onChange={onDivision} className="rw-div-tabs" />}
       {rows === null ? (
         <div className="stack" aria-busy="true">
           {[0, 1, 2, 3].map((i) => (

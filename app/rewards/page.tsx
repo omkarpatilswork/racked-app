@@ -35,6 +35,7 @@ import {
   fetchMyRewards,
   fetchRewardsOverview,
   fetchSeasonBoard,
+  isStrength,
   fmtXp,
   isMissingRewards,
   metricValue,
@@ -52,6 +53,7 @@ import {
 
 type Tab = "win" | "partners" | "shop";
 type BoardView = { title: string; sub?: string; kind: "season" } | { title: string; sub?: string; kind: "challenge"; c: Challenge };
+type Div = "men" | "women" | "all";
 
 export default function RewardsPage() {
   return (
@@ -78,6 +80,9 @@ function RewardsInner() {
   const [signIn, setSignIn] = useState(false);
   const [board, setBoard] = useState<BoardView | null>(null);
   const [boardRows, setBoardRows] = useState<(BoardRow | ChallengeRow)[] | null>(null);
+  // which race the board shows (0015): yours, else Men's
+  const [div, setDiv] = useState<Div | null>(null);
+  const [boardDiv, setBoardDiv] = useState<Div>("men");
   const [redeemItem, setRedeemItem] = useState<ShopItem | null>(null);
   const [redeemBusy, setRedeemBusy] = useState(false);
   const [redeemErr, setRedeemErr] = useState<string | null>(null);
@@ -125,9 +130,6 @@ function RewardsInner() {
         if (id !== loadId.current) return;
         setOv(o);
         setState("ready");
-        fetchSeasonBoard(supabase, null, 5)
-          .then((rows) => id === loadId.current && setTop(rows))
-          .catch(() => id === loadId.current && setTop([]));
       } catch (err) {
         if (id !== loadId.current) return;
         setState(isMissingRewards(err) ? "missing" : "error");
@@ -135,6 +137,21 @@ function RewardsInner() {
     },
     [supabase, signedIn]
   );
+
+  // your race by default (0015)
+  const myDiv: Div = me?.season?.division || (me?.body?.division === "men" || me?.body?.division === "women" ? me.body.division : null) || "men";
+  const shownDiv: Div = div || myDiv;
+  const strength = isStrength(ov);
+  useEffect(() => {
+    if (!ov) return;
+    let alive = true;
+    fetchSeasonBoard(supabase, null, 5, strength ? shownDiv : undefined)
+      .then((rows) => alive && setTop(rows))
+      .catch(() => alive && setTop([]));
+    return () => {
+      alive = false;
+    };
+  }, [ov, supabase, strength, shownDiv]);
 
   useEffect(() => {
     if (loading) return;
@@ -161,17 +178,31 @@ function RewardsInner() {
   const sponsors: SponsorMap = useMemo(() => Object.fromEntries((ov?.sponsors || []).map((s) => [s.id, s])), [ov]);
   const ready = (me?.redemptions || []).filter((r) => r.status === "issued");
 
-  function openSeasonBoard() {
+  function openSeasonBoard(d: Div = shownDiv) {
     if (!ov?.season) return;
-    setBoard({ kind: "season", title: ov.season.title, sub: `${ov.season.players} lifter${ov.season.players === 1 ? "" : "s"} · XP earned this ${ov.season.period}` });
+    setBoard({
+      kind: "season",
+      title: ov.season.title,
+      sub: strength
+        ? `Strength points: your best ×BW on each machine this ${ov.season.period} × 100, added up`
+        : `${ov.season.players} lifter${ov.season.players === 1 ? "" : "s"} · XP earned this ${ov.season.period}`,
+    });
+    setBoardDiv(d);
     setBoardRows(null);
-    fetchSeasonBoard(supabase, null, 50).then(setBoardRows, () => setBoardRows([]));
+    fetchSeasonBoard(supabase, null, 50, strength ? d : undefined).then(setBoardRows, () => setBoardRows([]));
   }
 
-  function openChallengeBoard(c: Challenge) {
+  function openChallengeBoard(c: Challenge, d: Div = shownDiv) {
     setBoard({ kind: "challenge", c, title: c.title, sub: `${c.players} lifter${c.players === 1 ? "" : "s"}` });
+    setBoardDiv(d);
     setBoardRows(null);
-    fetchChallengeBoard(supabase, c.id, 50).then(setBoardRows, () => setBoardRows([]));
+    fetchChallengeBoard(supabase, c.id, 50, strength ? d : undefined).then(setBoardRows, () => setBoardRows([]));
+  }
+
+  function switchBoardDiv(d: Div) {
+    if (!board) return;
+    if (board.kind === "season") openSeasonBoard(d);
+    else openChallengeBoard(board.c, d);
   }
 
   function shareWin(r: { title: string; rank: number | null; source: string; sponsor_id: string | null }) {
@@ -302,9 +333,9 @@ function RewardsInner() {
                     </span>
                   </button>
                 )}
-                <PrizeHero ov={ov} me={me} top={top} sponsors={sponsors} now={now} onBoard={openSeasonBoard} onHow={() => setHow(true)} />
+                <PrizeHero ov={ov} me={me} top={top} sponsors={sponsors} now={now} onBoard={() => openSeasonBoard()} onHow={() => setHow(true)} division={strength ? shownDiv : null} onDivision={(d) => setDiv(d)} />
                 {ready.length > 0 && <MyRewardsSection list={ready} sponsors={sponsors} onShare={shareWin} />}
-                <ChallengesBlock list={ov.challenges} me={me} sponsors={sponsors} now={now} onBoard={openChallengeBoard} onShare={shareChallenge} />
+                <ChallengesBlock list={ov.challenges} me={me} sponsors={sponsors} now={now} onBoard={(c) => openChallengeBoard(c)} onShare={shareChallenge} strength={strength} />
                 <WinnersCard last={ov.last_winners} />
                 <Link href="/leaderboard#progress" className="action-card" data-testid="rw-progress-link">
                   <div className="glyph yellow">
@@ -370,8 +401,14 @@ function RewardsInner() {
         title={board?.title || ""}
         sub={board?.sub}
         rows={boardRows}
+        division={strength ? boardDiv : null}
+        onDivision={switchBoardDiv}
         format={(r) =>
-          board?.kind === "challenge" ? metricValue(board.c.metric, (r as ChallengeRow).value, (r as ChallengeRow).reps) : `${fmtXp((r as BoardRow).score)} XP`
+          board?.kind === "challenge"
+            ? metricValue(board.c.metric, (r as ChallengeRow).value, (r as ChallengeRow).reps, strength)
+            : strength
+              ? `${fmtXp((r as BoardRow).score)} pts`
+              : `${fmtXp((r as BoardRow).score)} XP`
         }
       />
       <RedeemSheet

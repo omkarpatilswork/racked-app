@@ -9,6 +9,8 @@ import SignInSheet from "@/components/SignInSheet";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { deleteMyAccount, setInstagramHandle, updateMyProfile } from "@/lib/data";
+import { useMyBody } from "@/components/BodySheet";
+import { CHOICE_LABEL, openBodySheet } from "@/lib/body";
 import { cleanHandle } from "@/lib/instagram";
 import { cleanDisplayName } from "@/lib/profileRules";
 import { getThemePref, setThemePref, type ThemePref } from "@/lib/theme";
@@ -42,6 +44,7 @@ export default function SettingsPage() {
             </button>
           </div>
         )}
+        {session && <BodySection />}
         <AppearanceSection />
         <WorkoutSection />
         <InstallSection />
@@ -204,6 +207,32 @@ function ProfileSection() {
           {busy ? "Saving…" : "Save changes"}
         </button>
       </form>
+    </section>
+  );
+}
+
+// Body weight + board (0015): boards rank by ×BW
+function BodySection() {
+  const body = useMyBody();
+  if (body === "off") return null;
+  const b = body;
+  return (
+    <section>
+      <div className="list-title">Strength boards</div>
+      <div className="list">
+        <button type="button" className="list-row" onClick={openBodySheet} data-testid="settings-body">
+          <span className="lr-icon">
+            <Icon name="scale" />
+          </span>
+          <span className="lr-body">
+            Body weight &amp; board
+            <div className="lr-sub">
+              {b?.body_kg ? `${b.division ? CHOICE_LABEL[b.division] : "No board"} · ${b.body_kg} kg (only you see this)` : "Add it to rank by ×BW on the boards"}
+            </div>
+          </span>
+          <Icon name="chev" />
+        </button>
+      </div>
     </section>
   );
 }

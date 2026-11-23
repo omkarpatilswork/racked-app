@@ -35,8 +35,8 @@ const STEPS = [
   },
   {
     no: "04",
-    title: "Get on the board",
-    body: "Your best lift lands on the gym leaderboard and the TV on the wall. First name only.",
+    title: "Win rewards",
+    body: "Your best lift for your size (×BW) lands on the Men's or Women's board and the gym TV. Top of the week wins prizes from our partners.",
   },
 ];
 
@@ -149,7 +149,7 @@ function tickerItems(live: TvActivity | null | "error", gymName: string): string
   const where = `Live today at ${gymName}`;
   if (live && live !== "error") {
     if (live.sets === 0) {
-      return [where, "Nobody has lifted yet", "Your first set takes #1", "Tap. Lift. Get on the board."];
+      return [where, "Nobody has lifted yet", "Your first set takes #1", "Tap. Log. Win."];
     }
     const items = [
       where,
@@ -161,7 +161,7 @@ function tickerItems(live: TvActivity | null | "error", gymName: string): string
     if (live.machines[0]) items.push(`Busiest: ${live.machines[0].title}`);
     return items;
   }
-  return ["Tap. Lift. Get on the board.", `Live at ${gymName}`, "Free · no download", "Built by Bijlee Run Club"];
+  return ["Tap. Log. Win.", `Live at ${gymName}`, "Free · no download", "Built by Bijlee Run Club"];
 }
 
 export default function Landing({ redirectMembers = false }: { redirectMembers?: boolean }) {
@@ -473,15 +473,15 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
               <i className="lp-live-dot" /> Live at {gym.name} · by Bijlee Run Club
             </p>
             <h1 id="lp-hero-title" className="lp-hero-title">
-              <span className="l1">Tap. Lift.</span>
-              <span className="l2">Get on</span>
+              <span className="l1">Tap. Log.</span>
+              <span className="l2">Win</span>
               <span className="l3">
-                the <em>board.</em>
+                <em>rewards.</em>
               </span>
             </h1>
             <p className="lp-lede">
               The gym app with nothing to download. Tap the Racked sticker on any machine, log your set in two taps, and
-              watch your name climb the gym TV.
+              win weekly prizes. Boards rank by strength for your size, Men&rsquo;s and Women&rsquo;s.
             </p>
             <div className="lp-hero-actions">
               <StartButton testId="lp-hero-cta" />

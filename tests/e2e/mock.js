@@ -245,7 +245,35 @@ async function setup(ctx, page, state, base) {
       if (state.failRpc[name]) return json(r, { message: "boom" }, 500);
       if (state.missingRpc[name]) return json(r, { code: "PGRST202", message: "Could not find the function" }, 404);
       const staffOnly = () => json(r, { code: "42501", message: "staff only" }, 403);
+      // 0015 (body weight, ×BW boards): only when a test turns it on with enableStrength()
+      const STRENGTH_RPCS = ["my_body", "set_my_body", "strength_board", "strength_boards", "season_division_board", "challenge_division_board", "admin_member_body", "admin_set_member_body"];
+      if (!state.strength && STRENGTH_RPCS.includes(name)) return json(r, { code: "PGRST202", message: "Could not find the function" }, 404);
       switch (name) {
+        case "my_body": return state.signedIn ? json(r, state.body) : json(r, { code: "42501", message: "Sign in first" }, 401);
+        case "set_my_body": {
+          if (state.bodyRefuse) return json(r, state.bodyRefuse, 400);
+          if (state.body.body_kg == null && (body.p_division == null || body.p_body_kg == null)) return json(r, { code: "RK303", message: "Add your body weight and pick a board" }, 400);
+          if (body.p_division) Object.assign(state.body, { division: body.p_division, division_set_at: new Date().toISOString() });
+          if (body.p_body_kg != null) Object.assign(state.body, { body_kg: body.p_body_kg, body_set_at: new Date().toISOString(), checked_at: null });
+          return json(r, state.body);
+        }
+        case "strength_board": {
+          const d = body.p_division || "all";
+          let rows = state.bwBoard.filter((x) => x.machine_id === body.p_machine_id && (x.mode || "") === (body.p_mode || ""));
+          if (d !== "all") rows = rows.filter((x) => x.division === d);
+          else rows = rows.slice().sort((a, b) => b.ratio - a.ratio).map((x, i) => ({ ...x, rank: i + 1 }));
+          return json(r, rows.map((x) => ({ ...x, weight: x.is_me ? x.weight : null })));
+        }
+        case "strength_boards": return json(r, state.bwBoards.filter((x) => x.rank <= (body.p_limit || 5)));
+        case "season_division_board": return json(r, (state.race[body.p_division] || state.race.all).slice(0, body.p_limit || 10).map((x) => ({ ...x, is_me: state.signedIn && x.is_me })));
+        case "challenge_division_board": return json(r, (state.chalRace[body.p_division] || state.chalRace.all).map((x) => ({ ...x, is_me: state.signedIn && x.is_me })));
+        case "admin_member_body": return state.profile.is_staff ? json(r, state.memberBody || { division: null, body_kg: null }) : staffOnly();
+        case "admin_set_member_body": {
+          if (!state.profile.is_staff) return staffOnly();
+          state.memberBody = { ...(state.memberBody || {}), division: body.p_division || (state.memberBody || {}).division || "open", body_kg: body.p_body_kg, checked_at: new Date().toISOString(), checked_by: "Staff Sam" };
+          (state.rewards.admin.to_award || []).forEach((t) => ["men", "women"].forEach((d) => ((t.boards || {})[d] || []).forEach((b) => { if (b.uid === body.p_uid) Object.assign(b, { body_kg: body.p_body_kg, checked_at: new Date().toISOString() }); })));
+          return json(r, state.memberBody);
+        }
         case "admin_review_queue": return state.profile.is_staff ? json(r, state.queue) : staffOnly();
         case "admin_approve_set": state.queue = state.queue.filter((x) => x.id !== body.p_id); state.adminSets.forEach((x) => { if (x.id === body.p_id) x.review_status = "approved"; }); return json(r, null);
         case "admin_remove_set": state.queue = state.queue.filter((x) => x.id !== body.p_id); state.adminSets = state.adminSets.filter((x) => x.id !== body.p_id); return json(r, null);
@@ -356,6 +384,7 @@ async function setup(ctx, page, state, base) {
         case "tv_feed": {
           const ov = state.rewards.overview;
           return json(r, { ...ov, tv_slides: state.rewards.settings.tv_slides || null,
+            ...(state.strength ? { season_tops: { men: state.race.men.slice(0, 5), women: state.race.women.slice(0, 5) } } : {}),
             tv_partners: ov.sponsors.filter((x) => x.show_on_tv !== false).map((x) => ({ id: x.id, tv_headline: x.tv_headline || null })),
             season_top: ov.season ? state.rewards.board.slice(0, 5).map(({ is_me, ...x }) => x) : [] });
         }
@@ -450,4 +479,64 @@ async function setup(ctx, page, state, base) {
   await page.route(/^https:\/\/(www\.)?(thecleancratefoods\.com|jerseydrip\.shop)\//, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: IMG }));
 }
 
-module.exports = { defaultState, setup, UID, day, iso };
+// Database update 0015: body weight, Men's / Women's boards ranked by ×BW,
+// strength points for the weekly prize. body: null = not added yet.
+function enableStrength(st, opts = {}) {
+  st.strength = true;
+  st.body = opts.body === null
+    ? { division: null, body_kg: null }
+    : { division: "men", body_kg: 80, body_set_at: iso(60 * 24 * 10), division_set_at: iso(60 * 24 * 10), checked_at: null, next_body_change: null, next_division_change: null, ...(opts.body || {}) };
+  const R = st.rewards;
+  const ov = R.overview;
+  ov.scoring = "strength";
+  ov.season.leaders = { men: { name: "Rahul", score: 283 }, women: { name: "Asha", score: 231 } };
+  ov.season.players_by = { men: 4, women: 2 };
+  ov.challenges.forEach((c) => (c.leaders = { men: { name: "Rahul", value: 1.75, reps: 10 }, women: { name: "Asha", value: 1.5, reps: 8 } }));
+  ov.last_winners = { season: "Week of 9 Nov", scoring: "strength", winners: [
+    { rank: 1, name: "Rahul", score: 410, prize: ov.season.prizes[0].title, division: "men" }, { rank: 2, name: "Omi", score: 380, prize: "Partner coupons", division: "men" },
+    { rank: 1, name: "Asha", score: 350, prize: ov.season.prizes[0].title, division: "women" }, { rank: 2, name: "Neha", score: 300, prize: "Partner coupons", division: "women" } ] };
+  const hasBody = st.body.body_kg != null;
+  R.my.season = { ...R.my.season, division: hasBody ? st.body.division === "open" ? null : st.body.division : null, scoring: "strength",
+    rank: hasBody ? 2 : null, score: hasBody ? 255 : 0, players: 4, ahead: hasBody ? { name: "Rahul", score: 283 } : null };
+  R.my.body = { division: st.body.division, body_kg: st.body.body_kg };
+  R.my.challenges = hasBody ? [{ id: 3, rank: 2, value: 1.5, reps: 12, division: "men" }] : [];
+  st.race = {
+    men: [{ rank: 1, name: "Rahul", score: 283, is_me: false }, { rank: 2, name: "Omi", score: 255, is_me: hasBody }, { rank: 3, name: "Kabir", score: 240, is_me: false }, { rank: 4, name: "Dev", score: 120, is_me: false }],
+    women: [{ rank: 1, name: "Asha", score: 231, is_me: false }, { rank: 2, name: "Neha", score: 190, is_me: false }],
+  };
+  st.race.all = [...st.race.men, ...st.race.women].sort((a, b) => b.score - a.score).map((x, i) => ({ ...x, rank: i + 1 }));
+  st.chalRace = {
+    men: [{ rank: 1, name: "Rahul", value: 1.75, reps: 10, is_me: false }, { rank: 2, name: "Omi", value: 1.5, reps: 12, is_me: hasBody }],
+    women: [{ rank: 1, name: "Asha", value: 1.5, reps: 8, is_me: false }],
+  };
+  st.chalRace.all = [...st.chalRace.men, ...st.chalRace.women].sort((a, b) => b.value - a.value).map((x, i) => ({ ...x, rank: i + 1 }));
+  const row = (machine_id, mode, division, rank, name, ratio, reps, extra = {}) => ({ machine_id, mode, division, rank, name, reps, ratio, sets: 4, best_ever: false, ...extra });
+  st.bwBoards = [
+    row("lat-pulldown-01", "", "men", 1, "Rahul", 0.83, 12), row("lat-pulldown-01", "", "men", 2, "Omi", 0.69, 10), row("lat-pulldown-01", "", "men", 3, "Kabir", 0.6, 10),
+    row("lat-pulldown-01", "", "women", 1, "Asha", 1.0, 8), row("lat-pulldown-01", "", "women", 2, "Neha", 0.65, 10), row("lat-pulldown-01", "", "women", 3, "Meera", 0.9, 10, { best_ever: true }),
+    row("leg-press-08", "", "men", 1, "Rahul", 1.75, 10), row("leg-press-08", "", "women", 1, "Asha", 1.5, 8),
+    row("chest-press-02", "", "men", 1, "Dev", 0.75, 8),
+  ];
+  const mrow = (division, rank, uid, display_name, ratio, reps, extra = {}) => ({ machine_id: "lat-pulldown-01", mode: "", division, uid, display_name, avatar_url: null, weight: null, reps, ratio, xp: 300, level: 3, sets: 20, rank, best_ever: false, house: false, is_me: false, ...extra });
+  st.bwBoard = [
+    mrow("men", 1, "u2", "Rahul Mehta", 0.83, 12), mrow("men", 2, UID, "Omi Patil", 0.69, 10, { weight: 55, is_me: hasBody }), mrow("men", 3, "u5", "Kabir S", 0.6, 10), mrow("men", 4, "u6", "Dev", 0.5, 12),
+    mrow("women", 1, "u1", "Asha Rao", 1.0, 8), mrow("women", 2, "u4", "Neha Kulkarni", 0.65, 10),
+  ];
+  if (!hasBody) st.bwBoard = st.bwBoard.filter((x) => x.uid !== UID);
+  const A = R.admin;
+  A.scoring = "strength";
+  A.live_boards = {
+    men: [{ rank: 1, name: "Rahul Mehta", score: 283, flagged: 0 }, { rank: 2, name: "Omi Patil", score: 255, flagged: 0 }, { rank: 3, name: "Aarav Shah", score: 240, flagged: 0, demo: true }],
+    women: [{ rank: 1, name: "Asha Rao", score: 231, flagged: 0 }, { rank: 2, name: "Neha Kulkarni", score: 190, flagged: 1 }],
+  };
+  A.to_award.forEach((t) => (t.boards = {
+    men: [{ rank: 1, uid: "u2", name: "Rahul Mehta", score: 410, flagged: 0, body_kg: 78, checked_at: null, prize: ov.season.prizes[0].title },
+          { rank: 2, uid: UID, name: "Omi Patil", score: 380, flagged: 0, body_kg: 80, checked_at: iso(60 * 5), prize: "Partner coupons" }],
+    women: [{ rank: 1, uid: "u1", name: "Asha Rao", score: 350, flagged: 0, body_kg: 58, checked_at: null, prize: ov.season.prizes[0].title }],
+  }));
+  A.challenges.forEach((c) => (c.tops = { men: [{ rank: 1, name: "Rahul Mehta", value: 1.75, reps: 10 }], women: [{ rank: 1, name: "Asha Rao", value: 1.5, reps: 8 }] }));
+  st.memberBody = { division: "men", body_kg: 78, checked_at: null };
+  return st;
+}
+
+module.exports = { defaultState, setup, UID, day, iso, enableStrength };

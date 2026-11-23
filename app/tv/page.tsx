@@ -253,10 +253,11 @@ function TvScreen() {
       </div>
     );
   } else if (current.kind === "join") body = <JoinSlide key={current.key} data={data} joinUrl={joinUrl} host={host} period={period} />;
-  else if (current.kind === "howto") body = <HowToSlide key={current.key} />;
+  else if (current.kind === "howto") body = <HowToSlide key={current.key} strength={data.strength} />;
   else if (current.kind === "today") body = <TodaySlide key={current.key} data={data} period={period} />;
   else if (current.kind === "open") body = <OpenSlide key={current.key} period={period} />;
-  else if (current.kind === "board") body = <BoardSlide key={current.key} board={current.board} period={period} />;
+  else if (current.kind === "board")
+    body = data.strength ? <BoardSlideBw key={current.key} board={current.board} period={period} /> : <BoardSlide key={current.key} board={current.board} period={period} />;
   else if (current.kind === "prize" && feed?.season) body = <PrizeSlide key={current.key} feed={feed} now={now} />;
   else if (current.kind === "challenge") body = <ChallengeSlide key={current.key} challenge={current.challenge} feed={feed} now={now} />;
   else if (current.kind === "partner") body = <PartnerSlide key={current.key} partner={current.partner} product={current.product} origin={origin} />;
@@ -291,7 +292,9 @@ function TvScreen() {
             <i key={s.key} className={i === idx ? "on" : ""} />
           ))}
         </div>
-        <div className="tv-foot-msg">Tap or scan the sticker on any machine to log your set</div>
+        <div className="tv-foot-msg">
+          <b>Tap. Log. Win.</b> Tap or scan the sticker on any machine
+        </div>
       </footer>
 
       {current && !ownQr && joinUrl && (
@@ -325,7 +328,9 @@ function JoinSlide({ data, joinUrl, host, period }: { data: TvData; joinUrl: str
           <br />
           <span className="tv-grad">on this screen.</span>
         </h1>
-        <p className="tv-lede">Sign in with Google, then tap or scan the sticker on any machine.</p>
+        <p className="tv-lede">
+          <b className="tv-tlw">Tap. Log. Win.</b> Sign in with Google, then tap or scan the sticker on any machine.
+        </p>
         <div className="tv-proof" data-testid="tv-proof">
           <Icon name="flame" />
           {lifters > 0
@@ -346,18 +351,18 @@ function JoinSlide({ data, joinUrl, host, period }: { data: TvData; joinUrl: str
 }
 
 // ---- How it works: three big steps that light up in turn -------------------
-function HowToSlide() {
-  const steps: { icon: "nfc" | "dumbbell" | "trophy"; title: string; sub: string }[] = [
+function HowToSlide({ strength }: { strength: boolean }) {
+  const steps: { icon: "nfc" | "dumbbell" | "gift"; title: string; sub: string }[] = [
     { icon: "nfc", title: "Tap or scan the sticker", sub: "On any machine" },
     { icon: "dumbbell", title: "Log your set", sub: "Weight and reps" },
-    { icon: "trophy", title: "Climb the board", sub: "Your best shows up here" },
+    { icon: "gift", title: "Win rewards", sub: strength ? "Weekly prizes · Men's & Women's" : "Weekly prizes from our partners" },
   ];
   return (
     <section className="tv-slide tv-howto" data-testid="slide-howto">
       <div className="tv-howto-head">
         <div className="tv-eyebrow">How it works</div>
         <h2 className="tv-title">
-          Tap. Log. <span className="tv-grad">Climb.</span>
+          Tap. Log. <span className="tv-grad">Win.</span>
         </h2>
       </div>
       <ol className="tv-howto-steps">
@@ -372,6 +377,70 @@ function HowToSlide() {
           </li>
         ))}
       </ol>
+    </section>
+  );
+}
+
+// ---- A machine's top 3: Men | Women by ×BW (0015) ------------------------------
+function BoardSlideBw({ board, period }: { board: TvBoard; period: Period }) {
+  const word = PERIOD_WORD[period];
+  const col = (label: string, list: TvBoard["men"], key: string) => {
+    const rows = list.slice(0, 3);
+    const open = Math.max(0, 3 - rows.length);
+    return (
+      <div className="tv-bwcol" data-testid={`tv-board-${key}`}>
+        <div className="tv-bwcol-head">{label}</div>
+        <ol className="tv-mrows">
+          {rows.map((e, i) => (
+            <li key={`${e.name}-${i}`} className={`tv-mrow${e.bestEver ? " ever" : ` r${Math.min(e.rank, 3)}`}`} style={{ ["--d" as string]: `${0.12 + i * 0.12}s` }}>
+              <span className="rk">{e.bestEver ? <Icon name="star" /> : e.rank}</span>
+              <span className="nm">
+                {e.name}
+                {e.bestEver && <small className="tag">Best ever</small>}
+              </span>
+              <span className="lift">
+                {e.ratio != null ? e.ratio.toFixed(2) : "–"}
+                <small>×BW</small>
+              </span>
+            </li>
+          ))}
+          {Array.from({ length: open }, (_, i) => (
+            <li key={`open-${i}`} className="tv-mrow open" style={{ ["--d" as string]: `${0.12 + (rows.length + i) * 0.12}s` }}>
+              <span className="rk">{rows.length + i + 1}</span>
+              <span className="nm">Open</span>
+              <span className="lift">Be next</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    );
+  };
+  const lead = [board.men.find((e) => !e.bestEver), board.women.find((e) => !e.bestEver)].filter(Boolean) as TvBoard["men"];
+  return (
+    <section className="tv-slide tv-mboard bw" data-testid="slide-board">
+      <div className="tv-mboard-side">
+        <div className="tv-machine-no" aria-hidden>
+          {board.machineNumber}
+        </div>
+        <div className="tv-eyebrow">{period === "all" ? "All-time top 3" : `Top 3 ${word}`}</div>
+        <h2 className="tv-machine-name">{board.title}</h2>
+        <div className="tv-beat" data-testid="tv-beat">
+          <small>Ranked for your size</small>
+          <b>×BW = kg ÷ body weight</b>
+          <span>
+            {lead.length ? `Lift ${lead[0].ratio?.toFixed(2)}× your body weight to beat ${lead[0].name}. ` : ""}Tap or scan the sticker on machine {board.machineNumber}
+          </span>
+        </div>
+      </div>
+      <div className="tv-bwcols">
+        {col("Men", board.men, "men")}
+        {col("Women", board.women, "women")}
+        {[...board.men.slice(0, 3), ...board.women.slice(0, 3)].some((e) => e.bestEver) && (
+          <div className="tv-bw-legend">
+            <Icon name="star" /> Best ever on this machine, filling a short board
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -463,6 +532,7 @@ function PrizeSlide({ feed, now }: { feed: TvFeed; now: number }) {
   const word = season.period === "month" ? "month" : "week";
   const leader = feed.top[0] || (season.leader ? { name: season.leader.name, score: season.leader.score } : null);
   const ends = now ? timeLeft(season.ends_at, now) : "";
+  const tops = feed.tops;
   return (
     <section className={`tv-slide tv-prize2${first?.image_url ? "" : " no-photo"}`} data-testid="slide-prizes">
       <div className="tv-prize2-photo" aria-hidden>
@@ -478,24 +548,41 @@ function PrizeSlide({ feed, now }: { feed: TvFeed; now: number }) {
           {ends ? ` · ends in ${ends}` : ""}
         </div>
         <h2 className="tv-title">
-          {first && !(first.rank_from === 1 && first.rank_to === 1) ? `${prizeRankLabel(first)} win` : "#1 wins"}
+          {first && !(first.rank_from === 1 && first.rank_to === 1) ? `${prizeRankLabel(first)} win` : tops ? "#1 Men & #1 Women win" : "#1 wins"}
           <br />
           <span className="tv-grad" style={first && first.title.length > 34 ? { fontSize: "0.74em" } : undefined}>
             {first ? first.title : "a prize"}
           </span>
         </h2>
-        <div className="tv-prize2-lead" data-testid="tv-prize-leader">
-          <Icon name="flame" />
-          {leader ? (
-            <span>
-              <b>{leader.name}</b> is winning · {Math.round(leader.score).toLocaleString("en-IN")} XP
-            </span>
-          ) : (
-            <span>Nobody yet. Your first set takes #1.</span>
-          )}
-        </div>
+        {tops ? (
+          <div className="tv-prize2-leads" data-testid="tv-prize-leader">
+            {(["men", "women"] as const).map((d) => (
+              <div key={d}>
+                <small>{d === "men" ? "Men" : "Women"}</small>
+                {tops[d][0] ? (
+                  <span>
+                    <Icon name="flame" /> <b>{tops[d][0].name}</b> · {Math.round(tops[d][0].score).toLocaleString("en-IN")} pts
+                  </span>
+                ) : (
+                  <span>Wide open. First set takes #1.</span>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="tv-prize2-lead" data-testid="tv-prize-leader">
+            <Icon name="flame" />
+            {leader ? (
+              <span>
+                <b>{leader.name}</b> is winning · {Math.round(leader.score).toLocaleString("en-IN")} XP
+              </span>
+            ) : (
+              <span>Nobody yet. Your first set takes #1.</span>
+            )}
+          </div>
+        )}
         <p className="tv-sub">
-          Every set earns XP. Most XP this {word} wins.
+          {tops ? `Strongest for your size wins: your best ×BW on every machine this ${word}, added up.` : `Every set earns XP. Most XP this ${word} wins.`}
           {second ? ` ${prizeRankLabel(second)}: ${second.title}.` : ""}
         </p>
       </div>
@@ -509,8 +596,18 @@ function ChallengeSlide({ challenge: c, feed, now }: { challenge: Challenge; fee
   const m = c.machine_id ? MACHINE_MAP[c.machine_id] : null;
   const brand = c.sponsor_id ? feed?.sponsors.find((s) => s.id === c.sponsor_id) : null;
   const machineName = m ? (c.mode && m.modes?.[c.mode] ? m.modes[c.mode].label : m.name) : null;
-  const rule =
-    c.metric === "best_lift" ? `Heaviest ${machineName ? `${machineName} ` : ""}set wins` : c.metric === "sets" ? `Most sets${machineName ? ` on ${machineName}` : ""} wins` : `Most kilos${machineName ? ` on ${machineName}` : ""} wins`;
+  const bw = !!c.leaders || !!c.last_result?.winners;
+  const rule = bw
+    ? c.metric === "best_lift"
+      ? `Best ${machineName ? `${machineName} ` : ""}set for your size wins · Men & Women`
+      : c.metric === "sets"
+        ? `Most sets${machineName ? ` on ${machineName}` : ""} wins · Men & Women`
+        : `Most kilos for your size${machineName ? ` on ${machineName}` : ""} wins · Men & Women`
+    : c.metric === "best_lift"
+      ? `Heaviest ${machineName ? `${machineName} ` : ""}set wins`
+      : c.metric === "sets"
+        ? `Most sets${machineName ? ` on ${machineName}` : ""} wins`
+        : `Most kilos${machineName ? ` on ${machineName}` : ""} wins`;
   const chip = st.live ? `Live now · ends in ${timeLeft(c.ends_at, now || Date.now())}` : c.repeats === "weekly" && c.weekday ? `Every ${weekdayName(c.weekday)}` : st.label;
   return (
     <section className="tv-slide tv-chal" data-testid="slide-challenge">
@@ -540,7 +637,33 @@ function ChallengeSlide({ challenge: c, feed, now }: { challenge: Challenge; fee
           </div>
         )}
         <div className="tv-chal-lead" data-testid="tv-chal-leader">
-          {st.live && c.leader ? (
+          {bw && st.live && c.leaders ? (
+            <div className="tv-chal-leads">
+              {(["men", "women"] as const).map((d) => {
+                const l = c.leaders![d];
+                return (
+                  <div key={d}>
+                    <small>{d === "men" ? "Men" : "Women"} · leading</small>
+                    <b>{l ? l.name : "Nobody yet"}</b>
+                    <span>{l ? metricValue(c.metric, Number(l.value), l.reps, true) : "First set takes it"}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : bw && !st.live && c.last_result?.winners ? (
+            <div className="tv-chal-leads">
+              {(["men", "women"] as const).map((d) => {
+                const l = c.last_result!.winners![d];
+                return (
+                  <div key={d}>
+                    <small>{d === "men" ? "Men" : "Women"} · last winner</small>
+                    <b>{l ? l.name : "Nobody"}</b>
+                    <span>{l ? metricValue(c.metric, Number(l.value), l.reps, true) : ""}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : st.live && c.leader ? (
             <>
               <small>Leading now</small>
               <b>{c.leader.name}</b>
@@ -618,6 +741,40 @@ function PartnerSlide({ partner: p, product, origin }: { partner: TvPartner; pro
 // ---- Last week's winners ------------------------------------------------------
 function WinnersSlide({ feed }: { feed: TvFeed }) {
   const lw = feed.lastWinners!;
+  const split = lw.winners.some((w) => w.division === "men" || w.division === "women");
+  if (split) {
+    const men = lw.winners.filter((w) => w.division === "men").slice(0, 3);
+    const women = lw.winners.filter((w) => w.division === "women").slice(0, 3);
+    const names = [men[0]?.name, women[0]?.name].filter(Boolean);
+    return (
+      <section className="tv-slide tv-win" data-testid="slide-winners">
+        <div className="tv-win-head">
+          <div className="tv-eyebrow">{lw.season} · winners</div>
+          <h2 className="tv-title">
+            Well lifted, <span className="tv-grad">{names.join(" & ")}!</span>
+          </h2>
+        </div>
+        <div className="tv-win-split">
+          {[
+            ["Men", men],
+            ["Women", women],
+          ].map(([label, list]) => (
+            <div key={label as string} className="tv-win-col">
+              <div className="tv-bwcol-head">{label as string}</div>
+              {(list as typeof men).map((w, i) => (
+                <div key={w.rank} className={`tv-win-line r${w.rank}`} style={{ ["--d" as string]: `${0.1 + i * 0.12}s` }}>
+                  <span className="tv-win-rank">#{w.rank}</span>
+                  <b>{w.name}</b>
+                  {w.prize && <span className="tv-win-prize">{w.prize}</span>}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <p className="tv-sub">This week&apos;s race is on. You could be next.</p>
+      </section>
+    );
+  }
   const top = lw.winners.slice(0, 3);
   return (
     <section className="tv-slide tv-win" data-testid="slide-winners">

@@ -24,6 +24,7 @@ import {
   fetchRewardsOverview,
   fetchSeasonBoard,
   fmtXp,
+  isStrength,
   setsFor,
   syncMyRewards,
   timeLeft,
@@ -31,10 +32,15 @@ import {
   type RewardsOverview,
 } from "@/lib/rewards";
 import type { StoryData } from "@/lib/story";
+import DivisionTabs from "@/components/DivisionTabs";
+import { useMyBody } from "@/components/BodySheet";
+import { BODY_CHANGED, defaultBoard, openBodySheet, type BoardView } from "@/lib/body";
 
 type Tab = "week" | "all" | "machine";
 // ever: one of the machine's best-ever lifts filling a short period board (0013)
-type Row = { key: string; rank: number; name: string; avatar: string | null; value: number; label: string; isMe: boolean; ever?: boolean };
+// bw: value is ×BW (0015), shown with 2 decimals
+type Row = { key: string; rank: number; name: string; avatar: string | null; value: number; label: string; isMe: boolean; ever?: boolean; bw?: boolean; kg?: number | null };
+const fmtVal = (r: Pick<Row, "value" | "bw">) => (r.bw ? r.value.toFixed(2) : r.value.toLocaleString("en-IN"));
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "week", label: "This week" },
@@ -71,12 +77,17 @@ function LeaderboardInner() {
   const period = (params.get("period") as Period) || "all";
   const myUid = session?.user.id ?? null;
   const myFirst = (profile?.display_name || "").split(" ")[0];
+  const body = useMyBody();
+  const myBody = body && body !== "off" ? body : null;
+  const askedBoard = params.get("board");
+  const division: BoardView = askedBoard === "men" || askedBoard === "women" || askedBoard === "all" ? askedBoard : defaultBoard(myBody);
 
   const [rows, setRows] = useState<Row[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [weekSource, setWeekSource] = useState<"season" | "xp">("season");
   const [ov, setOv] = useState<RewardsOverview | null>(null);
+  const strength = isStrength(ov);
   const [me, setMe] = useState<MyRewards | null>(null);
   const [sharing, setSharing] = useState<StoryData | null>(null);
 
@@ -92,8 +103,8 @@ function LeaderboardInner() {
       let next: Row[];
       if (tab === "week") {
         try {
-          const board = await fetchSeasonBoard(supabase, null, 50);
-          next = board.map((r) => ({ key: `${r.rank}-${r.name}`, rank: r.rank, name: r.name, avatar: null, value: r.score, label: "XP", isMe: !!myUid && r.is_me }));
+          const board = await fetchSeasonBoard(supabase, null, 50, strength ? division : undefined);
+          next = board.map((r) => ({ key: `${r.rank}-${r.name}`, rank: r.rank, name: r.name, avatar: null, value: r.score, label: strength ? "pts" : "XP", isMe: !!myUid && r.is_me }));
           setWeekSource("season");
         } catch {
           // rewards not set up yet: this week's XP from the classic board
@@ -106,17 +117,19 @@ function LeaderboardInner() {
         next = list.map((u, i) => ({ key: u.uid, rank: i + 1, name: u.display_name, avatar: u.avatar_url, value: u.total_xp, label: "XP", isMe: u.uid === myUid }));
       } else {
         if (!selM) return;
-        const list = await fetchMachineBoard(supabase, machineSel, mode, period, 3);
+        const list = await fetchMachineBoard(supabase, machineSel, mode, period, 3, division);
         const unit = selM.unit === "KG" ? "kg" : selM.unit.toLowerCase();
         next = list.map((u) => ({
           key: u.uid ? `${u.uid}${u.best_ever ? "-ever" : ""}` : `house-${u.display_name}-${u.rank}`,
           rank: u.rank,
           name: u.display_name,
           avatar: u.avatar_url,
-          value: Number(u.pb_weight),
-          label: `${unit} × ${u.pb_reps}`,
+          value: u.ratio != null ? u.ratio : Number(u.pb_weight),
+          label: u.ratio != null ? "× BW" : `${unit} × ${u.pb_reps}`,
           isMe: !!u.uid && u.uid === myUid && !u.best_ever,
           ever: u.best_ever,
+          bw: u.ratio != null,
+          kg: u.ratio != null && u.pb_weight ? u.pb_weight : null,
         }));
       }
       setRows(next);
@@ -125,7 +138,7 @@ function LeaderboardInner() {
       setFailed(true);
       setRows((r) => r ?? []);
     }
-  }, [tab, supabase, myUid, selM, machineSel, mode, period]);
+  }, [tab, supabase, myUid, selM, machineSel, mode, period, division, strength]);
 
   useEffect(() => {
     setRows(null);
@@ -135,8 +148,10 @@ function LeaderboardInner() {
       .channel("leaderboard-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "machine_stats" }, () => load())
       .subscribe();
+    window.addEventListener(BODY_CHANGED, load);
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener(BODY_CHANGED, load);
     };
   }, [load, supabase, reloadKey]);
 
@@ -182,9 +197,21 @@ function LeaderboardInner() {
 
   let gap: string | null = null;
   if (mine && above) {
-    if (tab === "machine") {
+    if (tab === "machine" && mine.bw) {
+      const diff = above.value - mine.value;
+      const bwKg = myBody?.body_kg ?? null;
+      const kg = bwKg ? Math.max(0.25, Math.ceil((diff * bwKg) / 0.25) * 0.25) : null;
+      gap =
+        diff <= 0
+          ? `Beat ${above.name.split(" ")[0]} on reps`
+          : kg
+            ? `About ${kg} kg more to pass ${above.name.split(" ")[0]}`
+            : `${diff.toFixed(2)}× BW to pass ${above.name.split(" ")[0]}`;
+    } else if (tab === "machine") {
       const kg = Math.round((above.value - mine.value) * 100) / 100;
       gap = kg > 0 ? `${kg} kg to pass ${above.name.split(" ")[0]}` : `Beat ${above.name.split(" ")[0]} on reps`;
+    } else if (strength) {
+      gap = `${fmtXp(above.value - mine.value + 1)} points to pass ${above.name.split(" ")[0]}: beat your best ×BW on any machine`;
     } else {
       const xp = above.value - mine.value + 1;
       gap = `${fmtXp(xp)} XP (about ${setsFor(xp)} sets) to pass ${above.name.split(" ")[0]}`;
@@ -194,12 +221,13 @@ function LeaderboardInner() {
   function shareRank() {
     if (!mine) return;
     const scope = tab === "machine" && selM ? `on ${subject}` : tab === "week" ? "this week" : "all time";
-    const val = (r: Row) => (tab === "machine" ? `${r.value} ${r.label.split(" ")[0]}` : `${fmtXp(r.value)} XP`);
+    const val = (r: Row) => (r.bw ? `${fmtVal(r)}× BW` : tab === "machine" ? `${r.value} ${r.label.split(" ")[0]}` : `${fmtXp(r.value)} ${r.label}`);
+    const boardName = strength && division !== "all" ? ` (${division === "women" ? "Women" : "Men"})` : "";
     setSharing({
       kind: "rank",
       rank: mine.rank,
-      scope,
-      value: tab === "machine" ? `${mine.value} ${mine.label}` : `${fmtXp(mine.value)} XP`,
+      scope: scope + boardName,
+      value: mine.bw ? `${fmtVal(mine)}× BW` : tab === "machine" ? `${mine.value} ${mine.label}` : `${fmtXp(mine.value)} ${mine.label}`,
       of: list.length,
       top: list.slice(0, 3).map((r) => ({ rank: r.rank, name: r.isMe ? (myFirst || "Me") : r.name.split(" ")[0], value: val(r), me: r.isMe })),
     });
@@ -258,6 +286,25 @@ function LeaderboardInner() {
           ))}
         </div>
 
+        {strength && tab !== "all" && (
+          <DivisionTabs
+            value={division}
+            onChange={(d) => setQuery({ board: d })}
+            label="Men's, Women's or everyone's board"
+            className="lbx-div-tabs"
+          />
+        )}
+        {strength && myUid && body !== null && body !== "off" && !myBody?.body_kg && tab !== "all" && (
+          <button type="button" className="lbx-bodycta" onClick={openBodySheet} data-testid="lb-add-body">
+            <Icon name="scale" />
+            <span>
+              <b>Add your body weight to get on these boards</b>
+              <span>They rank by ×BW: the weight you lift ÷ your body weight.</span>
+            </span>
+            <Icon name="chev" />
+          </button>
+        )}
+
         {tab === "machine" && (
           <>
             <div className="scroll-row" aria-label="Choose a machine">
@@ -298,7 +345,7 @@ function LeaderboardInner() {
               )}
             </span>
             <span className="lbx-prize-body">
-              <span className="lbx-prize-eyebrow">#1 this week wins</span>
+              <span className="lbx-prize-eyebrow">{strength ? "#1 Men and #1 Women this week win" : "#1 this week wins"}</span>
               <b>{prize.title}</b>
             </span>
             <Icon name="chev" />
@@ -352,7 +399,7 @@ function LeaderboardInner() {
                     <Avatar name={u.name} url={u.avatar} />
                     <div className="name">{u.name}</div>
                     <div className="best num">
-                      {u.value.toLocaleString("en-IN")} <small>{u.label}</small>
+                      {fmtVal(u)} <small>{u.label}</small>
                     </div>
                   </div>
                 ))}
@@ -368,7 +415,7 @@ function LeaderboardInner() {
                 <span className="lbx-you-rank display">#{mine.rank}</span>
                 <span className="lbx-you-body">
                   <b>
-                    You · {tab === "machine" ? `${mine.value} ${mine.label}` : `${fmtXp(mine.value)} XP`}
+                    You · {mine.bw ? `${fmtVal(mine)}× BW${mine.kg ? ` (${mine.kg} kg)` : ""}` : tab === "machine" ? `${mine.value} ${mine.label}` : `${fmtXp(mine.value)} ${mine.label}`}
                   </b>
                   <span>{mine.rank === 1 ? `Top of the board ${tab === "machine" ? "" : subject}`.trim() : gap}</span>
                 </span>
@@ -389,7 +436,7 @@ function LeaderboardInner() {
           <section id="progress" className="stack-lg lbx-progress" data-testid="lb-progress" aria-labelledby="lb-progress-h">
             <div className="lbx-section-head">
               <h2 id="lb-progress-h">Your progress</h2>
-              <p>Streaks, missions and badges all earn bonus XP, and that counts towards this week&rsquo;s prize.</p>
+              <p>{strength ? "Streaks, missions and badges earn bonus XP to spend in the shop." : "Streaks, missions and badges all earn bonus XP, and that counts towards this week’s prize."}</p>
             </div>
             <StreakCard steps={ov.streak_steps} me={me} onShare={shareStreak} />
             <MissionsCard defs={ov.missions} me={me} />
@@ -418,7 +465,12 @@ function Podium({ rows, prizePlaces }: { rows: Row[]; prizePlaces: number }) {
             <Avatar name={u.name} url={u.avatar} size={u.rank === 1 ? 68 : 54} />
             <div className="pname">{u.isMe ? "You" : u.name.split(" ")[0]}</div>
             <div className="pval num">
-              <CountUp value={u.value} duration={1100} format={(n) => n.toLocaleString("en-IN")} /> <small>{u.label}</small>
+              {u.bw ? (
+                <CountUp value={Math.round(u.value * 100)} duration={1100} format={(n) => (n / 100).toFixed(2)} />
+              ) : (
+                <CountUp value={u.value} duration={1100} format={(n) => Math.round(n).toLocaleString("en-IN")} />
+              )}{" "}
+              <small>{u.label}</small>
             </div>
             <div className="block">
               <span>{u.rank}</span>
@@ -490,7 +542,7 @@ function BoardRows({ rows, prizePlaces }: { rows: Row[]; prizePlaces: number }) 
             </span>
           )}
           <div className="best num">
-            {u.value.toLocaleString("en-IN")} <small>{u.label}</small>
+            {fmtVal(u)} <small>{u.label}</small>
           </div>
         </div>
       ))}

@@ -48,7 +48,11 @@ export type Season = {
   prizes: Prize[];
   players: number;
   leader?: { name: string; score: number } | null;
+  // 0015: strength points, a race each for Men and Women
+  leaders?: { men: { name: string; score: number } | null; women: { name: string; score: number } | null } | null;
+  players_by?: { men: number; women: number } | null;
 };
+export type DivLeader = { name: string; value: number; reps: number | null } | null;
 // Gym + Rewards-page settings, edited in R&R Controls (0012)
 export type RrSettings = {
   gym_name: string;
@@ -92,16 +96,18 @@ export type Challenge = {
   join_xp: number;
   players: number;
   leader: { name: string; value: number; reps: number | null } | null;
+  leaders?: { men: DivLeader; women: DivLeader } | null; // 0015
   // weekly challenges (0012)
   series_id?: number | null;
   repeats?: "weekly" | null;
   weekday?: number; // 1 = Monday ... 7 = Sunday (gym time)
-  last_result?: { ends_at: string; name: string; value: number; reps: number | null } | null;
+  last_result?: { ends_at: string; name: string; value: number; reps: number | null; winners?: { men: DivLeader; women: DivLeader } | null } | null;
 };
 export type MissionDef = { id: string; title: string; description: string; metric: "sets" | "days" | "machines" | "pbs" | "volume"; target: number; xp: number; icon: string; sort: number };
 export type BadgeDef = { id: string; title: string; description: string; xp: number; icon: string; sort: number };
 export type RewardsOverview = {
   period: "week" | "month";
+  scoring?: "strength"; // 0015: the race is strength points (×BW), Men's and Women's
   settings?: RrSettings | null;
   season: Season | null;
   sponsors: Sponsor[];
@@ -110,7 +116,11 @@ export type RewardsOverview = {
   missions: MissionDef[];
   badges: BadgeDef[];
   streak_steps: { days: number; xp: number }[];
-  last_winners: { season: string; winners: { rank: number; name: string; score: number; prize: string | null }[] } | null;
+  last_winners: {
+    season: string;
+    scoring?: "strength" | "xp";
+    winners: { rank: number; name: string; score: number; prize: string | null; division?: "men" | "women" | "all" }[];
+  } | null;
 };
 export type Redemption = {
   id: number;
@@ -137,14 +147,17 @@ export type MyRewards = {
     players: number;
     ahead: { name: string; score: number } | null;
     top_prize: string | null;
+    division?: "men" | "women" | null; // 0015: your race (null = no body weight yet, or prefer not to say)
+    scoring?: "strength";
   } | null;
+  body?: { division: "men" | "women" | "open" | null; body_kg: number | null; checked_at?: string | null } | null;
   week: { sets: number; days: number; machines: number; pbs: number; volume: number };
   missions_done: string[];
   streak: { days: number; started: string | null; claimed: number[] };
   badges: { id: string; at: string }[];
   redemptions: Redemption[];
   claimed_rewards: Record<string, number>;
-  challenges: { id: number; rank: number; value: number; reps: number | null }[];
+  challenges: { id: number; rank: number; value: number; reps: number | null; division?: string }[];
   recent: { kind: string; title: string; amount: number; at: string }[];
 };
 export type BoardRow = { rank: number; name: string; score: number; is_me: boolean };
@@ -205,13 +218,30 @@ export async function redeemReward(supabase: Client, rewardId: number): Promise<
   return call<RedeemResult>(supabase, "redeem_reward", { p_reward_id: rewardId });
 }
 
-export async function fetchSeasonBoard(supabase: Client, seasonId: number | null = null, limit = 10): Promise<BoardRow[]> {
-  const rows = await call<BoardRow[]>(supabase, "season_board", { p_season_id: seasonId, p_limit: limit });
+// division (0015): "men" | "women" | "all". Before 0015: one XP board.
+export async function fetchSeasonBoard(supabase: Client, seasonId: number | null = null, limit = 10, division?: "men" | "women" | "all"): Promise<BoardRow[]> {
+  let rows: BoardRow[];
+  try {
+    rows = division
+      ? await call<BoardRow[]>(supabase, "season_division_board", { p_division: division, p_season_id: seasonId, p_limit: limit })
+      : await call<BoardRow[]>(supabase, "season_board", { p_season_id: seasonId, p_limit: limit });
+  } catch (e) {
+    if (!division || !isMissingRewards(e)) throw e;
+    rows = await call<BoardRow[]>(supabase, "season_board", { p_season_id: seasonId, p_limit: limit });
+  }
   return (rows || []).map((r) => ({ ...r, score: Number(r.score) }));
 }
 
-export async function fetchChallengeBoard(supabase: Client, id: number, limit = 20): Promise<ChallengeRow[]> {
-  const rows = await call<ChallengeRow[]>(supabase, "challenge_board", { p_id: id, p_limit: limit });
+export async function fetchChallengeBoard(supabase: Client, id: number, limit = 20, division?: "men" | "women" | "all"): Promise<ChallengeRow[]> {
+  let rows: ChallengeRow[];
+  try {
+    rows = division
+      ? await call<ChallengeRow[]>(supabase, "challenge_division_board", { p_id: id, p_division: division, p_limit: limit })
+      : await call<ChallengeRow[]>(supabase, "challenge_board", { p_id: id, p_limit: limit });
+  } catch (e) {
+    if (!division || !isMissingRewards(e)) throw e;
+    rows = await call<ChallengeRow[]>(supabase, "challenge_board", { p_id: id, p_limit: limit });
+  }
   return (rows || []).map((r) => ({ ...r, value: Number(r.value) }));
 }
 
@@ -231,6 +261,8 @@ export type TvFeed = {
   prizeHeadline: string | null;
   season: Season | null;
   top: BoardRow[];
+  // 0015: top 5 of each race (strength points)
+  tops: { men: BoardRow[]; women: BoardRow[] } | null;
   partners: TvPartner[];
   sponsors: Sponsor[];
   challenges: Challenge[];
@@ -241,6 +273,7 @@ type TvFeedRaw = RewardsOverview & {
   tv_slides?: unknown;
   tv_partners?: { id: string; tv_headline: string | null }[];
   season_top?: { rank: number; name: string; score: number }[];
+  season_tops?: { men: { rank: number; name: string; score: number }[]; women: { rank: number; name: string; score: number }[] } | null;
 };
 
 export async function fetchTvFeed(supabase: Client): Promise<TvFeed> {
@@ -271,6 +304,12 @@ export async function fetchTvFeed(supabase: Client): Promise<TvFeed> {
     prizeHeadline: raw.settings?.prize_headline ?? null,
     season: raw.season,
     top: (raw.season_top || []).map((r) => ({ rank: Number(r.rank), name: r.name, score: Number(r.score), is_me: false })),
+    tops: raw.season_tops
+      ? {
+          men: (raw.season_tops.men || []).map((r) => ({ rank: Number(r.rank), name: r.name, score: Number(r.score), is_me: false })),
+          women: (raw.season_tops.women || []).map((r) => ({ rank: Number(r.rank), name: r.name, score: Number(r.score), is_me: false })),
+        }
+      : null,
     partners,
     sponsors,
     challenges: raw.challenges || [],
@@ -353,11 +392,15 @@ export function prizeForRank(prizes: Prize[] | undefined, rank: number | null | 
   return prizes.find((p) => rank >= p.rank_from && rank <= p.rank_to) || null;
 }
 
-export function metricLabel(metric: Metric) {
+// bw: 0015 scoring (best lift = ×BW, volume = kg moved ÷ body weight)
+export function metricLabel(metric: Metric, bw = false) {
+  if (bw) return metric === "best_lift" ? "Best lift for your size" : metric === "sets" ? "Most sets" : "Most volume for your size";
   return metric === "best_lift" ? "Heaviest set" : metric === "sets" ? "Most sets" : "Most volume";
 }
 
-export function metricValue(metric: Metric, value: number, reps?: number | null) {
+export function metricValue(metric: Metric, value: number, reps?: number | null, bw = false) {
+  if (bw && metric === "best_lift") return `${Number(value).toFixed(2)}× BW${reps ? ` · ${reps} reps` : ""}`;
+  if (bw && metric === "volume") return `${trim(Number(value))}× BW moved`;
   if (metric === "best_lift") return `${trim(value)} kg${reps ? ` × ${reps}` : ""}`;
   if (metric === "sets") return `${Math.round(value)} set${Math.round(value) === 1 ? "" : "s"}`;
   return `${Math.round(value).toLocaleString("en-IN")} kg`;
@@ -382,6 +425,9 @@ export function awardsToast(awards: NewAward[]): string | null {
   }
   return `${awards.length} rewards unlocked · +${total} XP`;
 }
+
+/** The race and challenges are scored by ×BW (database update 0015). */
+export const isStrength = (ov: { scoring?: string } | null | undefined) => ov?.scoring === "strength";
 
 export function isMissingRewards(err: unknown) {
   const code = (err as { code?: string } | null)?.code;
@@ -413,7 +459,9 @@ export type AdminChallenge = Omit<Challenge, "leader" | "players"> & {
   reward_id: number | null;
   players: number;
   top: { rank: number; name: string; value: number; reps: number | null }[];
+  tops?: { men: AdminChallengeTop[]; women: AdminChallengeTop[] } | null; // 0015
 };
+export type AdminChallengeTop = { rank: number; name: string; value: number; reps: number | null; weight?: number | null; demo?: boolean };
 export type AdminSponsor = Omit<Sponsor, "products"> & {
   active: boolean;
   sort: number;
@@ -435,6 +483,8 @@ export type AdminRedemption = {
   member: string;
   sponsor_id: string | null;
 };
+export type AdminLiveRow = { rank: number; name: string; score: number; flagged: number; demo?: boolean };
+export type AdminAwardRow = { rank: number; uid: string; name: string; score: number; flagged: number; body_kg: number | null; checked_at: string | null; prize: string | null };
 export type PrizeRow = {
   id?: number;
   rank_from: number;
@@ -451,8 +501,25 @@ export type AdminRewardsData = {
   season_prizes: PrizeRow[];
   templates: PrizeRow[];
   live_board: { rank: number; name: string; score: number; flagged: number }[];
-  to_award: { id: number; title: string; ends_at: string; board: { rank: number; name: string; score: number; flagged: number; prize: string | null }[] }[];
-  seasons: { id: number; title: string; period: string; starts_at: string; ends_at: string; awarded_at: string | null; winners: { rank: number; name: string; score: number }[] }[];
+  // 0015: strength points, Men's and Women's races
+  scoring?: "strength";
+  live_boards?: { men: AdminLiveRow[]; women: AdminLiveRow[] } | null;
+  to_award: {
+    id: number;
+    title: string;
+    ends_at: string;
+    board: { rank: number; name: string; score: number; flagged: number; prize: string | null }[];
+    boards?: { men: AdminAwardRow[]; women: AdminAwardRow[] } | null;
+  }[];
+  seasons: {
+    id: number;
+    title: string;
+    period: string;
+    starts_at: string;
+    ends_at: string;
+    awarded_at: string | null;
+    winners: { rank: number; name: string; score: number; division?: "men" | "women" | "all" }[];
+  }[];
   rewards: AdminReward[];
   challenges: AdminChallenge[];
   sponsors: AdminSponsor[];
@@ -489,7 +556,7 @@ export const adminSavePrizes = (s: Client, prizes: PrizeRow[], applyCurrent = tr
     })),
     p_apply_current: applyCurrent,
   });
-export const adminAwardSeason = (s: Client, id: number) => call<{ rank: number; prize: string }[]>(s, "admin_award_season", { p_season_id: id });
+export const adminAwardSeason = (s: Client, id: number) => call<{ rank: number; prize: string; division?: string }[]>(s, "admin_award_season", { p_season_id: id });
 export const adminUpdateRedemption = (s: Client, id: number, status: "fulfilled" | "cancelled") =>
   call<null>(s, "admin_update_redemption", { p_id: id, p_status: status });
 export const adminSaveReward = (s: Client, p: Record<string, unknown>) => call<number>(s, "admin_save_reward", { p });

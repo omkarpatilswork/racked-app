@@ -85,7 +85,9 @@ export default function HouseLifts({ supabase, onChanged }: { supabase: Client; 
                 </b>
                 <span>
                   {machineLabel(h.machine_id, h.mode)} · {niceDate(h.lifted_on)}
+                  {h.ratio != null ? ` · ${Number(h.ratio).toFixed(2)}× BW · ${h.division === "women" ? "Women" : "Men"}` : ""}
                 </span>
+                {h.body_kg === null && <span className="hl-missing">Add a body weight to show it on the ×BW boards</span>}
               </span>
               <button type="button" className="iconbtn" aria-label={`Edit ${h.name}'s lift`} onClick={() => setEditing(h)}>
                 <Icon name="edit" />
@@ -146,6 +148,8 @@ function HouseLiftForm({ value, onSave, onClose }: { value: Partial<HouseLiftInp
     weight: value.weight != null ? String(value.weight) : "",
     reps: value.reps != null ? String(value.reps) : "",
     lifted_on: value.lifted_on || gymToday(),
+    body_kg: value.body_kg != null ? String(value.body_kg) : "",
+    division: (value.division || "") as string,
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -170,10 +174,13 @@ function HouseLiftForm({ value, onSave, onClose }: { value: Partial<HouseLiftInp
     if (!Number.isFinite(weight) || weight <= 0) return setErr("Add the weight in kg");
     if (!Number.isInteger(reps) || reps < 1) return setErr("Add the reps");
     if (!f.lifted_on) return setErr("Add the date");
+    const bodyKg = Number(f.body_kg);
+    if (!(bodyKg >= 25 && bodyKg <= 300)) return setErr("Add their body weight (25 to 300 kg): boards rank by ×BW");
+    if (f.division !== "men" && f.division !== "women") return setErr("Pick the Men's or Women's board");
     setErr(null);
     setBusy(true);
     try {
-      await onSave({ ...(value.id ? { id: value.id } : {}), name, machine_id: f.machine_id, mode: f.mode, weight, reps, lifted_on: f.lifted_on });
+      await onSave({ ...(value.id ? { id: value.id } : {}), name, machine_id: f.machine_id, mode: f.mode, weight, reps, lifted_on: f.lifted_on, body_kg: bodyKg, division: f.division as "men" | "women" });
     } catch (e) {
       const msg = (e as { message?: string })?.message;
       setErr(needsMigration(e) ? "Run database update 0013 first" : msg && msg.length < 100 ? msg : "That didn't go through — try again");
@@ -231,6 +238,24 @@ function HouseLiftForm({ value, onSave, onClose }: { value: Partial<HouseLiftInp
               Reps
             </label>
             <input id="hl-reps" className="field num" inputMode="numeric" value={f.reps} onChange={(e) => set("reps", e.target.value)} />
+          </div>
+        </div>
+        <div className="rw-form-row">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <label className="field-label" htmlFor="hl-bw">
+              Their body weight (kg)
+            </label>
+            <input id="hl-bw" className="field num" inputMode="decimal" value={f.body_kg} onChange={(e) => set("body_kg", e.target.value)} data-testid="hl-bw" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <label className="field-label" htmlFor="hl-div">
+              Board
+            </label>
+            <select id="hl-div" className="field" value={f.division} onChange={(e) => set("division", e.target.value)} data-testid="hl-div">
+              <option value="">Pick</option>
+              <option value="men">Men</option>
+              <option value="women">Women</option>
+            </select>
           </div>
         </div>
         <div>

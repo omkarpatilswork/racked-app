@@ -19,6 +19,8 @@ import { haptic } from "@/lib/haptics";
 import { timeAgo } from "@/lib/time";
 import { toast } from "@/lib/toast";
 import { useMachineLock } from "@/lib/machineLock";
+import { shouldAskBody, useMyBody } from "@/components/BodySheet";
+import { openBodySheet } from "@/lib/body";
 import { MACHINE_MAP, resolveMachineView } from "@/lib/machines";
 import type { Database } from "@/lib/database.types";
 
@@ -76,6 +78,16 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
   const [lastSet, setLastSet] = useState<LastSet | null>(null);
   // bumps after every logged set to (re)start the rest timer
   const [restSignal, setRestSignal] = useState(0);
+  // No body weight yet: ask once (boards rank by ×BW, 0015). "Not now" waits 3 days.
+  const body = useMyBody();
+  const askedBody = useRef(false);
+  useEffect(() => {
+    if (askedBody.current || !uid || lockStatus !== "unlocked" || !body || body === "off" || body.body_kg != null) return;
+    if (!shouldAskBody()) return;
+    askedBody.current = true;
+    const t = window.setTimeout(openBodySheet, 500);
+    return () => window.clearTimeout(t);
+  }, [uid, body, lockStatus]);
 
   // Weight increment: use the machine's own override when set, otherwise
   // fall back to 5kg steps for KG machines (matches how the weight stacks

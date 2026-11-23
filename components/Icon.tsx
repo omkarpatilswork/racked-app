@@ -11,6 +11,7 @@ export const ICON_PATHS: Record<string, string> = {
     '<path d="M12 3c1 3-3 4-3 8a3 3 0 0 0 6 0c1.2 1 2 2.6 2 4a5 5 0 0 1-10 0c0-4 3-5 3-9 0-1.2.6-2.3 2-3Z"/>',
   star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.8 6.8 19.6l1-5.8-4.3-4.1 5.9-.9L12 3.5Z"/>',
   bolt: '<path d="M13 3 5 13h5l-1 8 8-11h-5l1-7Z"/>',
+  scale: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="M8 10a5.5 5.5 0 0 1 8 0"/><path d="m12 12.5 1.6-2.6"/>',
   target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
   chev: '<path d="M9 6l6 6-6 6"/>',
   back: '<path d="M15 6l-6 6 6 6"/>',

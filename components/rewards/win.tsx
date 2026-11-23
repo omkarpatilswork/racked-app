@@ -17,6 +17,8 @@ import {
   type RewardsOverview,
 } from "@/lib/rewards";
 import { periodWord, sponsorNames, type SponsorMap } from "@/components/rewards/parts";
+import DivisionTabs from "@/components/DivisionTabs";
+import { openBodySheet, type BoardView } from "@/lib/body";
 
 // ---- This week's prize: what you can win, who's winning it, where you are --
 export function PrizeHero({
@@ -27,6 +29,8 @@ export function PrizeHero({
   now,
   onBoard,
   onHow,
+  division = null,
+  onDivision,
 }: {
   ov: RewardsOverview;
   me: MyRewards | null;
@@ -35,6 +39,8 @@ export function PrizeHero({
   now: number;
   onBoard: () => void;
   onHow: () => void;
+  division?: BoardView | null; // 0015: which race the mini board shows
+  onDivision?: (d: BoardView) => void;
 }) {
   const s = ov.season;
   if (!s) return null;
@@ -49,14 +55,28 @@ export function PrizeHero({
   const ahead = me?.season?.ahead ?? null;
   const prizePlaces = s.prizes.reduce((m, p) => Math.max(m, p.rank_to), 0);
 
+  const strength = ov.scoring === "strength";
+  const myRace = me?.season?.division ?? null;
+  const raceName = (d: string | null | undefined) => (d === "women" ? "Women's" : "Men's");
+  const needsBody = strength && !!me && !me.body?.body_kg;
   let you: string | null = null;
-  if (me) {
+  if (me && strength) {
+    if (needsBody) you = "Add your body weight to race for it. Boards rank by strength for your size.";
+    else if (!myRace) you = "You're on the All boards. The prizes are for the Men's and Women's races.";
+    else if (!myRank) you = `Log a set this ${word} to get on the ${raceName(myRace)} board.`;
+    else if (myRank === 1) you = `You're #1 on the ${raceName(myRace)} board. Hold on to it!`;
+    else if (ahead) you = `You're #${myRank} on the ${raceName(myRace)} board. ${fmtXp(ahead.score - myScore + 1)} points to pass ${ahead.name}: beat your best ×BW on any machine.`;
+    else you = `You're #${myRank} on the ${raceName(myRace)} board.`;
+    if (myRank && myRank > 1 && myRank <= prizePlaces) you += " You're in the prizes.";
+  } else if (me) {
     if (!myRank) you = `Log a set this ${word} to get on the board.`;
     else if (myRank === 1) you = "You're winning it right now. Hold on to #1!";
     else if (ahead) you = `You're #${myRank}. About ${setsFor(ahead.score - myScore + 1)} more sets to pass ${ahead.name}.`;
     else you = `You're #${myRank}.`;
     if (myRank && myRank > 1 && myRank <= prizePlaces) you += " You're in the prizes.";
   }
+  const unit = strength ? "pts" : "XP";
+  const leaders = strength ? ov.season?.leaders : null;
 
   return (
     <section className="rw-prize" data-testid="rw-prize" aria-labelledby="rw-prize-h">
@@ -77,7 +97,7 @@ export function PrizeHero({
             <Icon name="gift" />
           </span>
         )}
-        <span className="rw-prize-badge">#1 wins</span>
+        <span className="rw-prize-badge">{strength ? "#1 Men · #1 Women win" : "#1 wins"}</span>
       </div>
 
       <h2 id="rw-prize-h" className="rw-prize-title">
@@ -86,21 +106,47 @@ export function PrizeHero({
       {names.length > 0 && <div className="rw-prize-from">from {names.join(" × ")}</div>}
       {first?.description && <p className="rw-prize-desc">{first.description}</p>}
 
-      <div className="rw-leader" data-testid="rw-leader">
-        <span className="rw-leader-av" aria-hidden="true">
-          {leader ? leader.name.slice(0, 1).toUpperCase() : <Icon name="trophy" />}
-        </span>
-        <span className="rw-leader-body">
-          <span className="rw-leader-label">Winning it right now</span>
-          <b>{leader ? (leaderIsMe ? `${leader.name} (you)` : leader.name) : "Nobody yet"}</b>
-        </span>
-        <span className="rw-leader-score num">{leader ? `${fmtXp(leader.score)} XP` : `First set this ${word} takes it`}</span>
-      </div>
+      {strength ? (
+        <div className="rw-leaders" data-testid="rw-leader">
+          {(["men", "women"] as const).map((d) => {
+            const l = leaders?.[d] || null;
+            return (
+              <div key={d} className="rw-leader">
+                <span className="rw-leader-av" aria-hidden="true">
+                  {l ? l.name.slice(0, 1).toUpperCase() : <Icon name="trophy" />}
+                </span>
+                <span className="rw-leader-body">
+                  <span className="rw-leader-label">{d === "men" ? "Men's" : "Women's"} #1 right now</span>
+                  <b>{l ? l.name : "Nobody yet"}</b>
+                </span>
+                <span className="rw-leader-score num">{l ? `${fmtXp(l.score)} pts` : "Open"}</span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rw-leader" data-testid="rw-leader">
+          <span className="rw-leader-av" aria-hidden="true">
+            {leader ? leader.name.slice(0, 1).toUpperCase() : <Icon name="trophy" />}
+          </span>
+          <span className="rw-leader-body">
+            <span className="rw-leader-label">Winning it right now</span>
+            <b>{leader ? (leaderIsMe ? `${leader.name} (you)` : leader.name) : "Nobody yet"}</b>
+          </span>
+          <span className="rw-leader-score num">{leader ? `${fmtXp(leader.score)} XP` : `First set this ${word} takes it`}</span>
+        </div>
+      )}
       {you && (
         <p className="rw-you" data-testid="rw-you">
           {you}
+          {needsBody && (
+            <button type="button" className="rw-inline-link" onClick={openBodySheet} data-testid="rw-add-body">
+              Add body weight
+            </button>
+          )}
         </p>
       )}
+      {strength && division && onDivision && <DivisionTabs value={division} onChange={onDivision} className="rw-div-tabs on-dark" />}
 
       {top && top.length > 1 && (
         <ol className="rw-mini-board" aria-label="Top of the race">
@@ -108,7 +154,10 @@ export function PrizeHero({
             <li key={r.rank} className={`${r.is_me ? "me " : ""}${r.rank <= prizePlaces ? "prized" : ""}`}>
               <span className="r num">{r.rank}</span>
               <span className="n">{r.is_me ? `${r.name} (you)` : r.name}</span>
-              <span className="s num">{fmtXp(r.score)}</span>
+              <span className="s num">
+                {fmtXp(r.score)}
+                {strength && <small> {unit}</small>}
+              </span>
             </li>
           ))}
         </ol>
@@ -142,7 +191,9 @@ export function PrizeHero({
 
       {ov.settings?.rewards_note && <p className="rw-note">{ov.settings.rewards_note}</p>}
       <p className="rw-fine">
-        Every set you log earns XP. Most XP this {word} wins.{" "}
+        {strength
+          ? `Strength points: your best ×BW (kg ÷ body weight) on each machine this ${word} × 100, added up. Most points wins, on the Men's and the Women's board. `
+          : `Every set you log earns XP. Most XP this ${word} wins. `}
         <button type="button" className="rw-inline-link" onClick={onHow}>
           How it works
         </button>
@@ -159,6 +210,7 @@ export function ChallengesBlock({
   now,
   onBoard,
   onShare,
+  strength = false,
 }: {
   list: Challenge[];
   me: MyRewards | null;
@@ -166,6 +218,7 @@ export function ChallengesBlock({
   now: number;
   onBoard: (c: Challenge) => void;
   onShare?: (c: Challenge, mine: { rank: number; value: number; reps: number | null }) => void;
+  strength?: boolean;
 }) {
   if (!list.length) return null;
   return (
@@ -182,7 +235,10 @@ export function ChallengesBlock({
           const mine = me?.challenges.find((x) => x.id === c.id);
           const st = challengeStatus(c, now);
           const day = weekdayName(c.weekday);
-          const goal = `${c.metric === "best_lift" ? "Heaviest single set" : c.metric === "sets" ? "Most sets" : "Most kg moved"}${m ? ` on ${m.name}` : ""}`;
+          const goal = strength
+            ? `${c.metric === "best_lift" ? "Best single set for your size (×BW)" : c.metric === "sets" ? "Most sets" : "Most kg moved for your size"}${m ? ` on ${m.name}` : ""}`
+            : `${c.metric === "best_lift" ? "Heaviest single set" : c.metric === "sets" ? "Most sets" : "Most kg moved"}${m ? ` on ${m.name}` : ""}`;
+          const lead = (l: { name: string; value: number; reps: number | null } | null | undefined) => (l ? `${l.name} · ${metricValue(c.metric, Number(l.value), l.reps, strength)}` : "Nobody yet");
           return (
             <article key={c.id} className={`rw-chal${st.live ? " live" : ""}`} data-testid={`challenge-${c.id}`}>
               <div className="rw-chal-head">
@@ -211,20 +267,41 @@ export function ChallengesBlock({
                 </div>
                 {c.prize && (
                   <div>
-                    <dt>{c.winners > 1 ? `Top ${c.winners} win` : "Winner gets"}</dt>
+                    <dt>{strength ? (c.winners > 1 ? `Top ${c.winners} Men + Women win` : "Men's + Women's winner get") : c.winners > 1 ? `Top ${c.winners} win` : "Winner gets"}</dt>
                     <dd>{c.prize}</dd>
                   </div>
                 )}
-                {st.live || st.ended ? (
+                {strength && c.leaders && (st.live || st.ended) ? (
+                  <>
+                    <div>
+                      <dt>Men&rsquo;s lead</dt>
+                      <dd data-testid="chal-lead-men">{lead(c.leaders.men)}</dd>
+                    </div>
+                    <div>
+                      <dt>Women&rsquo;s lead</dt>
+                      <dd data-testid="chal-lead-women">{lead(c.leaders.women)}</dd>
+                    </div>
+                  </>
+                ) : st.live || st.ended ? (
                   <div>
                     <dt>Leading</dt>
-                    <dd>{c.leader ? `${c.leader.name} · ${metricValue(c.metric, c.leader.value, c.leader.reps)}` : "Nobody yet. Be first!"}</dd>
+                    <dd>{c.leader ? `${c.leader.name} · ${metricValue(c.metric, c.leader.value, c.leader.reps, strength)}` : "Nobody yet. Be first!"}</dd>
+                  </div>
+                ) : strength && c.last_result?.winners ? (
+                  <div>
+                    <dt>Last {day || "time"}</dt>
+                    <dd>
+                      {[c.last_result.winners.men, c.last_result.winners.women]
+                        .filter(Boolean)
+                        .map((w) => `${w!.name} · ${metricValue(c.metric, Number(w!.value), w!.reps, true)}`)
+                        .join("  ·  ") || "No winner"}
+                    </dd>
                   </div>
                 ) : c.last_result ? (
                   <div>
                     <dt>Last {day || "time"}</dt>
                     <dd>
-                      {c.last_result.name} won · {metricValue(c.metric, c.last_result.value, c.last_result.reps)}
+                      {c.last_result.name} won · {metricValue(c.metric, c.last_result.value, c.last_result.reps, strength)}
                     </dd>
                   </div>
                 ) : null}
@@ -232,7 +309,8 @@ export function ChallengesBlock({
                   <div>
                     <dt>Your best</dt>
                     <dd>
-                      #{mine.rank} · {metricValue(c.metric, mine.value, mine.reps)}
+                      #{mine.rank}
+                      {strength && mine.division && mine.division !== "all" ? ` ${mine.division === "women" ? "Women" : "Men"}` : ""} · {metricValue(c.metric, mine.value, mine.reps, strength)}
                     </dd>
                   </div>
                 )}
