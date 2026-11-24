@@ -140,8 +140,8 @@ racked-app/
 │   ├── machines/            the list of tagged machines
 │   ├── machine/[id]/        one machine: history, log, guide, feedback
 │   ├── leaderboard/         overall and per-machine ranks
-│   ├── profile/             streaks, calendar, progress photos
-│   ├── settings/            name, Instagram, theme, rest timer, sign out, delete account
+│   ├── profile/             You: your numbers, attendance calendar, progress photos, your bests
+│   ├── settings/            You · App · Account: name, Instagram, body weight, theme, rest timer, sign out, delete
 │   ├── welcome/             first-time onboarding
 │   ├── privacy/             plain-language data summary
 │   ├── tv/                  full-screen gym TV slideshow (join, how-to, boards, prize, ads)

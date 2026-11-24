@@ -3,7 +3,7 @@
 // Home v4 and Ranks v2 (Nov 2026) keep things simple for launch. Home: a slim
 // streak / sets row, one big "Log a set" button, the composer bar and one
 // feed. Ranks: score, kg moved and heaviest lift, no XP, 3 missions.
-// Rewards v2: Win · Partners, no XP, no Shop.
+// Rewards v2: Win · Partners, no XP, no Shop. You v2: one stats row, no gym card.
 // Everything switched off below still works and is still tested: flip
 // it to true, push, and it's back on Home. Prizes, challenges and the
 // body-weight ask keep working on Ranks, Rewards, the log screen, Settings
@@ -19,7 +19,8 @@ export type FeatureKey =
   | "ranksXp"
   | "ranksAllMissions"
   | "rewardsShop"
-  | "xp";
+  | "xp"
+  | "youGymCard";
 
 export const FEATURES: Record<FeatureKey, boolean> = {
   /** Home: the level ring next to the streak and sets (level is on You). */
@@ -43,6 +44,9 @@ export const FEATURES: Record<FeatureKey, boolean> = {
    *  joining), set toasts, the PB celebration, feed PR cards, partner offers'
    *  "Claim with XP", levels on You and machine pages. XP still counts. */
   xp: false,
+  /** You: the big "Your gym" card (member since, machines used, best streak,
+   *  gym Instagram, leaderboard button). Off: one "Club 360 · member since" line. */
+  youGymCard: false,
 };
 
 /** The 3 weekly missions shown on Ranks while ranksAllMissions is off. */

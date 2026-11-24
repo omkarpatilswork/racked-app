@@ -253,20 +253,43 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await old.ctx.close();
   }
 
-  // 8. Profile: your gym
+  // 8. You v2: Settings in words, gym line, one stats row, attendance, bests
   {
     const { ctx, page, errors } = await open(browser, "/profile");
-    await page.waitForSelector('[data-testid="your-gym"]');
-    const g = await text(page, '[data-testid="your-gym"]');
-    check("profile: your gym card", g.includes("Your gym") && g.includes("Club 360") && g.includes("Baner, Pune") && g.includes("Member since"));
-    check("profile: gym Instagram + leaderboard link", (await page.locator('[data-testid="your-gym"] a[href="https://instagram.com/club360"]').count()) === 1 && (await page.locator('[data-testid="gym-leaderboard-link"]').getAttribute("href")) === "/leaderboard");
+    await page.waitForSelector('[data-testid="you-best"]');
+    const set = page.locator('[data-testid="open-settings"]');
+    check("you: a 'Settings' button with the word", (await set.textContent()).trim() === "Settings" && (await set.getAttribute("href")) === "/settings");
+    const head = await text(page, '[data-testid="profile-header"]');
+    check("you: name, @handle, gym + member since in one line", head.includes("Omi Patil") && head.includes("@omi.lifts") && /Club 360 member since \w+ \d{4}/.test(await text(page, '[data-testid="you-gym"]')), head);
+    check("you: Edit profile + Share progress", (await page.locator('[data-testid="edit-profile"]').getAttribute("href")) === "/settings" && (await page.getByRole("button", { name: /Share progress/ }).count()) === 1);
+    const sv = (await page.locator('[data-testid="you-stats"] > div').evaluateAll((els) => els.map((e) => e.querySelector("b").textContent + " " + e.querySelector("span").textContent))).join(" · ");
+    check("you: one stats row (sets · kg moved · PBs · machines)", sv === "73 sets · 43.6k kg moved · 3 PBs · 3/10 machines", sv);
+    check("you: no gym card, no leaderboard button", (await page.locator('[data-testid="your-gym"], [data-testid="gym-leaderboard-link"]').count()) === 0);
+    check("you: attendance with the streak pill, no explanation line", (await text(page, '[data-testid="you-streak"]')) === "3 days" && !(await text(page, '[data-testid="you-attendance"]')).includes("marks the day"));
+    check("you: progress photos without the paragraph, small buttons", !(await text(page, '[data-testid="progress-photos"]')).includes("optional") && (await text(page, '[data-testid="slot-pre-empty"]')) === "Pre photo" && (await page.locator('[data-testid="slot-pre-empty"]').getAttribute("aria-label")) === "Add pre photo");
+    const bests = await page.locator('[data-testid="you-best"]').allTextContents();
+    check("you: your bests, one line each, machine order", bests.length === 3 && bests[0].includes("01") && bests[0].includes("Lat Pulldown") && bests[0].includes("55 kg × 10") && bests[2].includes("Leg Press"), bests.join(" | "));
+    check("you: bests link to the machine + All machines", (await page.locator('[data-testid="you-best"]').first().getAttribute("href")) === "/machine/lat-pulldown-01" && (await page.locator('[data-testid="you-bests"] a[href="/machines"]').count()) === 1);
     check("profile: no level or XP while XP is archived", (await page.locator('[data-testid="profile-level"]').count()) === 0 && !(await text(page, ".page")).includes("XP") && !(await text(page, '[data-testid="profile-header"]')).includes("Level"));
+    await page.locator('[data-testid="open-settings"]').click();
+    await page.waitForURL(/\/settings$/);
+    check("you: Settings opens Settings", (await page.locator('[data-testid="profile-form"]').count()) === 1);
     check("no page errors (profile)", errors.length === 0, errors.join(" | "));
     await ctx.close();
+    const g = await open(browser, "/profile", (s) => s, { features: ["youGymCard"] });
+    await g.page.waitForSelector('[data-testid="your-gym"]');
+    const gc = await text(g.page, '[data-testid="your-gym"]');
+    check("archived gym card switched on: still works", gc.includes("Your gym") && gc.includes("Club 360") && gc.includes("Baner, Pune") && gc.includes("Member since") && (await g.page.locator('[data-testid="you-gym"]').count()) === 0 &&
+      (await g.page.locator('[data-testid="your-gym"] a[href="https://instagram.com/club360"]').count()) === 1 && (await g.page.locator('[data-testid="gym-leaderboard-link"]').getAttribute("href")) === "/leaderboard");
+    await g.ctx.close();
     const x = await open(browser, "/profile", (s) => s, { features: ["xp"] });
     await x.page.waitForSelector('[data-testid="profile-level"]');
     check("profile (XP switched on): level is back", (await text(x.page, '[data-testid="profile-level"]')).includes("XP") && (await text(x.page, '[data-testid="profile-header"]')).includes("Level"));
     await x.ctx.close();
+    const n = await open(browser, "/profile", (s) => ((s.stats = []), s));
+    await n.page.waitForSelector('[data-testid="you-bests"] .empty');
+    check("you: brand new member, bests say how to start", (await text(n.page, '[data-testid="you-bests"]')).includes("Tap or scan any machine"));
+    await n.ctx.close();
   }
 
   // 9. logging a set: mission toast, no XP (XP is archived; back when switched on)
@@ -453,7 +476,7 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
   const axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
   const pages = [
     ["/rewards", "dark", {}], ["/rewards", "light", {}], ["/rewards?tab=partners", "dark", {}], ["/rewards?tab=shop", "light", { features: ["rewardsShop", "xp"] }], ["/rewards", "dark", { out: true }],
-    ["/leaderboard", "dark", {}], ["/leaderboard", "light", {}], ["/leaderboard?tab=machine", "dark", {}], ["/profile", "light", {}],
+    ["/leaderboard", "dark", {}], ["/leaderboard", "light", {}], ["/leaderboard?tab=machine", "dark", {}], ["/profile", "light", {}], ["/profile", "dark", {}], ["/settings", "dark", {}], ["/settings", "light", {}], ["/settings", "dark", { out: true }],
     ["/rnr", "dark", { staff: true }], ["/rnr?s=challenges", "light", { staff: true }], ["/rnr?s=partners", "dark", { staff: true }], ["/rnr?s=gym", "light", { staff: true }], ["/rnr?s=tv", "dark", { staff: true }], ["/rnr?s=tv", "light", { staff: true }], ["/rnr?s=handout", "dark", { staff: true }],
   ];
   for (const [url, theme, o] of pages) {

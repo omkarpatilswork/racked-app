@@ -163,6 +163,9 @@ const rpcCalls = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" +
   {
     const { ctx, page, st, errors } = await open(browser, "/settings", (s) => ((s.storageFiles = [{ name: "a.jpg", id: "1" }, { name: "b.jpg", id: "2" }]), s));
     await page.waitForSelector('[data-testid="profile-form"]');
+    check("settings: three groups (You, App, Account)", (await page.locator(".list-title").allTextContents()).map((t) => t.trim()).join(",") === "You,App,Account");
+    check("settings: Save only shows after a change", (await page.locator('[data-testid="profile-save"]').count()) === 0);
+    check("settings: privacy under Account", (await page.locator('[data-testid="settings-privacy"]').getAttribute("href")) === "/privacy");
     await page.locator("#display-name").fill("me@mail.com");
     await page.locator('[data-testid="profile-save"]').click();
     check("name with @ rejected in form", (await page.locator("#display-name-hint").textContent()).includes("@"));
@@ -201,6 +204,19 @@ const rpcCalls = (st, name) => st.calls.filter((c) => c.startsWith("POST rpc/" +
     await page.locator('[data-testid="confirm-yes"]').click();
     await page.waitForURL(BASE + "/", { timeout: 10000 });
     check("then signs out", st.calls.some((c) => c.startsWith("auth:logout")));
+    await ctx.close();
+  }
+  // 5c. iPhone: "Add to home screen" row explains how (Safari has no prompt)
+  {
+    const ctx = await browser.newContext({ ...require("playwright").devices["iPhone 13"] });
+    const page = await ctx.newPage();
+    await setup(ctx, page, defaultState(), BASE);
+    await page.goto(BASE + "/settings", { waitUntil: "networkidle" });
+    const row = page.locator('[data-testid="settings-install"]');
+    await row.waitFor({ timeout: 8000 }).catch(() => {});
+    check("iPhone: 'Add to home screen' row", ((await row.textContent().catch(() => "")) || "").trim() === "Add to home screen");
+    await row.click().catch(() => {});
+    check("iPhone: tap shows the Safari steps", ((await row.textContent().catch(() => "")) || "").includes("Add to Home Screen") && (await row.getAttribute("aria-expanded").catch(() => null)) === "true");
     await ctx.close();
   }
 

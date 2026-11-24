@@ -78,19 +78,14 @@ export default function ProgressPhotos({
 
   return (
     <div className="card" data-testid="progress-photos">
-      <div className="row">
-        <h3 style={{ margin: 0, fontSize: 15 }}>
-          <Icon name="camera" /> Progress photos
-        </h3>
-        <span className="faint" style={{ fontSize: 12 }}>
+      <div className="you-head">
+        <h2>Progress photos</h2>
+        <span className="faint" style={{ fontSize: 12.5 }}>
           {rows.length} {rows.length === 1 ? "day" : "days"}
         </span>
       </div>
-      <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>
-        Add a before photo, an after photo, or both — every one is optional. Watch the change over time.
-      </div>
 
-      <div style={{ marginTop: 14 }}>
+      <div style={{ marginTop: 12 }}>
         <div className="eyebrow" style={{ marginBottom: 8 }}>
           Today
         </div>
@@ -100,6 +95,7 @@ export default function ProgressPhotos({
           urls={urls}
           onAdd={(kind) => manager.pick(kind, today)}
           onOpen={open}
+          compact
         />
       </div>
 

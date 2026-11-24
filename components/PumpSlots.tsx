@@ -15,15 +15,18 @@ export default function PumpSlots({
   urls,
   onAdd,
   onOpen,
+  compact = false,
 }: {
   day: string;
   photos: PumpPhoto[];
   urls: Record<string, string>;
   onAdd: (kind: PumpKind) => void;
   onOpen: (photo: PumpPhoto) => void;
+  /** small one-line "Pre photo" / "Post photo" buttons (You page) */
+  compact?: boolean;
 }) {
   return (
-    <div className="pump-slots">
+    <div className={`pump-slots${compact ? " compact" : ""}`}>
       {(["pre", "post"] as PumpKind[]).map((kind) => {
         const photo = photos.find((p) => p.day === day && p.kind === kind);
         const url = photo ? urls[photo.path] : undefined;
@@ -34,11 +37,18 @@ export default function PumpSlots({
               type="button"
               className="pump-slot empty"
               onClick={() => onAdd(kind)}
+              aria-label={compact ? `Add ${COPY[kind].label.toLowerCase()} photo` : undefined}
               data-testid={`slot-${kind}-empty`}
             >
               <Icon name="camera" />
-              <b>Add {COPY[kind].label.toLowerCase()} photo</b>
-              <small>{COPY[kind].hint}</small>
+              {compact ? (
+                <b>{COPY[kind].label} photo</b>
+              ) : (
+                <>
+                  <b>Add {COPY[kind].label.toLowerCase()} photo</b>
+                  <small>{COPY[kind].hint}</small>
+                </>
+              )}
             </button>
           );
         }

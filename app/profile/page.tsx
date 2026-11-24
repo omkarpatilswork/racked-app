@@ -1,5 +1,9 @@
 "use client";
 
+// You v2 (Nov 2026, Omi: simpler, less text, Settings easy to find): a
+// "Settings" button with the word, name + "Club 360 · member since", one row
+// of numbers, the attendance calendar, progress photos and "Your bests" (one
+// line per machine). The old "Your gym" card is the youGymCard switch.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Topbar from "@/components/Topbar";
@@ -10,7 +14,6 @@ import AttendanceCalendar from "@/components/AttendanceCalendar";
 import ProgressPhotos from "@/components/ProgressPhotos";
 import SignInSheet from "@/components/SignInSheet";
 import ShareStudio from "@/components/share/ShareStudio";
-import MachineCard from "@/components/MachineCard";
 import GymMark from "@/components/GymMark";
 import { useGym } from "@/lib/gym";
 import { useAuth } from "@/lib/auth-context";
@@ -55,6 +58,7 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
   const [photoDays, setPhotoDays] = useState<Record<string, boolean>>({});
   // Levels come from XP, which is archived for launch (features.xp).
   const xpOn = useFeature("xp");
+  const gymCardOn = useFeature("youGymCard");
 
   useEffect(() => {
     fetchMyStats(supabase, uid)
@@ -68,7 +72,9 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
   const overall = overallFromStats(stats || {});
   const lvl = calculateMachineLevel(overall.totalXp);
   const pct = Math.min(100, Math.round((100 * lvl.into) / lvl.need));
-  const mine = Object.values(stats || {}).sort((a, b) => b.xp - a.xp);
+  // your bests in machine order (01, 02, …), the dual machine's sides together
+  const order = new Map(MACHINES.map((m, i) => [m.id, i]));
+  const mine = Object.values(stats || {}).sort((a, b) => (order.get(a.machine_id) ?? 99) - (order.get(b.machine_id) ?? 99) || a.mode.localeCompare(b.mode));
   const streaks = computeStreaks(attendance);
   const gym = useGym();
   const since = profile?.created_at ? new Date(profile.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" }) : null;
@@ -107,8 +113,8 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
     <>
       <Topbar
         right={
-          <Link href="/settings" className="iconbtn" aria-label="Settings" data-testid="open-settings">
-            <Icon name="gear" />
+          <Link href="/settings" className="you-set-btn" data-testid="open-settings">
+            <Icon name="gear" /> Settings
           </Link>
         }
       />
@@ -118,12 +124,22 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
             <Avatar name={name} url={profile?.avatar_url} size={84} className="profile-avatar" />
           </div>
           <h1 style={{ fontSize: 24, margin: 0 }}>{name}</h1>
-          <div className="chip-row" style={{ justifyContent: "center", marginTop: 10, alignItems: "center" }}>
-            {xpOn && <span className="pill-yellow">Level {lvl.level}</span>}
-            {profile?.instagram_handle ? <IgHandle handle={profile.instagram_handle} /> : null}
-          </div>
+          {(xpOn || profile?.instagram_handle) && (
+            <div className="chip-row" style={{ justifyContent: "center", marginTop: 8, alignItems: "center" }}>
+              {xpOn && <span className="pill-yellow">Level {lvl.level}</span>}
+              {profile?.instagram_handle ? <IgHandle handle={profile.instagram_handle} /> : null}
+            </div>
+          )}
+          {!gymCardOn && (
+            <div>
+              <span className="you-gym" data-testid="you-gym">
+                <b>{gym.name}</b>
+                {since ? ` member since ${since}` : " member"}
+              </span>
+            </div>
+          )}
           <div className="btn-row" style={{ marginTop: 16, maxWidth: 360, marginInline: "auto" }}>
-            <Link href="/settings" className="btn btn-ghost btn-sm" style={{ flex: 1, minHeight: 44 }}>
+            <Link href="/settings" className="btn btn-ghost btn-sm" style={{ flex: 1, minHeight: 44 }} data-testid="edit-profile">
               <Icon name="edit" /> Edit profile
             </Link>
             <button type="button" className="btn btn-ghost btn-sm" style={{ flex: 1, minHeight: 44 }} onClick={openProgressShare}>
@@ -132,9 +148,8 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
           </div>
         </section>
 
-        <section className="bento" aria-label="Your totals">
-          {xpOn && (
-          <div className="tile span-2" style={{ flexDirection: "row", alignItems: "center", gap: 16, minHeight: 0 }} data-testid="profile-level">
+        {xpOn && (
+          <section className="tile" style={{ flexDirection: "row", alignItems: "center", gap: 16, minHeight: 0 }} data-testid="profile-level">
             <div className="ring" style={{ ["--p" as string]: pct, width: 64, height: 64, fontSize: 18 }} aria-hidden="true">
               {lvl.level}
             </div>
@@ -147,63 +162,71 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
                 <div className="progress-fill" style={{ width: `${pct}%` }} />
               </div>
             </div>
+          </section>
+        )}
+
+        <section className="you-stats" aria-label="Your totals" data-testid="you-stats">
+          <div>
+            <b className="num">{stats ? overall.totalSets.toLocaleString("en-IN") : "–"}</b>
+            <span>{overall.totalSets === 1 ? "set" : "sets"}</span>
           </div>
-          )}
-          <div className="tile">
-            <div className="t-label">Sets</div>
-            <div className="t-value" style={{ fontSize: 26 }}>{stats ? overall.totalSets : "–"}</div>
-            <div className="t-sub">{overall.totalVolume.toLocaleString()} kg moved</div>
+          <div>
+            <b className="num">{stats ? compactKg(overall.totalVolume) : "–"}</b>
+            <span>kg moved</span>
           </div>
-          <div className="tile">
-            <div className="t-label">Personal bests</div>
-            <div className="t-value" style={{ fontSize: 26 }}>{stats ? overall.pbCount : "–"}</div>
-            <div className="t-sub">
-              {overall.unlocked} / {MACHINES.length} machines
-            </div>
+          <div>
+            <b className="num">{stats ? overall.pbCount : "–"}</b>
+            <span>{overall.pbCount === 1 ? "PB" : "PBs"}</span>
+          </div>
+          <div>
+            <b className="num">
+              {overall.unlocked}/{MACHINES.length}
+            </b>
+            <span>machines</span>
           </div>
         </section>
 
-        <section className="card gym-card" data-testid="your-gym">
-          <div className="row" style={{ alignItems: "flex-start" }}>
-            <GymMark variant="lockup" label="Your gym" />
-            {gym.instagram && (
-              <a className="iconbtn" href={gym.instagram} target="_blank" rel="noopener" aria-label={`${gym.name} on Instagram`}>
-                <Icon name="instagram" />
-              </a>
-            )}
-          </div>
-          <div className="gym-card-stats">
-            <div>
-              <b className="num">{since || "–"}</b>
-              <span>Member since</span>
+        {gymCardOn && (
+          <section className="card gym-card" data-testid="your-gym">
+            <div className="row" style={{ alignItems: "flex-start" }}>
+              <GymMark variant="lockup" label="Your gym" />
+              {gym.instagram && (
+                <a className="iconbtn" href={gym.instagram} target="_blank" rel="noopener" aria-label={`${gym.name} on Instagram`}>
+                  <Icon name="instagram" />
+                </a>
+              )}
             </div>
-            <div>
-              <b className="num">
-                {overall.unlocked}/{MACHINES.length}
-              </b>
-              <span>Machines used</span>
+            <div className="gym-card-stats">
+              <div>
+                <b className="num">{since || "–"}</b>
+                <span>Member since</span>
+              </div>
+              <div>
+                <b className="num">
+                  {overall.unlocked}/{MACHINES.length}
+                </b>
+                <span>Machines used</span>
+              </div>
+              <div>
+                <b className="num">{streaks.best}</b>
+                <span>Best streak</span>
+              </div>
             </div>
-            <div>
-              <b className="num">{streaks.best}</b>
-              <span>Best streak</span>
-            </div>
-          </div>
-          <Link href="/leaderboard" className="btn btn-ghost btn-sm" style={{ marginTop: 12, width: "100%" }} data-testid="gym-leaderboard-link">
-            <Icon name="trophy" /> {gym.name} leaderboard
-          </Link>
-        </section>
+            <Link href="/leaderboard" className="btn btn-ghost btn-sm" style={{ marginTop: 12, width: "100%" }} data-testid="gym-leaderboard-link">
+              <Icon name="trophy" /> {gym.name} leaderboard
+            </Link>
+          </section>
+        )}
 
-        <section className="card">
-          <div className="row">
-            <h2 style={{ margin: 0, fontSize: 16 }}>Attendance</h2>
-            <span className="pill-yellow">
-              <Icon name="flame" /> {streaks.current} day{streaks.current === 1 ? "" : "s"}
+        <section className="card" data-testid="you-attendance">
+          <div className="you-head">
+            <h2>Attendance</h2>
+            <span className="you-streak" data-testid="you-streak">
+              <Icon name="flame" /> {streaks.current} {streaks.current === 1 ? "day" : "days"}
+              {streaks.best > streaks.current && <small>· best {streaks.best}</small>}
             </span>
           </div>
-          <div className="faint" style={{ fontSize: 12.5, marginTop: 4 }}>
-            Best streak {streaks.best} · logging a set marks the day for you
-          </div>
-          <div style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 12 }}>
             <AttendanceCalendar attendance={attendance} onToggle={handleToggleAttendance} photoDays={photoDays} />
           </div>
           {Object.keys(photoDays).length > 0 && (
@@ -215,38 +238,43 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
 
         <ProgressPhotos uid={uid} onPhotoDays={setPhotoDays} />
 
-        <section>
-          <div className="section-head">
-            <h2>Your machines</h2>
+        <section data-testid="you-bests">
+          <div className="you-sec-head">
+            <h2>Your bests</h2>
             <Link href="/machines">
-              {overall.unlocked} / {MACHINES.length}
+              All machines <Icon name="chev" />
             </Link>
           </div>
           {stats === null ? (
-            <div className="stack" aria-busy="true">
-              <div className="skeleton" style={{ height: 76, borderRadius: 20 }} />
-              <div className="skeleton" style={{ height: 76, borderRadius: 20 }} />
-            </div>
+            <div className="skeleton" style={{ height: 116, borderRadius: 22 }} aria-busy="true" />
           ) : mine.length ? (
-            <div className="stack">
+            <div className="you-bests">
               {mine.map((s) => {
                 const m = MACHINE_MAP[s.machine_id];
                 if (!m) return null;
+                const side = m.dual ? m.modes?.[s.mode]?.label : null;
                 return (
-                  <MachineCard
+                  <Link
                     key={`${s.machine_id}__${s.mode}`}
-                    machine={m.dual ? { ...m, name: m.modes?.[s.mode]?.label || m.name } : m}
-                    unlocked
-                    pb={`${s.pb_weight}${m.unit === "KG" ? "kg" : m.unit}×${s.pb_reps}`}
-                  />
+                    href={`/machine/${m.id}${m.dual && s.mode ? `?mode=${s.mode}` : ""}`}
+                    className="you-best"
+                    data-testid="you-best"
+                  >
+                    <span className="n num" aria-hidden="true">
+                      {m.number}
+                    </span>
+                    <span className="t">{side || m.name}</span>
+                    <span className="v num">
+                      {Number(s.pb_weight)} <small>{m.unit === "KG" ? "kg" : m.unit.toLowerCase()} × {s.pb_reps}</small>
+                    </span>
+                    <Icon name="chev" className="icon c" />
+                  </Link>
                 );
               })}
             </div>
           ) : (
-            <div className="card empty">
-              Your progress starts at the first machine.
-              <br />
-              Tap or scan a sticker and log a set.
+            <div className="card empty" style={{ padding: 18 }}>
+              Your bests show up here. Tap or scan any machine to start.
             </div>
           )}
         </section>
@@ -254,6 +282,14 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
       {sharing && <ShareStudio story={sharing} title="Share your progress" onClose={() => setSharing(null)} />}
     </>
   );
+}
+
+// 4,200 · 43.6k · 1.2M
+function compactKg(n: number) {
+  const v = Math.round(Number(n) || 0);
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (v >= 10_000) return `${(v / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return v.toLocaleString("en-IN");
 }
 
 function SignedOutProfile() {

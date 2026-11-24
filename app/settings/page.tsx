@@ -19,6 +19,9 @@ import { canPromptInstall, isIOS, isStandalone, onInstallChange, promptInstall }
 import { haptic } from "@/lib/haptics";
 import { toast } from "@/lib/toast";
 
+// Settings v2 (Nov 2026, Omi: simpler, less text): three groups, You · App ·
+// Account, one line per row with the value on the right, short notes, and the
+// Save button only once something changed.
 export default function SettingsPage() {
   const { session, loading } = useAuth();
   const [signIn, setSignIn] = useState(false);
@@ -32,40 +35,28 @@ export default function SettingsPage() {
         <div style={{ width: 42 }} />
       </div>
       <div className="page stack-lg">
-        {loading ? (
-          <div className="skeleton" style={{ height: 220, borderRadius: 22 }} />
-        ) : session ? (
-          <ProfileSection />
-        ) : (
-          <div className="card center">
-            <p className="muted" style={{ marginTop: 0 }}>Sign in to edit your profile.</p>
-            <button type="button" className="btn btn-yellow" onClick={() => setSignIn(true)}>
-              <Icon name="google" /> Continue with Google
-            </button>
+        <section aria-labelledby="set-you">
+          <div className="list-title" id="set-you">
+            You
           </div>
-        )}
-        {session && <BodySection />}
-        <AppearanceSection />
-        <WorkoutSection />
-        <InstallSection />
-        <section>
-          <div className="list-title">About</div>
-          <div className="list">
-            <Link href="/privacy" className="list-row">
-              <span className="lr-icon">
-                <Icon name="shield" />
-              </span>
-              <span className="lr-body">
-                Privacy &amp; your data
-                <div className="lr-sub">What we store, who sees it, how to delete it</div>
-              </span>
-              <span className="lr-end">
-                <Icon name="chev" />
-              </span>
-            </Link>
-          </div>
+          {loading ? (
+            <div className="skeleton" style={{ height: 220, borderRadius: 22 }} />
+          ) : session ? (
+            <>
+              <ProfileSection />
+              <BodySection />
+            </>
+          ) : (
+            <div className="card center">
+              <p className="muted" style={{ marginTop: 0 }}>Sign in to edit your profile.</p>
+              <button type="button" className="btn btn-yellow" onClick={() => setSignIn(true)}>
+                <Icon name="google" /> Continue with Google
+              </button>
+            </div>
+          )}
         </section>
-        {session && <AccountSection />}
+        <AppSection />
+        <AccountSection signedIn={!!session} />
         <p className="faint center" style={{ fontSize: 12, margin: "8px 0 0" }}>
           Racked × Bijlee
         </p>
@@ -143,114 +134,121 @@ function ProfileSection() {
   }
 
   return (
-    <section>
-      <div className="list-title">Profile</div>
-      <form className="card stack" onSubmit={save} noValidate data-testid="profile-form">
-        <div>
-          <label className="field-label" htmlFor="display-name">
-            Display name
-          </label>
-          <input
-            id="display-name"
-            className="field"
-            value={name}
-            onChange={(e) => {
-              touched.current = true;
-              setName(e.target.value);
-            }}
-            maxLength={60}
-            autoComplete="nickname"
-            aria-invalid={!!errors.name}
-            aria-describedby="display-name-hint"
-          />
-          {errors.name ? (
-            <div className="field-error" id="display-name-hint" role="alert">
-              {errors.name}
-            </div>
-          ) : (
-            <div className="field-hint" id="display-name-hint">
-              Shown on the feed and leaderboards.
-            </div>
-          )}
-        </div>
-        <div>
-          <label className="field-label" htmlFor="ig-handle">
-            Instagram <span className="faint">(optional)</span>
-          </label>
-          <input
-            id="ig-handle"
-            className="field"
-            value={ig}
-            onChange={(e) => {
-              touched.current = true;
-              setIg(e.target.value);
-            }}
-            placeholder="@yourhandle"
-            maxLength={80}
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            aria-invalid={!!errors.ig}
-            aria-describedby="ig-hint"
-          />
-          {errors.ig ? (
-            <div className="field-error" id="ig-hint" role="alert">
-              {errors.ig}
-            </div>
-          ) : (
-            <div className="field-hint" id="ig-hint">
-              Shown next to your name on the gym feed, to signed-in members only. Leave empty to remove.
-            </div>
-          )}
-        </div>
-        <button type="submit" className="btn btn-yellow" disabled={!dirty || busy} data-testid="profile-save">
+    <form className="card stack" onSubmit={save} noValidate data-testid="profile-form" aria-labelledby="set-you">
+      <div>
+        <label className="field-label" htmlFor="display-name">
+          Name
+        </label>
+        <input
+          id="display-name"
+          className="field"
+          value={name}
+          onChange={(e) => {
+            touched.current = true;
+            setName(e.target.value);
+          }}
+          maxLength={60}
+          autoComplete="nickname"
+          aria-invalid={!!errors.name}
+          aria-describedby="display-name-hint"
+        />
+        {errors.name ? (
+          <div className="field-error" id="display-name-hint" role="alert">
+            {errors.name}
+          </div>
+        ) : (
+          <div className="set-hint" id="display-name-hint">
+            On boards and the feed.
+          </div>
+        )}
+      </div>
+      <div>
+        <label className="field-label" htmlFor="ig-handle">
+          Instagram <span className="faint">(optional)</span>
+        </label>
+        <input
+          id="ig-handle"
+          className="field"
+          value={ig}
+          onChange={(e) => {
+            touched.current = true;
+            setIg(e.target.value);
+          }}
+          placeholder="@yourhandle"
+          maxLength={80}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          aria-invalid={!!errors.ig}
+          aria-describedby="ig-hint"
+        />
+        {errors.ig ? (
+          <div className="field-error" id="ig-hint" role="alert">
+            {errors.ig}
+          </div>
+        ) : (
+          <div className="set-hint" id="ig-hint">
+            Only members see it.
+          </div>
+        )}
+      </div>
+      {(dirty || busy) && (
+        <button type="submit" className="btn btn-yellow" disabled={busy} data-testid="profile-save">
           {busy ? "Saving…" : "Save changes"}
         </button>
-      </form>
-    </section>
+      )}
+    </form>
   );
 }
 
-// Body weight + board (0015): boards rank by ×BW
+// Body weight + board (0015): boards rank by score (kg ÷ body weight × 100)
 function BodySection() {
   const body = useMyBody();
   if (body === "off") return null;
   const b = body;
+  const set = !!b?.body_kg;
   return (
-    <section>
-      <div className="list-title">Strength boards</div>
-      <div className="list">
-        <button type="button" className="list-row" onClick={openBodySheet} data-testid="settings-body">
-          <span className="lr-icon">
-            <Icon name="scale" />
+    <div className="list" style={{ marginTop: 10 }}>
+      <button type="button" className="list-row" onClick={openBodySheet} data-testid="settings-body">
+        <span className="lr-icon">
+          <Icon name="scale" />
+        </span>
+        <span className="lr-body">
+          Body weight &amp; board
+          <div className="lr-sub">{set ? "Only you see it" : "Add it to get a score"}</div>
+        </span>
+        {set && (
+          <span className="lr-val">
+            {b!.division === "men" || b!.division === "women" ? `${CHOICE_LABEL[b!.division]} · ` : ""}
+            {b!.body_kg} kg
           </span>
-          <span className="lr-body">
-            Body weight &amp; board
-            <div className="lr-sub">
-              {b?.body_kg ? `${b.division ? CHOICE_LABEL[b.division] : "No board"} · ${b.body_kg} kg (only you see this)` : "Add it to get a strength score"}
-            </div>
-          </span>
-          <Icon name="chev" />
-        </button>
-      </div>
-    </section>
+        )}
+        <Icon name="chev" />
+      </button>
+    </div>
   );
 }
 
-function AppearanceSection() {
+function AppSection() {
   const [pref, setPref] = useState<ThemePref>("dark");
-  useEffect(() => setPref(getThemePref()), []);
+  const [rest, setRest] = useState("90");
+  const [vibe, setVibe] = useState(true);
+  useEffect(() => {
+    setPref(getThemePref());
+    setRest(readPref(PREF_REST, "90"));
+    setVibe(readPref(PREF_HAPTICS, "on") !== "off");
+  }, []);
   const opts: { key: ThemePref; label: string; icon: string }[] = [
     { key: "dark", label: "Dark", icon: "moon" },
     { key: "light", label: "Light", icon: "sun" },
     { key: "system", label: "Auto", icon: "phone" },
   ];
   return (
-    <section>
-      <div className="list-title" id="appearance-title">
-        Appearance
+    <section aria-labelledby="set-app">
+      <div className="list-title" id="set-app">
+        App
       </div>
-      <div className="tabs" role="radiogroup" aria-labelledby="appearance-title" data-testid="theme-picker">
+      <div className="tabs set-theme" role="radiogroup" aria-label="Theme" data-testid="theme-picker">
         {opts.map((o) => (
           <button
             key={o.key}
@@ -268,29 +266,12 @@ function AppearanceSection() {
           </button>
         ))}
       </div>
-    </section>
-  );
-}
-
-function WorkoutSection() {
-  const [rest, setRest] = useState("90");
-  const [vibe, setVibe] = useState(true);
-  useEffect(() => {
-    setRest(readPref(PREF_REST, "90"));
-    setVibe(readPref(PREF_HAPTICS, "on") !== "off");
-  }, []);
-  return (
-    <section>
-      <div className="list-title">Workout</div>
       <div className="list">
         <label className="list-row" htmlFor="rest-default">
           <span className="lr-icon">
             <Icon name="timer" />
           </span>
-          <span className="lr-body">
-            Rest timer
-            <div className="lr-sub">Starts after every set you log</div>
-          </span>
+          <span className="lr-body">Rest timer</span>
           <select
             id="rest-default"
             className="rest-select"
@@ -319,27 +300,31 @@ function WorkoutSection() {
             writePref(PREF_HAPTICS, next ? "on" : "off");
             if (next) haptic("success");
           }}
+          data-testid="settings-vibration"
         >
           <span className="lr-icon">
             <Icon name="phone" />
           </span>
           <span className="lr-body">
             Vibration
-            <div className="lr-sub">Buzz on sets, PBs and when rest is over (Android)</div>
+            <div className="lr-sub">Android</div>
           </span>
           <span className="switch" aria-hidden="true">
             <i />
           </span>
         </button>
+        <InstallRow />
       </div>
     </section>
   );
 }
 
-function InstallSection() {
+// "Add to home screen": only on phones that can (not when already installed)
+function InstallRow() {
   const [, force] = useState(0);
   const [standalone, setStandalone] = useState(true);
   const [ios, setIos] = useState(false);
+  const [howTo, setHowTo] = useState(false);
   useEffect(() => {
     setStandalone(isStandalone());
     setIos(isIOS());
@@ -349,35 +334,35 @@ function InstallSection() {
   const can = canPromptInstall();
   if (!can && !ios) return null;
   return (
-    <section>
-      <div className="list-title">App</div>
-      <div className="card">
-        <div style={{ fontWeight: 800 }}>Put Racked on your home screen</div>
-        <p className="muted" style={{ fontSize: 13.5, margin: "4px 0 12px" }}>
-          Opens full-screen like a normal app — one tap from your lock screen to logging.
-        </p>
-        {can ? (
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={async () => {
-              const ok = await promptInstall();
-              if (ok) toast("Racked installed");
-            }}
-          >
-            <Icon name="download" /> Install app
-          </button>
-        ) : (
-          <p className="faint" style={{ fontSize: 13, margin: 0 }}>
-            On iPhone: tap <b>Share</b> <Icon name="share" className="icon inline-icon" /> in Safari, then <b>Add to Home Screen</b>.
-          </p>
+    <button
+      type="button"
+      className="list-row"
+      aria-expanded={can ? undefined : howTo}
+      onClick={async () => {
+        if (can) {
+          const ok = await promptInstall();
+          if (ok) toast("Racked installed");
+        } else setHowTo((v) => !v);
+      }}
+      data-testid="settings-install"
+    >
+      <span className="lr-icon">
+        <Icon name="download" />
+      </span>
+      <span className="lr-body">
+        Add to home screen
+        {howTo && (
+          <div className="lr-sub">
+            In Safari: tap Share <Icon name="share" className="icon inline-icon" />, then Add to Home Screen.
+          </div>
         )}
-      </div>
-    </section>
+      </span>
+      <Icon name="chev" />
+    </button>
   );
 }
 
-function AccountSection() {
+function AccountSection({ signedIn }: { signedIn: boolean }) {
   const { session, profile, signOut } = useAuth();
   // Self-service delete needs database update 0009 (adds onboarded_at and
   // the delete function). Until it's run, don't offer a button that would
@@ -389,44 +374,54 @@ function AccountSection() {
   const [busy, setBusy] = useState(false);
 
   return (
-    <section>
-      <div className="list-title">Account</div>
+    <section aria-labelledby="set-account">
+      <div className="list-title" id="set-account">
+        Account
+      </div>
       <div className="list">
-        <div className="list-row" style={{ cursor: "default" }}>
+        <Link href="/privacy" className="list-row" data-testid="settings-privacy">
           <span className="lr-icon">
-            <Icon name="google" />
+            <Icon name="shield" />
           </span>
-          <span className="lr-body">
-            Signed in with Google
-            <div className="lr-sub">{session?.user.email}</div>
-          </span>
-        </div>
-        <button type="button" className="list-row" onClick={() => setConfirm("signout")} data-testid="signout">
-          <span className="lr-icon">
-            <Icon name="logout" />
-          </span>
-          <span className="lr-body">Sign out</span>
-        </button>
-        {canDelete ? (
-        <button type="button" className="list-row danger" onClick={() => setConfirm("delete")} data-testid="delete-account">
-          <span className="lr-icon">
-            <Icon name="trash" />
-          </span>
-          <span className="lr-body">
-            Delete account
-            <div className="lr-sub">Permanently removes your sets, PBs, photos and profile</div>
-          </span>
-        </button>
-        ) : (
-          <div className="list-row" style={{ cursor: "default" }}>
-            <span className="lr-icon">
-              <Icon name="trash" />
-            </span>
-            <span className="lr-body">
-              Delete account
-              <div className="lr-sub">Ask the front desk — self-service deletion isn&rsquo;t switched on yet</div>
-            </span>
-          </div>
+          <span className="lr-body">Privacy &amp; your data</span>
+          <Icon name="chev" />
+        </Link>
+        {signedIn && (
+          <>
+            <div className="list-row" style={{ cursor: "default" }}>
+              <span className="lr-icon">
+                <Icon name="google" />
+              </span>
+              <span className="lr-body">
+                Signed in with Google
+                <div className="lr-sub">{session?.user.email}</div>
+              </span>
+            </div>
+            <button type="button" className="list-row" onClick={() => setConfirm("signout")} data-testid="signout">
+              <span className="lr-icon">
+                <Icon name="logout" />
+              </span>
+              <span className="lr-body">Sign out</span>
+            </button>
+            {canDelete ? (
+              <button type="button" className="list-row danger" onClick={() => setConfirm("delete")} data-testid="delete-account">
+                <span className="lr-icon">
+                  <Icon name="trash" />
+                </span>
+                <span className="lr-body">Delete account</span>
+              </button>
+            ) : (
+              <div className="list-row" style={{ cursor: "default" }}>
+                <span className="lr-icon">
+                  <Icon name="trash" />
+                </span>
+                <span className="lr-body">
+                  Delete account
+                  <div className="lr-sub">Ask the front desk</div>
+                </span>
+              </div>
+            )}
+          </>
         )}
       </div>
 
