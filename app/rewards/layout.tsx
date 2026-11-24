@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Rewards",
-  description: "Earn XP for every set, finish weekly missions, keep your streak and win prizes from Racked's partner brands.",
+  description: "Win weekly prizes and special challenges from Racked's partner brands. Men's and Women's boards, scored for your size.",
 };
 
 export default function RewardsLayout({ children }: { children: React.ReactNode }) {

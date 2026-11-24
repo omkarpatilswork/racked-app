@@ -143,7 +143,7 @@ async function closeStudio(page) {
     let r = await studio(page);
     check("prize win share", r.caption.startsWith("Won Partner coupons at Club 360"), r.caption);
     await closeStudio(page);
-    await page.locator('[data-testid="share-challenge"]').click();
+    await page.locator('[data-testid="chal-share"]').click();
     r = await studio(page);
     check("challenge share uses the machine design", r.caption.includes("Leg Press") && r.w === 1080, r.caption);
     await ctx.close();
@@ -160,7 +160,7 @@ async function closeStudio(page) {
     const p = await open(browser, "/profile");
     await p.page.getByRole("button", { name: /Share progress/ }).click();
     r = await studio(p.page);
-    check("progress share", /^Level \d+ at Club 360/.test(r.caption), r.caption);
+    check("progress share, no level while XP is archived", /^My progress at Club 360/.test(r.caption) && !r.caption.includes("Level"), r.caption);
     await p.ctx.close();
   }
 

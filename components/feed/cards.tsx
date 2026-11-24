@@ -26,6 +26,7 @@ import {
   type RewardsOverview,
 } from "@/lib/rewards";
 import type { FeedItem, GymPost, Media } from "@/lib/feed";
+import { useFeature } from "@/lib/features";
 
 export type SetItem = Extract<FeedItem, { type: "set" }>;
 export type PumpItem = Extract<FeedItem, { type: "pump" }>;
@@ -185,6 +186,7 @@ function Img({ path, urls, alt = "" }: { path: string | null; urls: Record<strin
 
 // ---- workouts + PRs ------------------------------------------------------------
 export function SetCard({ item, h }: { item: SetItem; h: Handlers }) {
+  const xpOn = useFeature("xp");
   const m = MACHINE_MAP[item.machine_id];
   if (!m) return null;
   const label = machineLabel(item.machine_id, item.mode) || m.name;
@@ -236,7 +238,7 @@ export function SetCard({ item, h }: { item: SetItem; h: Handlers }) {
           reps={item.reps}
           unit={m.unit}
           pb
-          meta={`${sets}${item.xp > 0 ? ` · +${item.xp} XP` : ""}`}
+          meta={`${sets}${xpOn && item.xp > 0 ? ` · +${item.xp} XP` : ""}`}
         />
       </TapMedia>
       <Actions item={item} h={h} share={item.is_mine} />
@@ -446,6 +448,9 @@ export function NoticeCard({ post, onDismiss, now }: { post: GymPost; onDismiss?
 }
 
 export function OfferCard({ post, onClick }: { post: GymPost; onClick?: (sponsorId: string | null) => void }) {
+  // "Claim with XP" goes to the Shop, which is archived for launch.
+  const shopOn = useFeature("rewardsShop");
+  const xpOn = useFeature("xp");
   const link = sponsorLink(post.cta_url || post.sponsor?.website_url, `offer-${post.id}`);
   async function copy() {
     if (!post.code) return;
@@ -493,7 +498,7 @@ export function OfferCard({ post, onClick }: { post: GymPost; onClick?: (sponsor
               {post.cta_label || "Shop now"} <Icon name="external" />
             </a>
           )}
-          {post.reward && (
+          {post.reward && shopOn && xpOn && (
             <Link className="btn btn-ghost btn-sm" href="/rewards?tab=shop" data-testid="offer-xp">
               <Icon name="ticket" /> Claim{post.reward.xp_cost ? ` · ${fmtXp(post.reward.xp_cost)} XP` : ""}
             </Link>

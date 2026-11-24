@@ -13,6 +13,7 @@ import { fetchMachineBoard, recordTap, type MachineBoardRow } from "@/lib/data";
 import { useMyBody } from "@/components/BodySheet";
 import { defaultBoard, fmtScore, openBodySheet } from "@/lib/body";
 import { calculateMachineLevel } from "@/lib/gamification";
+import { useFeature } from "@/lib/features";
 import { claimTapRecord, resolveTapSource, useMachineLock } from "@/lib/machineLock";
 import { MACHINE_MAP, resolveMachineView } from "@/lib/machines";
 import type { StoryData } from "@/lib/story";
@@ -103,6 +104,9 @@ function MachinePageInner({ params }: { params: { id: string } }) {
     };
   }, [machine, mode, uid, lockStatus, supabase]);
 
+  // Levels come from XP, which is archived for launch (features.xp).
+  const xpOn = useFeature("xp");
+
   if (!machine || !view) return notFound();
   if (lockStatus === "checking") return <MachineSkeleton />;
   if (lockStatus === "locked") return <LockedMachine machine={machine} />;
@@ -147,7 +151,7 @@ function MachinePageInner({ params }: { params: { id: string } }) {
         <section className="hero-machine" data-testid="machine-hero">
           <div className="row" style={{ alignItems: "flex-start" }}>
             <div className="eyebrow">You&rsquo;re at</div>
-            {lvl && <span className="pill" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.14)", color: "#fff" }}>Level {lvl.level}</span>}
+            {lvl && xpOn && <span className="pill" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.14)", color: "#fff" }}>Level {lvl.level}</span>}
           </div>
           <h1 style={{ fontSize: 28, margin: "6px 0 6px" }}>{view.label}</h1>
           <p style={{ margin: 0, fontSize: 13 }}>{view.muscles.join(" · ")}</p>
@@ -222,6 +226,7 @@ function MachinePageInner({ params }: { params: { id: string } }) {
               </div>
               <div className="t-sub">all time</div>
             </div>
+            {xpOn && (
             <div className="tile span-2" style={{ minHeight: 0 }}>
               <div className="row" style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink-soft)" }}>
                 <span>Machine level {lvl.level}</span>
@@ -233,6 +238,7 @@ function MachinePageInner({ params }: { params: { id: string } }) {
                 <div className="progress-fill" style={{ width: `${Math.min(100, Math.round((100 * lvl.into) / lvl.need))}%` }} />
               </div>
             </div>
+            )}
           </section>
         )}
 

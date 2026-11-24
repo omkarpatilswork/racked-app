@@ -91,7 +91,7 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     check("PR lift is read out once for screen readers", ((await pr.locator(".sr-only").first().textContent()) || "").includes("times"));
     check("normal workout is a compact row", ((await text(page, '[data-testid="feed-workout"]'))).includes("logged"));
     const offer = page.locator('[data-testid="feed-offer"]');
-    check("offer: brand, code, shop button, claim with XP", ((await offer.textContent()) || "").includes("Jersey Drip") && ((await offer.locator('[data-testid="offer-code"]').textContent()) || "").includes("RACKED15") && (await offer.locator('[data-testid="offer-cta"]').count()) === 1 && ((await offer.locator('[data-testid="offer-xp"]').textContent()) || "").includes("1,000"));
+    check("offer: brand, code, shop button, no 'Claim with XP' (shop archived)", ((await offer.textContent()) || "").includes("Jersey Drip") && ((await offer.locator('[data-testid="offer-code"]').textContent()) || "").includes("RACKED15") && (await offer.locator('[data-testid="offer-cta"]').count()) === 1 && (await offer.locator('[data-testid="offer-xp"]').count()) === 0);
     const cta = (await offer.locator('[data-testid="offer-cta"]').getAttribute("href")) || "";
     check("offer link is tagged for the partner", cta.includes("jerseydrip.shop") && cta.includes("utm_source=racked"), cta);
     check("milestones: streak + badge", (await page.locator('[data-testid="feed-milestone"]').allTextContents()).join(" ").includes("14-day") && (await page.locator('[data-testid="feed-milestone"]').allTextContents()).join(" ").includes("Explorer"));

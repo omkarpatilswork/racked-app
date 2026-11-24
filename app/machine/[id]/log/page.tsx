@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchLastSet, fetchMachineLimits, friendlyDbError, logSet, type LastSet, type LogSetResult, type MachineLimit } from "@/lib/data";
 import { awardsToast, syncMyRewards } from "@/lib/rewards";
+import { featureOn } from "@/lib/featureFlags";
 import ShareStudio from "@/components/share/ShareStudio";
 import type { StoryData } from "@/lib/story";
 import RestTimer from "@/components/RestTimer";
@@ -250,7 +251,7 @@ function LogSetPageInner({ params }: { params: { id: string } }) {
         // toast is enough, and the set drops straight into the list below
         // so you can immediately load up the next one.
         haptic("success");
-        toast(`Set ${sessionSets.length + 1} logged · ${res.weight}${machine!.unit} × ${res.reps} · +${res.xpGain} XP`);
+        toast(`Set ${sessionSets.length + 1} logged · ${res.weight}${machine!.unit} × ${res.reps}${featureOn("xp") ? ` · +${res.xpGain} XP` : ""}`);
       }
       // Pay out any mission / streak / badge / challenge XP this set unlocked
       // (shown just after the set toast). Silent if rewards aren't set up.

@@ -46,7 +46,7 @@ node tests/e2e/strength.e2e.js # body weight, ×BW boards, Men/Women, TV (0015 o
 node tests/e2e/home.e2e.js     # Home v4 (Log a set, guide), feed, + button, comments, R&R Feed, Reports
 node tests/e2e/staff.e2e.js    # staff console incl. house lifts
 node tests/e2e/tv.e2e.js      # gym TV, /go and /join (takes ~5 min)
-node tests/e2e/rewards.e2e.js  # Rewards, Ranks, Home feed reward cards, Profile gym card, R&R Controls (incl. TV)
+node tests/e2e/rewards.e2e.js  # Rewards (Win · Partners; archived Shop/XP switched on), Ranks, Home feed reward cards, Profile, R&R Controls (incl. TV)
 node tests/e2e/share.e2e.js    # story images + share studio
 node tests/e2e/landing.e2e.js # landing page + / -> /home routing (takes ~4 min)
 ```

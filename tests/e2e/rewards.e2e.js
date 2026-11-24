@@ -1,4 +1,4 @@
-// Rewards (/rewards: Win / Partners / Shop), Ranks (/leaderboard), the Home
+// Rewards (/rewards: Win / Partners; the XP Shop is archived), Ranks (/leaderboard), the Home
 // cards, the Profile gym card, log-page bonus toasts and R&R Controls (/rnr),
 // against the mocked backend. Run: see tests/README.md
 const { chromium } = require("playwright");
@@ -30,37 +30,62 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
 
-  // 1. Win tab: the prize first
+  // 1. Win tab (Rewards v2): prizes, your place, one challenge, last week
   {
     const { ctx, page, st, errors } = await open(browser, "/rewards", (s) => ((s.rewards.syncAwards = [{ kind: "badge", id: "regular", title: "Regular", xp: 75 }]), s));
     await page.waitForSelector('[data-testid="rw-prize"]');
-    check("syncs bonus XP on open", rpc(st, "sync_my_rewards").length >= 1);
-    check("new badge toast", (await page.locator(".toast").allTextContents()).some((t) => t.includes("Badge unlocked: Regular · +75 XP")));
+    await page.waitForSelector('[data-testid="chal-row"]');
+    check("syncs rewards on open", rpc(st, "sync_my_rewards").length >= 1);
+    const toasts = (await page.locator(".toast").allTextContents()).join(" | ");
+    check("new badge toast, no XP", toasts.includes("Badge unlocked: Regular") && !toasts.includes("XP"), toasts);
     check("gym shown: Rewards at Club 360", (await text(page, '.rw-head [data-testid="gym-mark"]')).includes("Club 360") && (await text(page, ".rw-head")).includes("Baner, Pune"));
-    check("XP is a small chip, not the hero", (await text(page, '[data-testid="rw-xp-chip"]')).includes("1,540") && (await page.locator('[data-testid="rw-wallet"]').count()) === 0);
-    check("three tabs: Win, Partners, Shop", (await page.locator(".rw-tabs [role=tab]").allTextContents()).map((t) => t.trim()).join(",") === "Win,Partners,Shop");
+    check("no XP anywhere on Rewards", (await page.locator('[data-testid="rw-xp-chip"]').count()) === 0 && !(await text(page, ".rw-page")).includes("XP"), await text(page, ".rw-page"));
+    check("two tabs: Win, Partners (Shop archived)", (await page.locator(".rw-tabs [role=tab]").allTextContents()).map((t) => t.trim()).join(",") === "Win,Partners");
     check("Rewards nav tab active", (await page.locator('.bottom-nav a[aria-current="page"]').getAttribute("href")) === "/rewards");
     const prize = await text(page, '[data-testid="rw-prize"]');
-    check("prize first: what you win + countdown", prize.includes("This week's prize") && prize.includes("#1 wins") && prize.includes("Gift hamper from Jersey Drip × The Clean Crate") && /\d+d \d+h/.test(await text(page, '[data-testid="rw-countdown"]')));
-    check("who's winning it right now", (await text(page, '[data-testid="rw-leader"]')).includes("Winning it right now") && (await text(page, '[data-testid="rw-leader"]')).includes("Asha"));
-    check("your place in plain words", (await text(page, '[data-testid="rw-you"]')) === "You're #3. About 5 more sets to pass Rahul. You're in the prizes.", await text(page, '[data-testid="rw-you"]'));
-    check("top 5 with me marked", (await page.locator(".rw-mini-board li").count()) === 5 && (await text(page, ".rw-mini-board li.me")).includes("Omi (you)"));
-    check("other places + staff note", prize.includes("#2–5") && prize.includes("Partner coupons") && prize.includes("Winners collect at the front desk every Monday"));
-    check("first names only", !prize.includes("Rao") && !prize.includes("@"));
-    await page.locator('[data-testid="rw-board-btn"]').click();
-    await page.waitForSelector('[data-testid="board-sheet"] .rw-board li');
-    check("full board sheet", (await page.locator('[data-testid="board-sheet"] .rw-board li').count()) === 6);
+    check("prizes: title + countdown", /This week.s prizes/.test(prize) && (await text(page, '[data-testid="rw-prize-headline"]')) === "Top of the week wins" && /\d+d \d+h left/.test(await text(page, '[data-testid="rw-countdown"]')), prize);
+    check("#1 big: name + brand", (await text(page, '[data-testid="prize-1"] .rw2-rank')) === "#1" && (await text(page, '[data-testid="prize-1"]')).includes("Training jersey") && (await page.locator('[data-testid="prize-1"] [data-testid="brand-link-jersey-drip"]').count()) === 1);
+    check("#1 without a photo: branded tile, no photo note", (await page.locator('[data-testid="prize-1"] .rw2-tile.empty').count()) === 1 && (await page.locator('[data-testid="prize-1"] .rw2-note').count()) === 0);
+    check("#2 its own row (partner product photo)", (await text(page, '[data-testid="prize-2"]')).includes("Discovery Box") && (await page.locator('[data-testid="prize-2"] img.rw2-img').count()) === 1 && (await page.locator('[data-testid="prize-2"] [data-testid="brand-link-clean-crate"]').count()) === 1);
+    const cp = await text(page, '[data-testid="prize-3"]');
+    check("#3–10 one coupon row, both brands", cp.includes("#3–10") && cp.includes("Partner coupons") && cp.includes("Jersey Drip × The Clean Crate") && (await page.locator('[data-testid="prize-3"].rw2-coupon').count()) === 1, cp);
+    check("staff note under the prizes", prize.includes("Winners collect at the front desk every Monday"));
+    check("no second prize board on Rewards", (await page.locator('.rw-mini-board, [data-testid="rw-board-btn"]').count()) === 0);
+    check("your place in plain words", (await text(page, '[data-testid="rw-you"] b')) === "You're #3 this week" && (await text(page, '[data-testid="rw-you"] small')) === "41 points to pass Rahul", await text(page, '[data-testid="rw-you"]'));
+    check("who's #1 + link to the full race in Ranks", (await text(page, '[data-testid="rw-leader"]')).includes("Asha") && (await page.locator('[data-testid="rw-race-link"]').getAttribute("href")) === "/leaderboard");
+    check("ready prize code at the very top", (await text(page, '[data-testid="rw-mine"]')).includes("RK-7F3A2C") &&
+      (await page.evaluate(() => document.querySelector('[data-testid="rw-mine"]').getBoundingClientRect().top < document.querySelector('[data-testid="rw-prize"]').getBoundingClientRect().top)));
+    const ch = await text(page, '[data-testid="rw-challenges"]');
+    check("one special challenge, weekly", (await page.locator('[data-testid="rw-challenges"]').count()) === 1 && ch.includes("Every Friday") && ch.includes("Clean Crate Leg Press Challenge") && ch.includes("08 Leg Press") && ch.includes("Heaviest set") && ch.includes("Today ·"), ch);
+    check("challenge: what winners get", (await text(page, '[data-testid="chal-prize"]')).includes("Winners get") && (await text(page, '[data-testid="chal-prize"]')).includes("A goodie bag from The Clean Crate") && (await page.locator('[data-testid="chal-prize"] [data-testid="brand-link-clean-crate"]').count()) === 1);
+    check("challenge: live", (await text(page, '[data-testid="chal-status"]')).startsWith("Live now"));
+    const rows = await page.locator('[data-testid="chal-row"]').allTextContents();
+    check("challenge: its own board on the card, you marked", rows.length === 3 && rows[0].includes("Rahul") && rows[0].includes("140 kg") && rows[1].includes("You") && (await page.locator('[data-testid="chal-row"].me').count()) === 1, rows.join(" | "));
+    check("challenge: no Men/Women switch without 0015", (await page.locator('[data-testid="chal-div-men"]').count()) === 0);
+    check("challenge: go to the machine + share", (await page.locator('[data-testid="chal-go"]').getAttribute("href")) === "/machine/leg-press-08" && (await page.locator('[data-testid="chal-share"]').count()) === 1);
+    check("no streak / missions / badges link", (await page.locator('[data-testid="rw-progress-link"], [data-testid="rw-missions"], [data-testid="rw-streak"], [data-testid="rw-badges"]').count()) === 0);
+    check("last winners in one line", (await text(page, '[data-testid="rw-last-winners"]')) === "Week of 9 Nov: Asha won", await text(page, '[data-testid="rw-last-winners"]'));
+    await page.locator('[data-testid="rw-last-winners"]').click();
+    await page.waitForSelector('[data-testid="winners-sheet"]');
+    check("last winners: tap for the list", (await text(page, '[data-testid="winners-sheet"]')).includes("Rahul"));
     await page.keyboard.press("Escape");
-    check("ready prize code right under the prize", (await text(page, '[data-testid="rw-mine"]')).includes("RK-7F3A2C") &&
-      (await page.evaluate(() => document.querySelector('[data-testid="rw-mine"]').getBoundingClientRect().top > document.querySelector('[data-testid="rw-prize"]').getBoundingClientRect().top)));
-    const ch = await text(page, '[data-testid="challenge-3"]');
-    check("Friday challenge: weekly badge + live", ch.includes("Every Friday") && ch.includes("Clean Crate Leg Press Challenge") && (await text(page, '[data-testid="challenge-3"] [data-testid="challenge-status"]')).startsWith("Live now"));
-    check("challenge: goal, prize, leader, me", ch.includes("Heaviest single set on Leg Press") && ch.includes("A goodie bag from The Clean Crate") && ch.includes("Rahul · 140 kg × 10") && ch.includes("#2 · 120 kg × 12"));
-    check("challenge: go to the machine", (await page.locator('[data-testid="challenge-3"] a[href="/machine/leg-press-08"]').count()) === 1);
-    check("streaks/missions/badges moved to Ranks", (await page.locator('[data-testid="rw-missions"], [data-testid="rw-streak"], [data-testid="rw-badges"]').count()) === 0 &&
-      (await page.locator('[data-testid="rw-progress-link"]').getAttribute("href")) === "/leaderboard#progress");
-    check("last winners", (await text(page, '[data-testid="rw-winners"]')).includes("Week of 9 Nov"));
+    await sleep(300);
+    check("first names only", !(await text(page, ".rw-page")).includes("Rao") && !(await text(page, ".rw-page")).includes("@"));
     check("no emails on the page", !((await page.locator("body").textContent()) || "").includes("@example.com"));
+
+    // a brand name opens its card on Partners
+    await page.locator('[data-testid="prize-1"] [data-testid="brand-link-jersey-drip"]').click();
+    await page.waitForSelector('[data-testid="rw-partners"]');
+    await sleep(500);
+    check("brand link -> Partners tab on that brand", page.url().endsWith("/rewards?tab=partners&brand=jersey-drip"));
+    check("brand card highlighted + on screen", await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="partner-jersey-drip"]');
+      const r = el.getBoundingClientRect();
+      return el.classList.contains("rw-flash") && r.top < innerHeight && r.bottom > 0;
+    }));
+    await page.locator('[data-testid="rw-tab-win"]').click();
+    await page.waitForSelector('[data-testid="rw-prize"]');
+    check("back to Win drops the brand", page.url().endsWith("/rewards"));
 
     // Partners tab
     await page.locator('[data-testid="rw-tab-partners"]').click();
@@ -74,8 +99,29 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await sleep(300);
     check("partner click counted", (rpc(st, "track_sponsor_click")[0] || "").includes('"p_sponsor_id":"clean-crate"'));
     check("brand partnership CTA", (await page.locator('[data-testid="rw-brand-cta"]').getAttribute("href")).includes("instagram.com/bijlee.run"));
+    check("no page errors (rewards)", errors.length === 0, errors.join(" | "));
+    await ctx.close();
+  }
 
-    // Shop tab
+  // 1b. a prize photo from R&R: shown with the small "for reference" note;
+  // an old ?tab=shop link lands on Win while the shop is archived
+  {
+    const { ctx, page, errors } = await open(browser, "/rewards?tab=shop", (s) => ((s.rewards.overview.season.prizes[0].image_url = "data:image/png;base64," + PNG.toString("base64")), s));
+    await page.waitForSelector('[data-testid="rw-prize"]');
+    check("prize photo shown big", (await page.locator('[data-testid="prize-1"] img.rw2-img').getAttribute("src")).startsWith("data:image/png"));
+    check("small note: photo for reference", (await text(page, '[data-testid="prize-1"] .rw2-note')) === "Photo for reference. The prize you get may look different.");
+    check("?tab=shop while archived: Win, no Shop tab", (await page.locator('[data-testid="rw-tab-shop"]').count()) === 0 && (await page.locator('[data-testid="rw-tab-win"]').getAttribute("aria-selected")) === "true");
+    check("no page errors (prize photo)", errors.length === 0, errors.join(" | "));
+    await ctx.close();
+  }
+
+  // 2. archived XP Shop + XP, switched back on (lib/features.ts) still work
+  const SHOP = { features: ["rewardsShop", "xp"] };
+  {
+    const { ctx, page, errors } = await open(browser, "/rewards", (s) => ((s.rewards.syncAwards = [{ kind: "badge", id: "regular", title: "Regular", xp: 75 }]), s), SHOP);
+    await page.waitForSelector('[data-testid="rw-prize"]');
+    check("archived on: badge toast with XP", (await page.locator(".toast").allTextContents()).some((t) => t.includes("Badge unlocked: Regular · +75 XP")));
+    check("archived on: XP chip + three tabs", (await text(page, '[data-testid="rw-xp-chip"]')).includes("1,540") && (await page.locator(".rw-tabs [role=tab]").allTextContents()).map((t) => t.trim()).join(",") === "Win,Partners,Shop");
     await page.locator('[data-testid="rw-tab-shop"]').click();
     await page.waitForSelector('[data-testid="rw-wallet"]');
     check("shop: wallet with on-hold XP", (await text(page, '[data-testid="rw-balance"]')).includes("1,540") && (await text(page, '[data-testid="rw-on-hold"]')).includes("60"));
@@ -93,21 +139,19 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await page.getByRole("button", { name: /How XP works/ }).first().click();
     check("How XP works sheet", (await text(page, '[data-testid="how-xp-sheet"]')).includes("Friday"));
     await page.keyboard.press("Escape");
-    check("no page errors (rewards)", errors.length === 0, errors.join(" | "));
+    check("no page errors (shop)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }
-
-  // 2. a tab can be switched off in R&R
   {
-    const { ctx, page } = await open(browser, "/rewards?tab=shop", (s) => ((s.rewards.overview.settings.show_shop = false), s));
+    const { ctx, page } = await open(browser, "/rewards?tab=shop", (s) => ((s.rewards.overview.settings.show_shop = false), s), SHOP);
     await page.waitForSelector('[data-testid="rw-prize"]');
-    check("shop tab hidden when switched off (falls back to Win)", (await page.locator('[data-testid="rw-tab-shop"]').count()) === 0);
+    check("shop tab hidden when switched off in R&R (falls back to Win)", (await page.locator('[data-testid="rw-tab-shop"]').count()) === 0);
     await ctx.close();
   }
 
   // 3. redeem refused by the server
   {
-    const { ctx, page, st } = await open(browser, "/rewards?tab=shop", (s) => ((s.rewards.my.wallet.balance = 5000), s));
+    const { ctx, page, st } = await open(browser, "/rewards?tab=shop", (s) => ((s.rewards.my.wallet.balance = 5000), s), SHOP);
     await page.waitForSelector('[data-testid="redeem-12"]');
     st.rewards.my.wallet.balance = 10;
     await page.locator('[data-testid="redeem-12"]').click();
@@ -121,16 +165,19 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
   {
     const { ctx, page, st, errors } = await open(browser, "/rewards", (s) => ((s.signedIn = false), s));
     await page.waitForSelector('[data-testid="rw-prize"]');
-    check("signed out: sign-in strip + prize", (await page.locator('[data-testid="rw-signin"]').count()) === 1 && (await text(page, '[data-testid="rw-prize"]')).includes("Gift hamper"));
+    check("signed out: sign-in strip + prizes", (await page.locator('[data-testid="rw-signin"]').count()) === 1 && (await text(page, '[data-testid="rw-prize"]')).includes("Training jersey"));
     check("signed out: no member calls", rpc(st, "my_rewards").length === 0 && rpc(st, "sync_my_rewards").length === 0);
-    check("signed out: no 'you' line", (await page.locator('[data-testid="rw-you"]').count()) === 0);
-    await page.locator('[data-testid="rw-tab-shop"]').click();
-    await page.waitForSelector('[data-testid="redeem-11"]');
-    check("signed out: redeem asks to sign in", (await text(page, '[data-testid="redeem-11"]')).includes("Sign in"));
-    await page.locator('[data-testid="redeem-11"]').click();
-    check("signed out: sign-in sheet opens", (await page.locator('[data-testid="signin-sheet"]').count()) === 1);
+    check("signed out: who's winning, no 'you' place", (await text(page, '[data-testid="rw-you"]')) === "Who's winning right now" && (await page.locator(".rw2-race-rank").count()) === 0);
+    await page.waitForSelector('[data-testid="chal-row"]');
+    check("signed out: challenge board, nobody marked", (await page.locator('[data-testid="chal-row"]').count()) === 3 && (await page.locator('[data-testid="chal-row"].me').count()) === 0 && (await page.locator('[data-testid="chal-share"]').count()) === 0);
     check("no page errors (signed out)", errors.length === 0, errors.join(" | "));
     await ctx.close();
+    const so = await open(browser, "/rewards?tab=shop", (s) => ((s.signedIn = false), s), SHOP);
+    await so.page.waitForSelector('[data-testid="redeem-11"]');
+    check("signed out (shop on): redeem asks to sign in", (await text(so.page, '[data-testid="redeem-11"]')).includes("Sign in"));
+    await so.page.locator('[data-testid="redeem-11"]').click();
+    check("signed out (shop on): sign-in sheet opens", (await so.page.locator('[data-testid="signin-sheet"]').count()) === 1);
+    await so.ctx.close();
   }
 
   // 5. database updates not run yet
@@ -165,7 +212,7 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await page.waitForSelector('[data-testid="feed-prize"]');
     check("home: Training at Club 360", (await text(page, 'header [data-testid="gym-mark"]')).includes("Club 360"));
     const t = await text(page, '[data-testid="feed-prize"]');
-    check("home feed: this week's prize + who's winning", /This week.s prize/.test(t) && t.includes("Gift hamper") && t.includes("Asha leads") && t.includes("You're #3"), t);
+    check("home feed: this week's prize + who's winning", /This week.s prize/.test(t) && t.includes("Training jersey") && t.includes("Asha leads") && t.includes("You're #3"), t);
     check("home feed: prize card opens Rewards", (await page.locator('[data-testid="feed-prize"]').getAttribute("href")) === "/rewards");
     const ch = await text(page, '[data-testid="feed-challenge"]');
     check("home feed: live Friday challenge", ch.includes("Live now") && ch.includes("Rahul leads"), ch);
@@ -213,11 +260,16 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     const g = await text(page, '[data-testid="your-gym"]');
     check("profile: your gym card", g.includes("Your gym") && g.includes("Club 360") && g.includes("Baner, Pune") && g.includes("Member since"));
     check("profile: gym Instagram + leaderboard link", (await page.locator('[data-testid="your-gym"] a[href="https://instagram.com/club360"]').count()) === 1 && (await page.locator('[data-testid="gym-leaderboard-link"]').getAttribute("href")) === "/leaderboard");
+    check("profile: no level or XP while XP is archived", (await page.locator('[data-testid="profile-level"]').count()) === 0 && !(await text(page, ".page")).includes("XP") && !(await text(page, '[data-testid="profile-header"]')).includes("Level"));
     check("no page errors (profile)", errors.length === 0, errors.join(" | "));
     await ctx.close();
+    const x = await open(browser, "/profile", (s) => s, { features: ["xp"] });
+    await x.page.waitForSelector('[data-testid="profile-level"]');
+    check("profile (XP switched on): level is back", (await text(x.page, '[data-testid="profile-level"]')).includes("XP") && (await text(x.page, '[data-testid="profile-header"]')).includes("Level"));
+    await x.ctx.close();
   }
 
-  // 9. logging a set pays mission XP with a toast
+  // 9. logging a set: mission toast, no XP (XP is archived; back when switched on)
   {
     const { ctx, page, st } = await open(browser, "/machine/lat-pulldown-01/log?tap=LP4K9X");
     await page.waitForSelector('[data-testid="log-submit"]');
@@ -225,8 +277,16 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await page.locator('[data-testid="log-submit"]').click();
     await sleep(2000);
     const toasts = (await page.locator(".toast").allTextContents()).join(" | ");
-    check("log: mission toast", toasts.includes("Mission complete: Log 15 sets · +60 XP"), toasts);
+    check("log: set + mission toasts, no XP", toasts.includes("Mission complete: Log 15 sets") && toasts.includes("logged") && !toasts.includes("XP"), toasts);
     await ctx.close();
+    const x = await open(browser, "/machine/lat-pulldown-01/log?tap=LP4K9X", (s) => s, { features: ["xp"] });
+    await x.page.waitForSelector('[data-testid="log-submit"]');
+    x.st.rewards.syncAwards = [{ kind: "mission", id: "sets15", title: "Log 15 sets", xp: 60 }];
+    await x.page.locator('[data-testid="log-submit"]').click();
+    await sleep(2000);
+    const t2 = (await x.page.locator(".toast").allTextContents()).join(" | ");
+    check("log (XP switched on): +XP is back", t2.includes("Mission complete: Log 15 sets · +60 XP") && / · \+\d+ XP/.test(t2), t2);
+    await x.ctx.close();
   }
 
   // 10. R&R Controls
@@ -246,6 +306,7 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     check("rnr: prizes come first", await page.evaluate(() => document.querySelector('[data-testid="rw-admin-prizes"]').getBoundingClientRect().top < document.querySelector('[data-testid="rw-admin-season"]').getBoundingClientRect().top));
     await page.locator('[data-testid="edit-prizes"]').click();
     await page.waitForSelector('[data-testid="prize-editor"]');
+    check("rnr: prizes already #1 · #2 · #3–10", (await text(page, '[data-testid="prize-ladder"]')).startsWith("✓") && (await page.locator('[data-testid="prize-ladder"]').isDisabled()));
     await page.locator('[data-testid="prize-photo-0-file"]').setInputFiles({ name: "hamper.png", mimeType: "image/png", buffer: PNG });
     await page.waitForFunction(() => !!document.querySelector('[data-testid="prize-photo-0"] .rr-photo-preview.has img'), null, { timeout: 8000 }).catch(() => {});
     check("rnr: prize photo uploads to rr-media", st.calls.some((c) => c.startsWith("storage:upload prizes/")));
@@ -360,18 +421,44 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await mem.page.waitForSelector("text=Not a staff account");
     check("rnr: members are kept out", (await mem.page.locator('[data-testid="rr-console"]').count()) === 0);
     await mem.ctx.close();
+
+    // one tap turns the old "#1 / #2–5" prizes into #1 · #2 · #3–10 coupons
+    const lad = await open(browser, "/rnr", (s) => {
+      s.profile.is_staff = true;
+      const old = [
+        { id: 1, rank_from: 1, rank_to: 1, title: "Gift hamper", description: null, sponsor_ids: ["jersey-drip"], image_url: "https://placeholder.supabase.co/storage/v1/object/public/rr-media/prizes/h.png" },
+        { id: 2, rank_from: 2, rank_to: 5, title: "", description: null, sponsor_ids: ["clean-crate"] },
+      ];
+      s.rewards.admin.templates = old;
+      s.rewards.admin.season_prizes = old;
+      return s;
+    });
+    await lad.page.waitForSelector('[data-testid="edit-prizes"]');
+    await lad.page.locator('[data-testid="edit-prizes"]').click();
+    await lad.page.waitForSelector('[data-testid="prize-ladder"]');
+    await lad.page.locator('[data-testid="prize-ladder"]').click();
+    check("rnr ladder: three prizes, places 1 · 2 · 3–10", (await lad.page.locator(".rw-prize-edit").count()) === 3 &&
+      (await lad.page.locator("#pf-1").inputValue()) === "2" && (await lad.page.locator("#pt-1").inputValue()) === "2" && (await lad.page.locator("#pf-2").inputValue()) === "3" && (await lad.page.locator("#pt-2").inputValue()) === "10");
+    check("rnr ladder: keeps what was typed, names the coupons", (await lad.page.locator("#pn-0").inputValue()) === "Gift hamper" && (await lad.page.locator("#pn-2").inputValue()) === "Partner coupons");
+    await lad.page.locator("#pn-1").fill("Discovery Box");
+    await lad.page.locator('[data-testid="save-prizes"]').click();
+    await sleep(600);
+    const ls = rpc(lad.st, "admin_save_prizes")[0] || "";
+    check("rnr ladder: saved with the #1 photo kept", ls.includes('"rank_to":10') && ls.includes("Discovery Box") && ls.includes("rr-media/prizes/h.png"), ls.slice(0, 400));
+    check("no page errors (rnr ladder)", lad.errors.length === 0, lad.errors.join(" | "));
+    await lad.ctx.close();
   }
 
   // 11. 360px + axe
   const axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
   const pages = [
-    ["/rewards", "dark", {}], ["/rewards", "light", {}], ["/rewards?tab=partners", "dark", {}], ["/rewards?tab=shop", "light", {}], ["/rewards", "dark", { out: true }],
+    ["/rewards", "dark", {}], ["/rewards", "light", {}], ["/rewards?tab=partners", "dark", {}], ["/rewards?tab=shop", "light", { features: ["rewardsShop", "xp"] }], ["/rewards", "dark", { out: true }],
     ["/leaderboard", "dark", {}], ["/leaderboard", "light", {}], ["/leaderboard?tab=machine", "dark", {}], ["/profile", "light", {}],
     ["/rnr", "dark", { staff: true }], ["/rnr?s=challenges", "light", { staff: true }], ["/rnr?s=partners", "dark", { staff: true }], ["/rnr?s=gym", "light", { staff: true }], ["/rnr?s=tv", "dark", { staff: true }], ["/rnr?s=tv", "light", { staff: true }], ["/rnr?s=handout", "dark", { staff: true }],
   ];
   for (const [url, theme, o] of pages) {
     const label = `${url} (${theme}${o.out ? ", signed out" : ""})`;
-    const { ctx, page, errors } = await open(browser, url, (s) => ((s.signedIn = !o.out), (s.profile.is_staff = !!o.staff), s), { width: 360, theme });
+    const { ctx, page, errors } = await open(browser, url, (s) => ((s.signedIn = !o.out), (s.profile.is_staff = !!o.staff), s), { width: 360, theme, features: o.features });
     await sleep(1300);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     check(`@360 no sideways scroll ${label}`, overflow <= 0, String(overflow));

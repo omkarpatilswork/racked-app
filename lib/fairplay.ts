@@ -33,7 +33,7 @@ export function noticeText(n: MemberNotice): { title: string; body: string } {
     const when = n.set_at ? ` (${new Date(n.set_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })})` : "";
     return {
       title: "A set was removed",
-      body: `Gym staff removed your ${fmtNum(n.weight)} kg × ${n.reps} set on ${machine}${when}. Your PB and XP have been updated.${reason}`,
+      body: `Gym staff removed your ${fmtNum(n.weight)} kg × ${n.reps} set on ${machine}${when}. Your PB and the boards have been updated.${reason}`,
     };
   }
   if (n.kind === "member_machine_reset") {

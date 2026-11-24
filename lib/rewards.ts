@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import type { TvPartner } from "@/lib/tvSlides";
+import { featureOn } from "@/lib/featureFlags";
 
 export type Client = SupabaseClient<Database>;
 
@@ -418,12 +419,14 @@ export function fmtXp(n: number | null | undefined) {
 export function awardsToast(awards: NewAward[]): string | null {
   if (!awards.length) return null;
   const total = awards.reduce((s, a) => s + (a.xp || 0), 0);
+  // XP is archived for launch (features.xp): same toast, no "+N XP".
+  const xp = featureOn("xp");
   if (awards.length === 1) {
     const a = awards[0];
     const what = a.kind === "mission" ? "Mission complete" : a.kind === "badge" ? "Badge unlocked" : a.kind === "streak" ? "Streak bonus" : "Challenge joined";
-    return `${what}: ${a.title} · +${a.xp} XP`;
+    return `${what}: ${a.title}${xp && a.xp ? ` · +${a.xp} XP` : ""}`;
   }
-  return `${awards.length} rewards unlocked · +${total} XP`;
+  return `${awards.length} rewards unlocked${xp && total ? ` · +${total} XP` : ""}`;
 }
 
 /** The race and challenges are scored by ×BW (database update 0015). */

@@ -41,9 +41,11 @@ function rewardsFixtures() {
     ["century", "Century", "Log 100 sets.", 100, "medal"], ["ten_tonne", "10-tonne club", "Move 10,000 kg in total.", 100, "star"],
     ["podium", "Podium", "Finish in the top 3 of a season.", 150, "target"],
   ].map(([id, title, description, xp, icon], i) => ({ id, title, description, xp, icon, sort: i + 1 }));
+  // Rewards v2 layout: #1 and #2 get their own prize, #3–10 get coupons
   const prizes = [
-    { id: 1, rank_from: 1, rank_to: 1, title: "Gift hamper from Jersey Drip × The Clean Crate", description: "For the season's top performer.", sponsor_ids: ["jersey-drip", "clean-crate"] },
-    { id: 2, rank_from: 2, rank_to: 5, title: "Partner coupons", description: "Discount coupons from Jersey Drip and The Clean Crate.", sponsor_ids: ["jersey-drip", "clean-crate"] },
+    { id: 1, rank_from: 1, rank_to: 1, title: "Training jersey", description: "A Jersey Drip training jersey.", sponsor_ids: ["jersey-drip"], image_url: null },
+    { id: 2, rank_from: 2, rank_to: 2, title: "Discovery Box", description: "4 protein oats breakfasts from The Clean Crate.", sponsor_ids: ["clean-crate"], image_url: null },
+    { id: 3, rank_from: 3, rank_to: 10, title: "Partner coupons", description: "Discount coupons from Jersey Drip and The Clean Crate.", sponsor_ids: ["jersey-drip", "clean-crate"], image_url: null },
   ];
   const season = { id: 7, title: "Week of 16 Nov", period: "week", starts_at: hrs(-30), ends_at: hrs(80), prizes, players: 6, leader: { name: "Asha", score: 520 } };
   const settings = { gym_name: "Club 360", gym_location: "Baner, Pune", gym_logo_url: null, gym_logo_dark_url: null, gym_instagram_url: "https://instagram.com/club360", gym_website_url: null, prize_headline: null, rewards_note: "Winners collect at the front desk every Monday", show_partners: true, show_shop: true,

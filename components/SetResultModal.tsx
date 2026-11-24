@@ -8,6 +8,7 @@ import { checkChallengeCompletion } from "@/lib/gamification";
 import type { LogSetResult } from "@/lib/data";
 import type { StoryData } from "@/lib/story";
 import type { Machine } from "@/lib/machines";
+import { useFeature } from "@/lib/features";
 
 export default function SetResultModal({
   machine,
@@ -31,6 +32,7 @@ export default function SetResultModal({
   continueLabel?: string;
 }) {
   const primaryRef = useRef<HTMLButtonElement>(null);
+  const xpOn = useFeature("xp");
   useEffect(() => {
     primaryRef.current?.focus({ preventScroll: true });
     function onKey(e: KeyboardEvent) {
@@ -87,9 +89,11 @@ export default function SetResultModal({
                 First PB on {label}
               </span>
             )}
-            <span className="pill" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.16)", color: "#fff" }}>
-              +{result.xpGain} XP
-            </span>
+            {xpOn && (
+              <span className="pill" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.16)", color: "#fff" }}>
+                +{result.xpGain} XP
+              </span>
+            )}
           </div>
           {cleared && (
             <div className="pill" style={{ marginTop: 12, background: "rgba(63,208,127,.16)", borderColor: "rgba(63,208,127,.4)", color: "#9ff0c1" }}>
@@ -144,9 +148,11 @@ export default function SetResultModal({
             Your PB: {result.pbWeight}
             {machine.unit} × {result.pbReps}
           </p>
-          <div className="pill-yellow" style={{ margin: "10px 0 4px" }}>
-            +{result.xpGain} XP
-          </div>
+          {xpOn && (
+            <div className="pill-yellow" style={{ margin: "10px 0 4px" }}>
+              +{result.xpGain} XP
+            </div>
+          )}
           <div className="btn-row" style={{ marginTop: 14 }}>
             <button className="btn btn-ghost" onClick={() => setSharing(true)}>
               <Icon name="bolt" /> Share

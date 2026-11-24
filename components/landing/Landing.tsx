@@ -31,7 +31,7 @@ const STEPS = [
   {
     no: "03",
     title: "Beat your best",
-    body: "Lift more than last time and the screen goes off. PBs, XP, levels and streaks, kept for every machine.",
+    body: "Lift more than last time and the screen goes off. Your PBs and your streak, kept for every machine.",
   },
   {
     no: "04",
@@ -408,16 +408,15 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
           xp,
           { v: 0 },
           {
-            v: 60,
+            v: 2.5,
             duration: 0.8,
             ease: "power2.out",
             onUpdate: () => {
-              if (xpEl) xpEl.textContent = String(Math.round(xp.v));
+              if (xpEl) xpEl.textContent = xp.v.toFixed(1);
             },
           },
           0.45
-        )
-        .fromTo(q(".ps-level-fill"), { scaleX: 0.4 }, { scaleX: 0.78, duration: 0.9, ease: "expo.out" }, 0.5);
+        );
     } else if (step === 3) {
       const rows = q(".ps-row");
       // distance between two rows, measured (it scales with the phone)

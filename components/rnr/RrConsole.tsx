@@ -528,6 +528,26 @@ function PrizeEditor({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const set = (i: number, patch: Partial<PrizeRow>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const isLadder = rows.length === 3 && rows.every((r, i) => r.rank_from === [1, 2, 3][i] && r.rank_to === [1, 2, 10][i]);
+
+  // The launch layout in one tap: #1 and #2 get their own prize, #3–10 get
+  // partner coupons. Keeps the names, photos and brands already typed (in order).
+  function applyLadder() {
+    const places: [number, number][] = [
+      [1, 1],
+      [2, 2],
+      [3, 10],
+    ];
+    setRows((cur) =>
+      places.map(([from, to], i) => {
+        const old = cur[i];
+        return old
+          ? { ...old, rank_from: from, rank_to: to, title: old.title || (i === 2 ? "Partner coupons" : "") }
+          : { rank_from: from, rank_to: to, title: i === 2 ? "Partner coupons" : "", description: null, sponsor_ids: [] };
+      })
+    );
+    setErr(null);
+  }
 
   async function save() {
     for (const r of rows) {
@@ -548,6 +568,9 @@ function PrizeEditor({
   return (
     <Sheet open onClose={busy ? () => undefined : onClose} title="Season prizes" testId="prize-editor">
       <div className="stack">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={applyLadder} disabled={isLadder} aria-pressed={isLadder} data-testid="prize-ladder">
+          {isLadder ? "✓ Set up as #1 · #2 · #3–10 coupons" : "Set up as #1 · #2 · #3–10 coupons"}
+        </button>
         {rows.map((r, i) => (
           <div key={i} className="card rw-prize-edit" style={{ padding: 14 }}>
             <div className="rw-form-row">
@@ -572,7 +595,7 @@ function PrizeEditor({
               <PhotoField
                 supabase={supabase}
                 label="Photo of the prize"
-                hint="Shown big on the Rewards page and Home. A clear photo of the hamper works best."
+                hint="Shown on the Rewards page (#1 big, #2 smaller). A clear product photo works best; members see “Photo for reference” under it."
                 value={r.image_url || ""}
                 onChange={(url) => set(i, { image_url: url || null })}
                 folder="prizes"

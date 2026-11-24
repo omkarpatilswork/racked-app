@@ -107,7 +107,7 @@ async function offscreen(page) {
       }
       if (k === "slide-howto") check("how it works: Tap or scan. Log. Win.", (await page.locator(".tv-howto-steps li").count()) === 3 && t.includes("Tap or scan the sticker") && t.includes("Win rewards") && /Tap or scan\. Log\. Win\./.test(t), t);
       if (k === "slide-prizes") {
-        check("prize: #1 wins, the prize, countdown", t.includes("#1 wins") && t.includes("Gift hamper") && /ends in \d+d/i.test(t), t.slice(0, 160));
+        check("prize: #1 wins, the prize, countdown", t.includes("#1 wins") && t.includes("Training jersey") && /ends in \d+d/i.test(t), t.slice(0, 160));
         check("prize: who's winning (first name)", ((await page.locator('[data-testid="tv-prize-leader"]').textContent()) || "").includes("Asha is winning") && !t.includes("Rao"));
       }
       if (k === "slide-challenge") {

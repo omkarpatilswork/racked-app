@@ -162,13 +162,7 @@ export function PbScreen({ on }: { on: boolean }) {
       </div>
       <div className="ps-pb-prev">was 57.5 kg × 8</div>
       <div className="ps-xp">
-        +<span className="ps-xp-val">60</span> XP
-      </div>
-      <div className="ps-level">
-        <span>Level 4</span>
-        <i>
-          <b className="ps-level-fill" />
-        </i>
+        +<span className="ps-xp-val">2.5</span> kg
       </div>
       <div className="ps-cta ps-cta-ink">Keep going</div>
     </div>

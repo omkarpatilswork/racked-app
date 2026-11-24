@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAttendance, fetchMyStats, overallFromStats, toggleAttendanceDay } from "@/lib/data";
 import { calculateMachineLevel } from "@/lib/gamification";
+import { useFeature } from "@/lib/features";
 import { computeStreaks, todayStr, type AttendanceMap } from "@/lib/streaks";
 import { MACHINE_MAP, MACHINES } from "@/lib/machines";
 import { toast } from "@/lib/toast";
@@ -52,6 +53,8 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
   const [attendance, setAttendance] = useState<AttendanceMap>({});
   const [sharing, setSharing] = useState<StoryData | null>(null);
   const [photoDays, setPhotoDays] = useState<Record<string, boolean>>({});
+  // Levels come from XP, which is archived for launch (features.xp).
+  const xpOn = useFeature("xp");
 
   useEffect(() => {
     fetchMyStats(supabase, uid)
@@ -92,7 +95,7 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
   function openProgressShare() {
     setSharing({
       kind: "progress",
-      level: lvl.level,
+      level: xpOn ? lvl.level : null,
       sets: overall.totalSets,
       volume: overall.totalVolume,
       pbs: overall.pbCount,
@@ -116,7 +119,7 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
           </div>
           <h1 style={{ fontSize: 24, margin: 0 }}>{name}</h1>
           <div className="chip-row" style={{ justifyContent: "center", marginTop: 10, alignItems: "center" }}>
-            <span className="pill-yellow">Level {lvl.level}</span>
+            {xpOn && <span className="pill-yellow">Level {lvl.level}</span>}
             {profile?.instagram_handle ? <IgHandle handle={profile.instagram_handle} /> : null}
           </div>
           <div className="btn-row" style={{ marginTop: 16, maxWidth: 360, marginInline: "auto" }}>
@@ -130,7 +133,8 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
         </section>
 
         <section className="bento" aria-label="Your totals">
-          <div className="tile span-2" style={{ flexDirection: "row", alignItems: "center", gap: 16, minHeight: 0 }}>
+          {xpOn && (
+          <div className="tile span-2" style={{ flexDirection: "row", alignItems: "center", gap: 16, minHeight: 0 }} data-testid="profile-level">
             <div className="ring" style={{ ["--p" as string]: pct, width: 64, height: 64, fontSize: 18 }} aria-hidden="true">
               {lvl.level}
             </div>
@@ -144,6 +148,7 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
               </div>
             </div>
           </div>
+          )}
           <div className="tile">
             <div className="t-label">Sets</div>
             <div className="t-value" style={{ fontSize: 26 }}>{stats ? overall.totalSets : "–"}</div>
@@ -261,7 +266,7 @@ function SignedOutProfile() {
           <Icon name="user" />
         </div>
         <h1 style={{ fontSize: 24, margin: "8px 0 0" }}>Your training, in one place</h1>
-        <p className="muted" style={{ margin: 0 }}>Sign in to see your level, streak, personal bests and progress photos.</p>
+        <p className="muted" style={{ margin: 0 }}>Sign in to see your streak, personal bests and progress photos.</p>
         <button type="button" className="btn btn-yellow" style={{ maxWidth: 300, margin: "8px auto 0" }} onClick={() => setOpen(true)} data-testid="profile-signin">
           <Icon name="google" /> Continue with Google
         </button>

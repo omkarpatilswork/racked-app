@@ -264,31 +264,33 @@ const strong = (opts) => (s) => enableStrength(s, opts);
     await ctx.close();
   }
 
-  // 4. Rewards: two races, challenges by score
+  // 4. Rewards: Men's & Women's prizes, your place in your race, the
+  // challenge's own Men / Women board by score
   {
     const { ctx, page, st, errors } = await open(browser, "/rewards", strong());
     await page.waitForSelector('[data-testid="rw-prize"]');
-    const t = await text(page, '[data-testid="rw-prize"]');
-    check("prize: #1 Men · #1 Women win", t.includes("#1 Men · #1 Women win"), t);
-    check("two leaders", t.includes("Men's #1 right now") && t.includes("Rahul") && t.includes("Women's #1 right now") && t.includes("Asha"), t);
-    check("your place in your race + how to pass", t.includes("You're #2 on the Men's board") && t.includes("29 points to pass Rahul"), t);
-    check("explains the score", t.includes("kg ÷ body weight × 100"), t);
-    check("mini board: your race, in points", body(calls(st, "season_division_board").pop()).p_division === "men");
-    await page.locator('[data-testid="rw-board-btn"]').click();
-    await page.waitForSelector('[data-testid="board-sheet"] [data-testid="div-women"]');
-    await page.locator('[data-testid="board-sheet"] [data-testid="div-women"]').click();
-    await sleep(500);
-    check("full board switches race", body(calls(st, "season_division_board").pop()).p_division === "women" && ((await text(page, '[data-testid="board-sheet"]'))).includes("Asha"));
-    await page.keyboard.press("Escape");
+    await page.waitForSelector('[data-testid="chal-row"]');
+    check("prizes: Men's & Women's each win", (await text(page, '[data-testid="rw-prize-headline"]')) === "Men’s & Women’s each win", await text(page, '[data-testid="rw-prize-headline"]'));
+    check("two #1s right now", (await text(page, '[data-testid="rw-leader-men"]')).includes("Rahul 283") && (await text(page, '[data-testid="rw-leader-women"]')).includes("Asha 231"));
+    const you = await text(page, '[data-testid="rw-you"]');
+    check("your place in your race + how to pass", you.includes("You're #2 on the Men’s board") && you.includes("29 points to pass Rahul"), you);
+    check("full race lives in Ranks (your board)", (await page.locator('[data-testid="rw-race-link"]').getAttribute("href")) === "/leaderboard?board=men" && calls(st, "season_division_board").length === 0);
     const ch = await text(page, '[data-testid="rw-challenges"]');
-    check("challenge: best for your size, leads per race as a score", ch.includes("for your size") && ((await text(page, '[data-testid="chal-lead-men"]'))).includes("Score 175") && ((await text(page, '[data-testid="chal-lead-women"]'))).includes("Asha"), ch);
+    check("challenge: best score for your size, #1 Men & #1 Women win", ch.includes("Best score for your size") && (await text(page, '[data-testid="chal-prize"]')).includes("#1 Men") && (await text(page, '[data-testid="chal-prize"]')).includes("#1 Women"), ch);
+    check("challenge board: your race, scores", body(calls(st, "challenge_division_board").pop()).p_division === "men" && (await page.locator('[data-testid="chal-div-men"]').getAttribute("aria-pressed")) === "true");
+    const rows = await page.locator('[data-testid="chal-row"]').allTextContents();
+    check("challenge board rows: Rahul 175 × 10, you 150", rows.length === 2 && rows[0].includes("Rahul") && rows[0].includes("175 × 10") && rows[1].includes("You") && rows[1].includes("150"), rows.join(" | "));
+    await page.locator('[data-testid="chal-div-women"]').click();
+    await sleep(500);
+    check("challenge board switches to Women", body(calls(st, "challenge_division_board").pop()).p_division === "women" && (await text(page, '[data-testid="chal-board"]')).includes("Asha"));
+    check("last winners: both #1s in one line", (await text(page, '[data-testid="rw-last-winners"]')) === "Week of 9 Nov: Rahul & Asha won", await text(page, '[data-testid="rw-last-winners"]'));
     check("no page errors (rewards)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }
   {
     const { ctx, page, errors } = await open(browser, "/rewards", strong({ body: null }));
     await page.waitForSelector('[data-testid="rw-add-body"]');
-    check("no body weight: 'Add body weight' on the prize", ((await text(page, '[data-testid="rw-you"]'))).includes("Add your body weight"));
+    check("no body weight: 'Add your body weight' in your place", ((await text(page, '[data-testid="rw-you"]'))).includes("Add your body weight"));
     check("no page errors (rewards, no body)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }

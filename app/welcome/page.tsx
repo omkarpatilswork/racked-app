@@ -152,7 +152,7 @@ function Welcome() {
               </div>
               <div>
                 <b>Beat your best</b>
-                <span>Personal bests, XP, levels and a streak that keeps you coming back.</span>
+                <span>Personal bests and a streak that keep you coming back.</span>
               </div>
             </div>
             <div className="ob-step">

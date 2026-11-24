@@ -1,5 +1,10 @@
 "use client";
 
+// Rewards v2 (Nov 2026): Win · Partners. Win = your prize codes (when you have
+// one), this week's prizes as a ladder, your place in the race (the full
+// board is on Ranks), the one weekly special challenge with its own board,
+// and last week's winners in one line. No XP and no Shop here: both are
+// switches in lib/features.ts (xp, rewardsShop).
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,10 +21,10 @@ import {
   RedeemSheet,
   ShopSection,
   WalletCard,
-  WinnersCard,
   type SponsorMap,
 } from "@/components/rewards/parts";
-import { ChallengesBlock, PrizeHero } from "@/components/rewards/win";
+import { LastWinnersLine, PrizeLadder, RaceCard, SpecialChallenge } from "@/components/rewards/winv2";
+import { useFeature } from "@/lib/features";
 import ShareStudio from "@/components/share/ShareStudio";
 import { MACHINE_MAP } from "@/lib/machines";
 import type { StoryData } from "@/lib/story";
@@ -34,7 +39,6 @@ import {
   fetchChallengeBoard,
   fetchMyRewards,
   fetchRewardsOverview,
-  fetchSeasonBoard,
   isStrength,
   fmtXp,
   isMissingRewards,
@@ -42,7 +46,6 @@ import {
   redeemReward,
   syncMyRewards,
   trackSponsorClick,
-  type BoardRow,
   type Challenge,
   type ChallengeRow,
   type MyRewards,
@@ -52,7 +55,7 @@ import {
 } from "@/lib/rewards";
 
 type Tab = "win" | "partners" | "shop";
-type BoardView = { title: string; sub?: string; kind: "season" } | { title: string; sub?: string; kind: "challenge"; c: Challenge };
+type BoardView = { title: string; sub?: string; kind: "challenge"; c: Challenge };
 type Div = "men" | "women" | "all";
 
 export default function RewardsPage() {
@@ -73,16 +76,15 @@ function RewardsInner() {
 
   const [ov, setOv] = useState<RewardsOverview | null>(null);
   const [me, setMe] = useState<MyRewards | null>(null);
-  const [top, setTop] = useState<BoardRow[] | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "missing" | "error">("loading");
   const [now, setNow] = useState(() => Date.now());
   const [how, setHow] = useState(false);
   const [signIn, setSignIn] = useState(false);
   const [board, setBoard] = useState<BoardView | null>(null);
-  const [boardRows, setBoardRows] = useState<(BoardRow | ChallengeRow)[] | null>(null);
-  // which race the board shows (0015): yours, else Men's
-  const [div, setDiv] = useState<Div | null>(null);
+  const [boardRows, setBoardRows] = useState<ChallengeRow[] | null>(null);
   const [boardDiv, setBoardDiv] = useState<Div>("men");
+  const xpOn = useFeature("xp");
+  const shopOn = useFeature("rewardsShop");
   const [redeemItem, setRedeemItem] = useState<ShopItem | null>(null);
   const [redeemBusy, setRedeemBusy] = useState(false);
   const [redeemErr, setRedeemErr] = useState<string | null>(null);
@@ -91,7 +93,7 @@ function RewardsInner() {
   const [share, setShare] = useState<StoryData | null>(null);
 
   const showPartners = ov?.settings?.show_partners !== false;
-  const showShop = ov?.settings?.show_shop !== false;
+  const showShop = shopOn && ov?.settings?.show_shop !== false;
   const asked = params.get("tab");
   const tab: Tab = asked === "partners" && showPartners ? "partners" : asked === "shop" && showShop ? "shop" : "win";
   const tabs: { key: Tab; label: string; icon: string }[] = [
@@ -101,6 +103,7 @@ function RewardsInner() {
   ];
   function go(t: Tab) {
     const next = new URLSearchParams(params.toString());
+    next.delete("brand");
     if (t === "win") next.delete("tab");
     else next.set("tab", t);
     const qs = next.toString();
@@ -138,20 +141,21 @@ function RewardsInner() {
     [supabase, signedIn]
   );
 
-  // your race by default (0015)
-  const myDiv: Div = me?.season?.division || (me?.body?.division === "men" || me?.body?.division === "women" ? me.body.division : null) || "men";
-  const shownDiv: Div = div || myDiv;
   const strength = isStrength(ov);
+
+  // ?tab=partners&brand=<id> (from a brand name on Win): scroll to that card
+  const brand = params.get("brand");
   useEffect(() => {
-    if (!ov) return;
-    let alive = true;
-    fetchSeasonBoard(supabase, null, 5, strength ? shownDiv : undefined)
-      .then((rows) => alive && setTop(rows))
-      .catch(() => alive && setTop([]));
-    return () => {
-      alive = false;
-    };
-  }, [ov, supabase, strength, shownDiv]);
+    if (tab !== "partners" || !brand || state !== "ready") return;
+    const t = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-testid="partner-${CSS.escape(brand)}"]`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.classList.add("rw-flash");
+      setTimeout(() => el.classList.remove("rw-flash"), 2400);
+    }, 120);
+    return () => clearTimeout(t);
+  }, [tab, brand, state]);
 
   useEffect(() => {
     if (loading) return;
@@ -178,21 +182,7 @@ function RewardsInner() {
   const sponsors: SponsorMap = useMemo(() => Object.fromEntries((ov?.sponsors || []).map((s) => [s.id, s])), [ov]);
   const ready = (me?.redemptions || []).filter((r) => r.status === "issued");
 
-  function openSeasonBoard(d: Div = shownDiv) {
-    if (!ov?.season) return;
-    setBoard({
-      kind: "season",
-      title: ov.season.title,
-      sub: strength
-        ? `Score: your best on each machine this ${ov.season.period} (kg ÷ body weight × 100), added up`
-        : `${ov.season.players} lifter${ov.season.players === 1 ? "" : "s"} · XP earned this ${ov.season.period}`,
-    });
-    setBoardDiv(d);
-    setBoardRows(null);
-    fetchSeasonBoard(supabase, null, 50, strength ? d : undefined).then(setBoardRows, () => setBoardRows([]));
-  }
-
-  function openChallengeBoard(c: Challenge, d: Div = shownDiv) {
+  function openChallengeBoard(c: Challenge, d: Div = "men") {
     setBoard({ kind: "challenge", c, title: c.title, sub: `${c.players} lifter${c.players === 1 ? "" : "s"}` });
     setBoardDiv(d);
     setBoardRows(null);
@@ -200,9 +190,7 @@ function RewardsInner() {
   }
 
   function switchBoardDiv(d: Div) {
-    if (!board) return;
-    if (board.kind === "season") openSeasonBoard(d);
-    else openChallengeBoard(board.c, d);
+    if (board) openChallengeBoard(board.c, d);
   }
 
   function shareWin(r: { title: string; rank: number | null; source: string; sponsor_id: string | null }) {
@@ -214,7 +202,12 @@ function RewardsInner() {
 
   function shareChallenge(c: Challenge, mine: { rank: number; value: number; reps: number | null }) {
     const m = c.machine_id ? MACHINE_MAP[c.machine_id] : null;
-    if (!m) return;
+    // A score (×BW) or a total isn't a lift: share the place instead.
+    if (strength || c.metric !== "best_lift" || !m) {
+      const value = metricValue(c.metric, mine.value, mine.reps, strength);
+      setShare({ kind: "rank", rank: mine.rank, scope: c.title, value, of: c.players || undefined });
+      return;
+    }
     setShare({ kind: "lift", machineId: m.id, label: m.name, weight: mine.value, reps: mine.reps || 1, unit: m.unit, isPb: mine.rank === 1, tag: `#${mine.rank} IN THE CHALLENGE` });
   }
 
@@ -262,7 +255,7 @@ function RewardsInner() {
             <GymMark variant="chip" label="Rewards at" />
             <h1>Rewards</h1>
           </div>
-          {me && (
+          {me && xpOn && (
             <button type="button" className="rw-xp-chip" onClick={() => setHow(true)} data-testid="rw-xp-chip" aria-label={`${fmtXp(me.wallet.balance)} XP to spend. How XP works`}>
               <span className="num">{fmtXp(me.wallet.balance)}</span> XP
             </button>
@@ -333,22 +326,20 @@ function RewardsInner() {
                     </span>
                   </button>
                 )}
-                <PrizeHero ov={ov} me={me} top={top} sponsors={sponsors} now={now} onBoard={() => openSeasonBoard()} onHow={() => setHow(true)} division={strength ? shownDiv : null} onDivision={(d) => setDiv(d)} />
                 {ready.length > 0 && <MyRewardsSection list={ready} sponsors={sponsors} onShare={shareWin} />}
-                <ChallengesBlock list={ov.challenges} me={me} sponsors={sponsors} now={now} onBoard={(c) => openChallengeBoard(c)} onShare={shareChallenge} strength={strength} />
-                <WinnersCard last={ov.last_winners} />
-                <Link href="/leaderboard#progress" className="action-card" data-testid="rw-progress-link">
-                  <div className="glyph yellow">
-                    <Icon name="flame" />
-                  </div>
-                  <div className="body">
-                    <div className="title">Streaks, missions &amp; badges</div>
-                    <div className="sub">Bonus XP that counts towards the prize. On the Ranks page.</div>
-                  </div>
-                  <div className="chev">
-                    <Icon name="chev" />
-                  </div>
-                </Link>
+                <PrizeLadder ov={ov} sponsors={sponsors} now={now} strength={strength} />
+                <RaceCard ov={ov} me={me} strength={strength} signedIn={signedIn} />
+                <SpecialChallenge
+                  supabase={supabase}
+                  challenges={ov.challenges}
+                  me={me}
+                  sponsors={sponsors}
+                  strength={strength}
+                  now={now}
+                  onShare={shareChallenge}
+                  onSeeAll={(c, race) => openChallengeBoard(c, race || "men")}
+                />
+                <LastWinnersLine last={ov.last_winners} />
               </div>
             )}
 
@@ -394,7 +385,7 @@ function RewardsInner() {
         )}
       </div>
 
-      <HowXpSheet open={how} onClose={() => setHow(false)} ov={ov} />
+      {xpOn && <HowXpSheet open={how} onClose={() => setHow(false)} ov={ov} />}
       <BoardSheet
         open={!!board}
         onClose={() => setBoard(null)}
@@ -403,13 +394,7 @@ function RewardsInner() {
         rows={boardRows}
         division={strength ? boardDiv : null}
         onDivision={switchBoardDiv}
-        format={(r) =>
-          board?.kind === "challenge"
-            ? metricValue(board.c.metric, (r as ChallengeRow).value, (r as ChallengeRow).reps, strength)
-            : strength
-              ? `${fmtXp((r as BoardRow).score)} pts`
-              : `${fmtXp((r as BoardRow).score)} XP`
-        }
+        format={(r) => (board ? metricValue(board.c.metric, (r as ChallengeRow).value, (r as ChallengeRow).reps, strength) : "")}
       />
       <RedeemSheet
         item={redeemItem}

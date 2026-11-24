@@ -8,6 +8,7 @@ import { ICON_PATHS } from "@/components/Icon";
 import { MACHINE_MAP } from "@/lib/machines";
 import { SITE_URL } from "@/lib/site";
 import type { Gym } from "@/lib/gym";
+import { featureOn } from "@/lib/featureFlags";
 
 export const STORY_W = 1080;
 export const STORY_H = 1920;
@@ -31,7 +32,7 @@ export type StoryData =
   | { kind: "streak"; days: number; next?: { days: number; xp: number } | null }
   | { kind: "win"; title: string; place?: number | null; what: string; sponsors?: string[] }
   | { kind: "week"; title: string; sets: number; volume: number; pbs: number; days: number; rankLine?: string | null }
-  | { kind: "progress"; level: number; sets: number; volume: number; pbs: number; machines: string };
+  | { kind: "progress"; level: number | null; sets: number; volume: number; pbs: number; machines: string };
 
 export type StoryOptions = {
   data: StoryData;
@@ -620,13 +621,16 @@ function blockFor(d: Exclude<StoryData, { kind: "lift" }>, gymName: string): Blo
     case "badge":
       return { eyebrow: "Badge unlocked", title: d.title, sub: d.description, medal: { icon: d.icon }, toneKey: "yellow", motif: "dots" };
     case "streak":
-      return { eyebrow: "Lifting streak", title: `${d.days} days in a row`, sub: d.next ? (d.next.xp > 0 ? `${d.next.days - d.days} more for +${d.next.xp} XP` : `${d.next.days - d.days} more to a ${d.next.days}-day streak`) : "Every single day. Legend.", medal: { icon: "flame" }, toneKey: "ember", motif: "speed" };
+      return { eyebrow: "Lifting streak", title: `${d.days} days in a row`, sub: d.next ? (d.next.xp > 0 && featureOn("xp") ? `${d.next.days - d.days} more for +${d.next.xp} XP` : `${d.next.days - d.days} more to a ${d.next.days}-day streak`) : "Every single day. Legend.", medal: { icon: "flame" }, toneKey: "ember", motif: "speed" };
     case "win":
       return { eyebrow: d.place ? `Winner · #${d.place}` : "Winner", title: d.title, sub: d.what, medal: { icon: "trophy" }, toneKey: "yellow", motif: "rings" };
     case "week":
       return { eyebrow: `My week at ${gymName}`, title: d.title, sub: d.rankLine || "", medal: { icon: "bolt" }, toneKey: "red", motif: "stripes" };
     case "progress":
-      return { eyebrow: `My progress at ${gymName}`, title: `Level ${d.level}`, medal: { text: `LV${d.level}` }, toneKey: "ember", motif: "grid" };
+      // No level while XP is archived (level is null): lead with the sets.
+      return d.level
+        ? { eyebrow: `My progress at ${gymName}`, title: `Level ${d.level}`, medal: { text: `LV${d.level}` }, toneKey: "ember", motif: "grid" }
+        : { eyebrow: `My progress at ${gymName}`, title: `${d.sets.toLocaleString("en-IN")} ${d.sets === 1 ? "set" : "sets"}`, medal: { icon: "bolt" }, toneKey: "ember", motif: "grid" };
   }
 }
 
@@ -809,7 +813,7 @@ export function storyCaption(d: StoryData, gymName: string) {
     case "week":
       return `My week at ${gymName}: ${d.sets} sets, ${Math.round(d.volume).toLocaleString("en-IN")} kg moved 💪 #RackedByBijlee ${link}`;
     case "progress":
-      return `Level ${d.level} at ${gymName} — ${d.sets} sets, ${Math.round(d.volume).toLocaleString("en-IN")} kg moved 🔥 #RackedByBijlee ${link}`;
+      return `${d.level ? `Level ${d.level}` : "My progress"} at ${gymName} — ${d.sets} sets, ${Math.round(d.volume).toLocaleString("en-IN")} kg moved 🔥 #RackedByBijlee ${link}`;
   }
 }
 
