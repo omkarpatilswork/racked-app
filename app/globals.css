@@ -6990,7 +6990,7 @@ body.no-nav .toast-host {
 }
 .hx-top {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 .hx-hello {
   display: flex;
@@ -7001,144 +7001,216 @@ body.no-nav .toast-host {
 }
 .hx-hello h1 {
   margin: 0;
-  font-size: 23px;
+  font-size: 22px;
   line-height: 1.15;
   letter-spacing: -0.03em;
 }
+/* one slim row: streak · sets this week · (level, archived) · share */
 .hx-you {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-radius: 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  overflow: hidden;
-}
-.hx-stat {
-  position: relative;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1px;
-  padding: 9px 12px 10px;
-  color: var(--ink-soft);
-  text-decoration: none;
-  transition: background 0.2s;
-}
-.hx-stat + .hx-stat {
-  border-left: 1px solid var(--border);
-}
-a.hx-stat:hover {
-  background: var(--surface-2);
-}
-.hx-v {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
-  height: 24px;
 }
-.hx-v b {
+.hx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px 0 10px;
+  border-radius: 99px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink-faint);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+a.hx-chip:hover {
+  background: var(--surface-2);
+}
+.hx-chip b {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 800;
-  line-height: 1;
   color: var(--ink);
 }
-.hx-v > .icon {
-  width: 16px;
-  height: 16px;
+.hx-chip > .icon {
+  width: 15px;
+  height: 15px;
   color: var(--accent-text);
 }
-.hx-l {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-faint);
+.hx-ring {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: conic-gradient(var(--yellow) calc(var(--p) * 1%), var(--surface-3) 0);
+  -webkit-mask: radial-gradient(circle, transparent 4px, #000 4.5px);
+  mask: radial-gradient(circle, transparent 4px, #000 4.5px);
+}
+.hx-chip.hx-share {
+  margin-left: auto;
+  width: 34px;
+  padding: 0;
+  justify-content: center;
+  color: var(--accent-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* the one big action: Log a set (tap or scan) / Log next set */
+.hx-log {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 88px;
+  padding: 14px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--accent-grad);
+  color: var(--yellow-ink);
+  text-align: left;
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 16px 36px -16px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: transform 0.12s var(--ease), filter 0.2s;
+  animation: fxIn 0.4s var(--ease) backwards;
+}
+.hx-log:hover {
+  filter: brightness(1.04);
+}
+.hx-log:active {
+  transform: scale(0.985);
+}
+.hx-log:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+.hx-log-ic {
+  position: relative;
+  flex: none;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: rgba(26, 6, 3, 0.14);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 19px;
+}
+.hx-log-ic > .icon {
+  width: 30px;
+  height: 30px;
+  stroke-width: 2.2;
+}
+.hx-log-qr {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: var(--yellow-ink);
+  color: var(--yellow);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
+}
+.hx-log-qr .icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+.hx-log-copy {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.hx-log-copy b {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+.hx-log-copy small {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.85;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.hx-ring {
-  width: 18px;
-  height: 18px;
+.hx-log-go {
+  flex: none;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  background: conic-gradient(var(--yellow) calc(var(--p) * 1%), var(--surface-3) 0);
-  -webkit-mask: radial-gradient(circle, transparent 5px, #000 5.5px);
-  mask: radial-gradient(circle, transparent 5px, #000 5.5px);
-}
-.hx-share {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 32px;
-  height: 32px;
   display: grid;
   place-items: center;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--ink-faint);
-  cursor: pointer;
+  background: var(--yellow-ink);
+  color: var(--yellow);
 }
-.hx-share .icon {
-  width: 15px;
-  height: 15px;
+.hx-log-go .icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.4;
 }
-.hx-resume {
+/* the tap-or-scan guide */
+.hx-guide {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.hx-guide li {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px 10px 10px;
-  border-radius: 20px;
-  text-decoration: none;
-  color: #fff;
-  background:
-    radial-gradient(120% 160% at 100% 0%, rgba(255, 72, 44, 0.55), transparent 60%),
-    #17140f;
-  border: 1px solid rgba(255, 106, 61, 0.35);
-  animation: fxIn 0.4s var(--ease) backwards;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 15px;
+  color: var(--ink-soft);
 }
-.hx-resume-no {
+.hx-guide li b {
+  color: var(--ink);
+}
+.hx-guide-ic {
   flex: none;
   width: 44px;
   height: 44px;
   border-radius: 14px;
   display: grid;
   place-items: center;
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 16px;
-  background: var(--accent-grad);
-  color: #1a0603;
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
-.hx-resume-copy {
-  flex: 1;
-  min-width: 0;
-  display: grid;
+.hx-guide-ic .icon {
+  width: 24px;
+  height: 24px;
 }
-.hx-resume-copy small {
+.hx-guide-hint {
+  margin: 4px 2px 14px;
+}
+/* "Gym feed" above the feed */
+.hx-feedh {
+  margin: 4px 2px -4px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.66);
-}
-.hx-resume-copy b {
-  font-size: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.hx-resume-go {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 13px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-.hx-resume-go .icon {
-  width: 16px;
-  height: 16px;
+  color: var(--ink-faint);
 }
 .hx-compose {
   display: flex;
@@ -8980,7 +9052,7 @@ a.hx-stat:hover {
   .fx-card,
   .fx-milestone,
   .fx-newpill,
-  .hx-resume,
+  .hx-log,
   .fx-burst .icon,
   .fx-act.kudos.on .icon,
   .fx-skel,

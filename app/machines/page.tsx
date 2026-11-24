@@ -48,7 +48,7 @@ export default function MachinesPage() {
             {session
               ? `You've trained on ${trained} of ${MACHINES.length}.`
               : `${MACHINES.length} smart machines in this gym.`}{" "}
-            Tap a machine&rsquo;s sticker to log a set there.
+            Tap or scan a machine&rsquo;s sticker to log a set there.
           </p>
           {session && (
             <div className="progress-track" style={{ marginTop: 12 }} aria-hidden="true">

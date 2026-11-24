@@ -20,7 +20,7 @@ type Gsap = typeof import("gsap").gsap;
 const STEPS = [
   {
     no: "01",
-    title: "Tap the sticker",
+    title: "Tap or scan the sticker",
     body: "Every machine has a Racked sticker. Hold your phone to it, or scan its QR. The machine unlocks for you: no app, no typing.",
   },
   {
@@ -149,7 +149,7 @@ function tickerItems(live: TvActivity | null | "error", gymName: string): string
   const where = `Live today at ${gymName}`;
   if (live && live !== "error") {
     if (live.sets === 0) {
-      return [where, "Nobody has lifted yet", "Your first set takes #1", "Tap. Log. Win."];
+      return [where, "Nobody has lifted yet", "Your first set takes #1", "Tap or scan. Log. Win."];
     }
     const items = [
       where,
@@ -161,7 +161,7 @@ function tickerItems(live: TvActivity | null | "error", gymName: string): string
     if (live.machines[0]) items.push(`Busiest: ${live.machines[0].title}`);
     return items;
   }
-  return ["Tap. Log. Win.", `Live at ${gymName}`, "Free · no download", "Built by Bijlee Run Club"];
+  return ["Tap or scan. Log. Win.", `Live at ${gymName}`, "Free · no download", "Built by Bijlee Run Club"];
 }
 
 export default function Landing({ redirectMembers = false }: { redirectMembers?: boolean }) {
@@ -473,14 +473,14 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
               <i className="lp-live-dot" /> Live at {gym.name} · by Bijlee Run Club
             </p>
             <h1 id="lp-hero-title" className="lp-hero-title">
-              <span className="l1">Tap. Log.</span>
-              <span className="l2">Win</span>
+              <span className="l1">Tap or scan.</span>
+              <span className="l2">Log. Win</span>
               <span className="l3">
                 <em>rewards.</em>
               </span>
             </h1>
             <p className="lp-lede">
-              The gym app with nothing to download. Tap the Racked sticker on any machine, log your set in two taps, and
+              The gym app with nothing to download. Tap or scan the Racked sticker on any machine, log your set in two taps, and
               win weekly prizes. Boards rank by strength for your size, Men&rsquo;s and Women&rsquo;s.
             </p>
             <div className="lp-hero-actions">
@@ -530,7 +530,7 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
           <p className="lp-label">How it works · 4 steps · about 20 seconds</p>
           <h2 id="lp-how-title" className="lp-h2">
             <span className="lp-line">
-              <span>From tap</span>
+              <span>From tap or scan</span>
             </span>
             <span className="lp-line">
               <span>
@@ -559,7 +559,7 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
               <div className="lp-story-visual" data-step={step}>
                 <div className="lp-sticker" aria-hidden="true">
                   <BoltMark className="lp-sticker-bolt" />
-                  <b>Tap here</b>
+                  <b>Tap or scan</b>
                   <span>Lat Pulldown · 01</span>
                 </div>
                 <Phone className="lp-story-phone">

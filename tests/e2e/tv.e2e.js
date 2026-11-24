@@ -70,7 +70,7 @@ async function offscreen(page) {
       return { dx: Math.abs(card.left + card.width / 2 - (svg.left + svg.width / 2)) };
     });
     check("join QR sits in the middle of its card", qrBox.dx <= 2, JSON.stringify(qrBox));
-    check("footer says tap or scan the sticker", ((await page.locator(".tv-foot-msg").textContent()) || "").includes("Tap or scan the sticker on any machine"));
+    check("footer: Tap or scan. Log. Win. + the sticker is on every machine", ((await page.locator(".tv-foot-msg").textContent()) || "").includes("Tap or scan. Log. Win.") && ((await page.locator(".tv-foot-msg").textContent()) || "").includes("sticker is on every machine"));
     await sleep(1200);
     const dots = await page.locator(".tv-dots i").count();
     check("one loop = 15 slides with the suggested settings", dots === 15, String(dots));
@@ -105,7 +105,7 @@ async function offscreen(page) {
         check("push / pull / legs: the busiest is highlighted", (await page.locator(".tv-split-card.top").count()) === 1 && ((await page.locator(".tv-split-card.top").textContent()) || "").includes("Pull"));
         check("push / pull / legs: no kg totals or extra stats", !/kg|elephant|PB/i.test(t), t);
       }
-      if (k === "slide-howto") check("how it works: Tap. Log. Win.", (await page.locator(".tv-howto-steps li").count()) === 3 && t.includes("Tap or scan the sticker") && t.includes("Win rewards") && /Tap\. Log\. Win\./.test(t), t);
+      if (k === "slide-howto") check("how it works: Tap or scan. Log. Win.", (await page.locator(".tv-howto-steps li").count()) === 3 && t.includes("Tap or scan the sticker") && t.includes("Win rewards") && /Tap or scan\. Log\. Win\./.test(t), t);
       if (k === "slide-prizes") {
         check("prize: #1 wins, the prize, countdown", t.includes("#1 wins") && t.includes("Gift hamper") && /ends in \d+d/i.test(t), t.slice(0, 160));
         check("prize: who's winning (first name)", ((await page.locator('[data-testid="tv-prize-leader"]').textContent()) || "").includes("Asha is winning") && !t.includes("Rao"));

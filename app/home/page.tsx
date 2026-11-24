@@ -1,12 +1,15 @@
 "use client";
 
-// Home = the gym's feed (PRs, pump checks, posts, transformations, gym
-// notices and offers, the prize race, challenges, winners). Above it, just a
-// hello, one line of your numbers, a "you're at a machine" banner when it
-// matters, and a composer bar. Posting and the 10 machines live in the + menu.
+// Home v4, kept simple for launch: a hello, one slim row (streak, sets this
+// week, share), one big "Log a set" button (a tap-or-scan guide, or "Log next
+// set" right after you tap or scan a machine), the composer bar and one gym
+// feed (PRs, pump checks, posts, transformations, gym notices and offers,
+// last week's winners). Archived bits (level, body-weight card, feed tabs,
+// prize and challenge cards) are switches in lib/features.ts.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Topbar from "@/components/Topbar";
+import Sheet from "@/components/Sheet";
 import Icon from "@/components/Icon";
 import { shouldAskBody, useMyBody } from "@/components/BodySheet";
 import { openBodySheet } from "@/lib/body";
@@ -21,18 +24,11 @@ import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAttendance, fetchMyStats, fetchWeekSummary, overallFromStats, type WeekSummary } from "@/lib/data";
 import { openCreate } from "@/lib/feed";
+import { useFeature } from "@/lib/features";
 import { calculateMachineLevel } from "@/lib/gamification";
 import { computeStreaks, dateStr, type AttendanceMap } from "@/lib/streaks";
 import { getActiveMachineId } from "@/lib/machineLock";
 import { MACHINE_MAP, MACHINES } from "@/lib/machines";
-
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 5) return "Late session";
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
 
 export default function HomePage() {
   const { session, profile, loading } = useAuth();
@@ -72,6 +68,9 @@ function SignedInHome() {
   const [week, setWeek] = useState<WeekSummary | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [share, setShare] = useState<StoryData | null>(null);
+  const [guide, setGuide] = useState(false);
+  const showLevel = useFeature("homeLevel");
+  const showBodyCard = useFeature("homeBodyCard");
   const body = useMyBody();
   const [askBody, setAskBody] = useState(false);
   useEffect(() => setAskBody(shouldAskBody()), [body]);
@@ -94,6 +93,7 @@ function SignedInHome() {
   const lvl = overall ? calculateMachineLevel(overall.totalXp) : null;
   const pct = lvl ? Math.min(100, Math.round((100 * lvl.into) / lvl.need)) : 0;
   const active = activeId ? MACHINE_MAP[activeId] : null;
+  const firstSet = overall != null && overall.totalSets === 0;
 
   function shareWeek() {
     if (!week) return;
@@ -115,45 +115,69 @@ function SignedInHome() {
     <>
       <header className="hx-top">
         <div className="hx-hello">
-          <h1>
-            {greeting()}
-            {firstName ? `, ${firstName}` : ""}
-          </h1>
+          <h1>{firstName ? `Hey ${firstName}` : "Hey there"}</h1>
           <GymMark variant="chip" label="at" />
         </div>
         <div className="hx-you" data-testid="you-line">
-          <Link href="/leaderboard#progress" className="hx-stat" data-testid="tile-streak" aria-label={`${streaks ? streaks.current : 0} day streak, best ${streaks?.best ?? 0}`}>
-            <span className="hx-v">
-              <Icon name="flame" />
-              <b className="t-value num">{streaks ? streaks.current : "–"}</b>
-            </span>
-            <span className="hx-l">day streak</span>
+          <Link href="/leaderboard#progress" className="hx-chip" data-testid="tile-streak" aria-label={`${streaks ? streaks.current : 0} day streak, best ${streaks?.best ?? 0}`}>
+            <Icon name="flame" />
+            <b className="t-value num">{streaks ? streaks.current : "–"}</b>
+            <span>day streak</span>
           </Link>
-          <Link href="/profile" className="hx-stat" data-testid="tile-level" aria-label={lvl ? `Level ${lvl.level}, ${lvl.need - lvl.into} XP to the next` : "Your level"}>
-            <span className="hx-v">
+          <span className="hx-chip" data-testid="tile-week">
+            <Icon name="bolt" />
+            <b className="num">{week ? week.sets : "–"}</b>
+            <span>{week?.sets === 1 ? "set" : "sets"} this week</span>
+          </span>
+          {showLevel && (
+            <Link href="/profile" className="hx-chip" data-testid="tile-level" aria-label={lvl ? `Level ${lvl.level}, ${lvl.need - lvl.into} XP to the next` : "Your level"}>
               <span className="hx-ring" style={{ ["--p" as string]: pct }} aria-hidden="true" />
               <b className="num">{lvl ? lvl.level : "–"}</b>
-            </span>
-            <span className="hx-l">level</span>
-          </Link>
-          <div className="hx-stat" data-testid="tile-week">
-            <span className="hx-v">
-              <Icon name="bolt" />
-              <b className="num">{week ? week.sets : "–"}</b>
-            </span>
-            <span className="hx-l">{week?.sets === 1 ? "set" : "sets"} this week</span>
-            {week && week.sets > 0 && (
-              <button type="button" className="hx-share" onClick={shareWeek} aria-label="Share your week" data-testid="share-week">
-                <Icon name="share" />
-              </button>
-            )}
-          </div>
+              <span>level</span>
+            </Link>
+          )}
+          {week && week.sets > 0 && (
+            <button type="button" className="hx-chip hx-share" onClick={shareWeek} aria-label="Share your week" data-testid="share-week">
+              <Icon name="share" />
+            </button>
+          )}
         </div>
       </header>
 
       <StaffNotices supabase={supabase} uid={uid} />
 
-      {body && body !== "off" && body.body_kg == null && askBody && (
+      {active ? (
+        <Link href={`/machine/${active.id}/log`} className="hx-log" data-testid="resume-card">
+          <span className="hx-log-ic num" aria-hidden="true">
+            {active.number}
+          </span>
+          <span className="hx-log-copy">
+            <b>Log next set</b>
+            <small>{active.name} · you&rsquo;re here</small>
+          </span>
+          <span className="hx-log-go" aria-hidden="true">
+            <Icon name="chev" />
+          </span>
+        </Link>
+      ) : (
+        <button type="button" className="hx-log" onClick={() => setGuide(true)} data-testid="home-log">
+          <span className="hx-log-ic" aria-hidden="true">
+            <Icon name="nfc" />
+            <span className="hx-log-qr">
+              <Icon name="qr" />
+            </span>
+          </span>
+          <span className="hx-log-copy">
+            <b>{firstSet ? "Log your first set" : "Log a set"}</b>
+            <small>Tap or scan the sticker</small>
+          </span>
+          <span className="hx-log-go" aria-hidden="true">
+            <Icon name="chev" />
+          </span>
+        </button>
+      )}
+
+      {showBodyCard && body && body !== "off" && body.body_kg == null && askBody && (
         <div className="hx-bodycta" data-testid="home-add-body">
           <span className="hx-bodycta-ic" aria-hidden="true">
             <Icon name="scale" />
@@ -168,21 +192,6 @@ function SignedInHome() {
         </div>
       )}
 
-      {active && (
-        <Link href={`/machine/${active.id}/log`} className="hx-resume" data-testid="resume-card">
-          <span className="hx-resume-no num" aria-hidden="true">
-            {active.number}
-          </span>
-          <span className="hx-resume-copy">
-            <small>You&rsquo;re at</small>
-            <b>{active.name}</b>
-          </span>
-          <span className="hx-resume-go">
-            Log a set <Icon name="chev" />
-          </span>
-        </Link>
-      )}
-
       <div className="hx-compose" data-testid="composer">
         <Avatar name={profile?.display_name} url={profile?.avatar_url} size={36} />
         <button type="button" className="hx-compose-field" onClick={() => openCreate("post")} data-testid="composer-open">
@@ -194,8 +203,48 @@ function SignedInHome() {
       </div>
 
       <HomeFeed />
+      <TapGuide open={guide} onClose={() => setGuide(false)} />
       {share && <ShareStudio story={share} title="Share your week" onClose={() => setShare(null)} />}
     </>
+  );
+}
+
+// "Log a set" when you're not at a machine yet: logging only opens at the
+// machine, from its sticker (NFC tap or QR scan), so this says how.
+function TapGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Sheet open={open} onClose={onClose} title="Log a set" testId="tap-guide">
+      <ol className="hx-guide">
+        <li>
+          <span className="hx-guide-ic" aria-hidden="true">
+            <Icon name="nfc" />
+          </span>
+          <span>
+            <b>Tap</b> your phone on the sticker on any machine
+          </span>
+        </li>
+        <li>
+          <span className="hx-guide-ic" aria-hidden="true">
+            <Icon name="qr" />
+          </span>
+          <span>
+            <b>or scan</b> its QR code with your camera
+          </span>
+        </li>
+        <li>
+          <span className="hx-guide-ic" aria-hidden="true">
+            <Icon name="dumbbell" />
+          </span>
+          <span>
+            <b>Log</b> the weight and reps. That&rsquo;s it.
+          </span>
+        </li>
+      </ol>
+      <p className="field-hint hx-guide-hint">Tap not working? Scan the QR instead.</p>
+      <Link href="/machines" className="btn btn-ghost" onClick={onClose} data-testid="guide-machines">
+        <Icon name="grid" /> See all {MACHINES.length} machines
+      </Link>
+    </Sheet>
   );
 }
 
@@ -209,10 +258,10 @@ function SignedOutHome() {
           <GymMark variant="chip" onDark label="Live at" />
         </div>
         <h1 style={{ fontSize: 30, margin: "10px 0 10px" }}>
-          Tap. Log. <em>Win.</em>
+          Tap or scan. Log. <em>Win.</em>
         </h1>
         <p style={{ margin: "0 0 22px", fontSize: 15 }}>
-          Tap a machine with your phone, log the set and win weekly prizes. Boards rank by strength for your size, with Men&rsquo;s and Women&rsquo;s boards.
+          Tap or scan the sticker on any machine, log your set and win weekly prizes.
         </p>
         <button type="button" className="btn-slab" onClick={() => setSignIn(true)} data-testid="hero-signin">
           <span>
@@ -236,8 +285,8 @@ function SignedOutHome() {
           <div className="ob-step">
             <div className="n">1</div>
             <div>
-              <b>Tap in</b>
-              <span>Hold your phone near the sticker on any machine, or scan its QR code.</span>
+              <b>Tap or scan</b>
+              <span>Hold your phone to the sticker on any machine, or scan its QR code.</span>
             </div>
           </div>
           <div className="ob-step">
@@ -250,8 +299,8 @@ function SignedOutHome() {
           <div className="ob-step">
             <div className="n">3</div>
             <div>
-              <b>Level up</b>
-              <span>Earn XP, keep your streak and climb the gym leaderboard.</span>
+              <b>Win</b>
+              <span>Top the Men&rsquo;s or Women&rsquo;s board this week and win partner prizes.</span>
             </div>
           </div>
         </div>
@@ -275,7 +324,7 @@ function SignedOutHome() {
         </div>
         <div className="body">
           <div className="title">This week&rsquo;s prize</div>
-          <div className="sub">Log the most this week and win gifts from our partner brands</div>
+          <div className="sub">#1 Men and #1 Women win partner prizes every week</div>
         </div>
         <div className="chev">
           <Icon name="chev" />

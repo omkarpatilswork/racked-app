@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Racked by Bijlee",
     short_name: "Racked",
-    description: "Tap a gym machine, log your set, beat your PB.",
+    description: "Tap or scan a gym machine, log your set, win.",
     start_url: "/home",
     scope: "/",
     display: "standalone",

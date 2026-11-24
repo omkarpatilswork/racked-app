@@ -180,7 +180,7 @@ function Welcome() {
           </div>
           <div>
             <h1 id="w1" style={{ fontSize: 28, margin: "0 0 8px" }}>
-              Tap in at any machine
+              Tap or scan at any machine
             </h1>
             <p className="muted" style={{ margin: 0, fontSize: 15 }}>
               Every machine has a Racked sticker. Sets can only be logged at the machine — that keeps the leaderboard honest.

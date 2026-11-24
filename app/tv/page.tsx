@@ -293,7 +293,7 @@ function TvScreen() {
           ))}
         </div>
         <div className="tv-foot-msg">
-          <b>Tap. Log. Win.</b> Tap or scan the sticker on any machine
+          <b>Tap or scan. Log. Win.</b> The sticker is on every machine
         </div>
       </footer>
 
@@ -329,7 +329,7 @@ function JoinSlide({ data, joinUrl, host, period }: { data: TvData; joinUrl: str
           <span className="tv-grad">on this screen.</span>
         </h1>
         <p className="tv-lede">
-          <b className="tv-tlw">Tap. Log. Win.</b> Sign in with Google, then tap or scan the sticker on any machine.
+          <b className="tv-tlw">Tap or scan. Log. Win.</b> Sign in with Google, then tap or scan the sticker on any machine.
         </p>
         <div className="tv-proof" data-testid="tv-proof">
           <Icon name="flame" />
@@ -362,7 +362,7 @@ function HowToSlide({ strength }: { strength: boolean }) {
       <div className="tv-howto-head">
         <div className="tv-eyebrow">How it works</div>
         <h2 className="tv-title">
-          Tap. Log. <span className="tv-grad">Win.</span>
+          Tap or scan. Log. <span className="tv-grad">Win.</span>
         </h2>
       </div>
       <ol className="tv-howto-steps">

@@ -10,9 +10,9 @@ export const BIJLEE_URL = "https://www.bijlee.run";
 export const BIJLEE_INSTAGRAM = "https://www.instagram.com/bijlee.run/";
 export const BIJLEE_HANDLE = "@bijlee.run";
 
-export const SITE_TITLE = "Racked by Bijlee — tap a machine, log your set, get on the board";
+export const SITE_TITLE = "Racked by Bijlee — tap or scan a machine, log your set, win";
 export const SITE_DESCRIPTION =
-  "The gym app from Bijlee Run Club, Pune. No download: tap the Racked sticker on any machine, log your set in two taps, and climb the leaderboard on the gym TV.";
+  "The gym app from Bijlee Run Club, Pune. No download: tap or scan the Racked sticker on any machine, log your set in two taps, and climb the leaderboard on the gym TV.";
 
 // Real Bijlee photos for the "Built by Bijlee Run Club" section. Put the
 // files in public/landing/ and list them here; the section shows a photo

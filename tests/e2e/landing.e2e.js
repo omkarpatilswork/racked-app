@@ -38,7 +38,7 @@ const scrollToStep = (page, i) =>
     await page.waitForSelector('[data-testid="landing"]');
     check("/ shows the landing page to visitors", true);
     const h1 = (await page.locator("h1").textContent()) || "";
-    check("hero says what it is: Tap. Log. Win", /tap\. log\./i.test(h1) && /win/i.test(h1), h1);
+    check("hero says what it is: Tap or scan. Log. Win", /tap or scan\.\s*log\./i.test(h1) && /win/i.test(h1), h1);
     check("no app bottom nav on the landing page", (await page.locator(".bottom-nav").count()) === 0);
     check("big CTA in hero, after walkthrough and at the end", (await page.locator('[data-testid="lp-hero-cta"], [data-testid="lp-mid-cta"], [data-testid="lp-final-cta"]').count()) === 3);
     await page.waitForFunction(() => (document.querySelector('[data-testid="lp-ticker"]')?.textContent || "").includes("lifters"));

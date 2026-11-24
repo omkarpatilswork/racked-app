@@ -1,8 +1,9 @@
 "use client";
 
-// The Home feed: filters, every card type, kudos, comments, post menus,
-// the prize race / challenges / winners mixed in, "new posts" pill, pull to
-// refresh and endless scrolling.
+// The Home feed: every card type, kudos, comments, post menus, last week's
+// winners mixed in, "new posts" pill, pull to refresh and endless scrolling.
+// Archived (lib/features.ts): the filter tabs, the prize card and challenge
+// cards. Switch them back on there.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Icon from "@/components/Icon";
 import Sheet from "@/components/Sheet";
@@ -27,6 +28,7 @@ import {
   type WallItem,
 } from "@/components/feed/cards";
 import { usePhotoManager } from "@/components/usePhotoManager";
+import { useFeature } from "@/lib/features";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyDbError, toggleKudos, togglePhotoKudos } from "@/lib/data";
@@ -124,6 +126,14 @@ export default function HomeFeed() {
   filterRef.current = filter;
   const sentinel = useRef<HTMLDivElement>(null);
   const manager = usePhotoManager(supabase, null);
+  const showFilters = useFeature("homeFilters");
+  const showPrize = useFeature("homePrizeCard");
+  const showChallenges = useFeature("homeChallengeCards");
+
+  // tabs switched off while one was picked: back to everything
+  useEffect(() => {
+    if (!showFilters) setFilter("all");
+  }, [showFilters]);
 
   useEffect(() => setDismissed(readDismissed()), []);
 
@@ -359,7 +369,8 @@ export default function HomeFeed() {
     onOpenPump: openPump,
   };
 
-  // ---- rows: feed items with the prize race, challenges and winners mixed in
+  // ---- rows: feed items with last week's winners (and, when switched on, the
+  // prize race and challenges) mixed in. Winners alone sits 2nd.
   const rows = useMemo<Row[]>(() => {
     const list: Row[] = (items || []).map((item) => ({ k: "item", key: item.key, item }));
     if (filter !== "all" && filter !== "gym") return list;
@@ -369,8 +380,8 @@ export default function HomeFeed() {
       const st = challengeStatus(c, now);
       return !st.ended && (st.live || new Date(c.starts_at).getTime() - now < 3 * 86400000);
     });
-    if (s && s.prizes.length) extra.push({ k: "prize", key: "prize" });
-    live.forEach((c) => extra.push({ k: "challenge", key: `challenge:${c.id}`, id: c.id }));
+    if (showPrize && s && s.prizes.length) extra.push({ k: "prize", key: "prize" });
+    if (showChallenges) live.forEach((c) => extra.push({ k: "challenge", key: `challenge:${c.id}`, id: c.id }));
     if (ov?.last_winners && ov.last_winners.winners.length) extra.push({ k: "winners", key: "winners" });
     if (filter === "gym") return [...extra, ...list];
     const at = [1, 4, 8];
@@ -380,7 +391,7 @@ export default function HomeFeed() {
       out.splice(pos, 0, r);
     });
     return out;
-  }, [items, ov, filter, now]);
+  }, [items, ov, filter, now, showPrize, showChallenges]);
 
   const won = filter === "all" || filter === "gym" ? (me?.redemptions || []).filter((r) => r.source !== "shop" && r.status === "issued") : [];
   const showPinned = (filter === "all" || filter === "gym") ? pinned.filter((p) => !dismissed.includes(p.id)) : [];
@@ -417,27 +428,31 @@ export default function HomeFeed() {
 
   return (
     <section className="fx-feed-wrap" data-testid="home-feed" aria-labelledby="feed-h">
-      <h2 id="feed-h" className="sr-only">
-        Gym feed
-      </h2>
-      <div className="hx-filters" role="tablist" aria-label="Show">
-        {FEED_FILTERS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            role="tab"
-            aria-selected={filter === f.key}
-            className="hx-filter"
-            onClick={() => {
-              if (f.key === filter) window.scrollTo({ top: 0, behavior: "smooth" });
-              setFilter(f.key);
-            }}
-            data-testid={`filter-${f.key}`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      {showFilters && (
+        <h2 id="feed-h" className="sr-only">
+          Gym feed
+        </h2>
+      )}
+      {showFilters && (
+        <div className="hx-filters" role="tablist" aria-label="Show">
+          {FEED_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              role="tab"
+              aria-selected={filter === f.key}
+              className="hx-filter"
+              onClick={() => {
+                if (f.key === filter) window.scrollTo({ top: 0, behavior: "smooth" });
+                setFilter(f.key);
+              }}
+              data-testid={`filter-${f.key}`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {(pull > 0 || refreshing) && (
         <div className="fx-pull" style={{ height: refreshing ? 44 : pull }} aria-hidden="true">
@@ -456,6 +471,11 @@ export default function HomeFeed() {
       <div className="fx-feed">
         {won.map((r) => <WonCard key={`won:${r.id}`} r={r} />)}
         {showPinned.map((p) => (p.kind === "offer" ? <OfferCard key={`pin:${p.id}`} post={p} onClick={(id) => id && trackSponsorClick(supabase, id)} /> : <NoticeCard key={`pin:${p.id}`} post={p} now={now} onDismiss={() => dismiss(p.id)} />))}
+        {!showFilters && (
+          <h2 id="feed-h" className="hx-feedh">
+            Gym feed
+          </h2>
+        )}
 
         {items === null ? (
           <>

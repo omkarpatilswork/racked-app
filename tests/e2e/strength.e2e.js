@@ -1,5 +1,5 @@
 // Strength boards (0015): body weight + board, ×BW boards with Men / Women /
-// All, strength points for the weekly prize, the TV and "Tap. Log. Win.".
+// All, strength points for the weekly prize, the TV and "Tap or scan. Log. Win.".
 // Against the mocked backend. Run: see tests/README.md
 const { chromium } = require("playwright");
 const fs = require("fs");
@@ -19,6 +19,8 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   if (opts.theme) await page.addInitScript((t) => localStorage.setItem("racked:theme", t), opts.theme);
+  // archived features (lib/features.ts) switched back on for this browser
+  if (opts.features) await page.addInitScript((ks) => ks.forEach((k) => localStorage.setItem("racked:feature:" + k, "on")), opts.features);
   const st = mut(defaultState()) || defaultState();
   await setup(ctx, page, st, BASE);
   await page.goto(BASE + url, { waitUntil: "networkidle" }).catch(() => {});
@@ -60,7 +62,12 @@ const strong = (opts) => (s) => enableStrength(s, opts);
     await ctx.close();
   }
   {
-    const { ctx, page, st, errors } = await open(browser, "/home", strong({ body: null }));
+    const plain = await open(browser, "/home", strong({ body: null }));
+    await plain.page.waitForSelector('[data-testid="home-log"]');
+    await sleep(800);
+    check("Home: no strength-boards card (archived; the log screen asks)", (await count(plain.page, '[data-testid="home-add-body"]')) === 0);
+    await plain.ctx.close();
+    const { ctx, page, st, errors } = await open(browser, "/home", strong({ body: null }), { features: ["homeBodyCard"] });
     await page.waitForSelector('[data-testid="home-add-body"]');
     check("Home: card to get on the strength boards", ((await text(page, '[data-testid="home-add-body"]'))).includes("×BW"));
     await page.locator('[data-testid="home-add-body-btn"]').click();
@@ -186,7 +193,7 @@ const strong = (opts) => (s) => enableStrength(s, opts);
 
   // 5. Home feed reward cards
   {
-    const { ctx, page, errors } = await open(browser, "/home", strong());
+    const { ctx, page, errors } = await open(browser, "/home", strong(), { features: ["homePrizeCard", "homeChallengeCards", "homeBodyCard"] });
     await page.waitForSelector('[data-testid="feed-prize"]');
     const p = await text(page, '[data-testid="feed-prize"]');
     check("feed prize: #1 Men & #1 Women, both leaders", p.includes("#1 Men & #1 Women") && p.includes("Men: Rahul") && p.includes("Women: Asha"), p);
@@ -199,12 +206,12 @@ const strong = (opts) => (s) => enableStrength(s, opts);
     await ctx.close();
   }
 
-  // 6. TV: Tap. Log. Win., Men | Women boards in ×BW, two leaders, winners
+  // 6. TV: Tap or scan. Log. Win., Men | Women boards in ×BW, two leaders, winners
   {
     const { ctx, page, errors } = await open(browser, "/tv", (s) => ((s.signedIn = false), enableStrength(s)), { viewport: { width: 1920, height: 1080 } });
     await page.waitForSelector('[data-testid="slide-join"]', { timeout: 15000 });
-    check("TV join slide: Tap. Log. Win.", ((await text(page, '[data-testid="slide-join"]'))).includes("Tap. Log. Win."));
-    check("TV footer: Tap. Log. Win.", ((await text(page, ".tv-foot-msg"))).includes("Tap. Log. Win."));
+    check("TV join slide: Tap or scan. Log. Win.", ((await text(page, '[data-testid="slide-join"]'))).includes("Tap or scan. Log. Win."));
+    check("TV footer: Tap or scan. Log. Win.", ((await text(page, ".tv-foot-msg"))).includes("Tap or scan. Log. Win."));
     const seen = {};
     for (let i = 0; i < 18; i++) {
       const k = await page.locator("[data-testid^=slide-]").first().getAttribute("data-testid");
@@ -222,7 +229,7 @@ const strong = (opts) => (s) => enableStrength(s, opts);
       await page.keyboard.press("ArrowRight");
       await sleep(700);
     }
-    check("TV how it works: Tap. Log. Win.", (seen["slide-howto"] || []).some((t) => t.includes("Tap. Log. Win.") && t.includes("Men's & Women's")));
+    check("TV how it works: Tap or scan. Log. Win.", (seen["slide-howto"] || []).some((t) => t.includes("Tap or scan. Log. Win.") && t.includes("Men's & Women's")));
     check("TV prize: #1 Men & #1 Women, both leaders in points", (seen["slide-prizes"] || []).some((t) => t.includes("#1 Men & #1 Women") && t.includes("Rahul") && t.includes("Asha") && t.includes("pts")), (seen["slide-prizes"] || []).join(" | "));
     check("TV winners: Men's and Women's", (seen["slide-winners"] || []).some((t) => t.includes("Rahul & Asha")), (seen["slide-winners"] || []).join(" | "));
     check("TV challenge: for your size, Men & Women", (seen["slide-challenge"] || []).some((t) => t.includes("for your size") && t.includes("Men & Women")), (seen["slide-challenge"] || []).join(" | "));
@@ -230,18 +237,20 @@ const strong = (opts) => (s) => enableStrength(s, opts);
     await ctx.close();
   }
 
-  // 7. /join and the landing page: Tap. Log. Win.
+  // 7. /join and the signed-out Home: Tap or scan. Log. Win.
   {
     const { ctx, page, errors } = await open(browser, "/join", (s) => ((s.signedIn = false), enableStrength(s)));
     await page.waitForSelector('[data-testid="join-out"]');
-    check("/join: Tap. Log. Win.", ((await text(page, '[data-testid="join-out"] h1'))).includes("Tap. Log. Win."));
+    check("/join: Tap or scan. Log. Win.", ((await text(page, '[data-testid="join-out"] h1'))).includes("Tap or scan. Log. Win."));
     await page.waitForSelector('[data-testid="join-beat"]').catch(() => {});
     check("/join: a ×BW lift to beat", ((await text(page, '[data-testid="join-beat"]'))).includes("× body weight"));
     check("no page errors (join)", errors.length === 0, errors.join(" | "));
     await ctx.close();
     const h = await open(browser, "/home", (s) => ((s.signedIn = false), s));
     await h.page.waitForSelector('[data-testid="hero-signin"]');
-    check("signed-out Home: Tap. Log. Win.", ((await text(h.page, "h1"))).includes("Tap. Log. Win."));
+    check("signed-out Home: Tap or scan. Log. Win.", ((await text(h.page, "h1"))).includes("Tap or scan. Log. Win."));
+    const how = await text(h.page, ".card");
+    check("signed-out Home: steps say tap or scan, and win", how.includes("Tap or scan") && how.includes("Win") && !how.includes("Level up"), how);
     await h.ctx.close();
   }
 

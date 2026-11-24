@@ -42,7 +42,7 @@ npx next dev -p 3111
 # terminal 2
 node tests/e2e/app.e2e.js
 node tests/e2e/strength.e2e.js # body weight, ×BW boards, Men/Women, TV (0015 on)
-node tests/e2e/home.e2e.js     # Home feed, + button, comments, R&R Feed, Reports
+node tests/e2e/home.e2e.js     # Home v4 (Log a set, guide), feed, + button, comments, R&R Feed, Reports
 node tests/e2e/staff.e2e.js    # staff console incl. house lifts
 node tests/e2e/tv.e2e.js      # gym TV, /go and /join (takes ~5 min)
 node tests/e2e/rewards.e2e.js  # Rewards, Ranks, Home feed reward cards, Profile gym card, R&R Controls (incl. TV)
@@ -55,3 +55,5 @@ with sample data, so the flows (onboarding, logging a set, rest timer, PB,
 offline, settings, delete account, leaderboard) can be driven end to end. It
 also runs an axe accessibility scan and checks for sideways scrolling at
 360px. **Delete `.env.local` when you're done** if it holds placeholder keys.
+
+Archived features (`lib/features.ts`) are off in the app but still tested: a test switches one back on for its browser with `opts.features` in `open()`, which sets `localStorage["racked:feature:<key>"] = "on"` before the page loads (read by `useFeature()`).

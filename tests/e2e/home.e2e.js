@@ -1,6 +1,9 @@
-// Home feed (0014): the feed cards, filters, kudos, comments, posting from the
-// + button, edit / delete / report, notices and offers, and the fallback when
-// 0014 isn't run yet. Against the mocked backend. Run: see tests/README.md
+// Home (v4) + feed (0014): the slim stats row, the big "Log a set" button and
+// its tap-or-scan guide, the feed cards, kudos, comments, posting from the
+// + button, edit / delete / report, notices and offers, the fallback when
+// 0014 isn't run yet, and the archived bits (feed tabs, prize and challenge
+// cards) still working when switched on in lib/features.ts.
+// Against the mocked backend. Run: see tests/README.md
 const { chromium } = require("playwright");
 const fs = require("fs");
 const { defaultState, setup } = require("./mock");
@@ -21,6 +24,8 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   if (opts.theme) await page.addInitScript((t) => localStorage.setItem("racked:theme", t), opts.theme);
+  // archived features (lib/features.ts) switched back on for this browser
+  if (opts.features) await page.addInitScript((ks) => ks.forEach((k) => localStorage.setItem("racked:feature:" + k, "on")), opts.features);
   const st = mut(defaultState()) || defaultState();
   st.feedPhotos = [{ item_id: 77, is_mine: false, display_name: "Kabir S", avatar_url: null, instagram_handle: null, day: "2026-11-18", pre_photo_id: 77, pre_path: "u5/pre.jpg", post_photo_id: 78, post_path: "u5/post.jpg", created_at: new Date(Date.now() - 95 * 60000).toISOString(), kudos_count: 3, kudos_mine: false, kudos_names: ["Asha"] }];
   if (opts.after) opts.after(st);
@@ -42,24 +47,37 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     });
   }
 
-  // 1. the page: header, one-line stats, composer, every card type
+  // 1. the page: header, one slim stats row, Log a set, composer, every card type
   {
     const { ctx, page, st, errors } = await open(browser, "/home");
     await page.waitForSelector('[data-testid="feed-text"]');
-    check("greeting + gym chip", (await count(page, ".hx-top h1")) === 1 && (await text(page, 'header [data-testid="gym-mark"]')).includes("Club 360"));
+    check("greeting: Hey + first name, with the gym chip", (await text(page, ".hx-top h1")) === "Hey Omi" && (await text(page, 'header [data-testid="gym-mark"]')).includes("Club 360"));
     const you = await text(page, '[data-testid="you-line"]');
-    check("stats on one slim line: streak, level, sets this week", /day streak/.test(you) && /level/.test(you) && /sets? this week/.test(you), you);
-    check("stats line is a single row", await page.evaluate(() => {
-      const t = [...document.querySelectorAll('[data-testid="you-line"] > *')].map((e) => Math.round(e.getBoundingClientRect().top));
-      return t.length === 3 && new Set(t).size === 1;
+    check("stats row: streak and sets this week, no level", /day streak/.test(you) && /sets? this week/.test(you) && !/level/.test(you) && (await count(page, '[data-testid="tile-level"]')) === 0, you);
+    check("stats row: share your week", (await count(page, '[data-testid="share-week"]')) === 1);
+    check("stats row is one slim row", await page.evaluate(() => {
+      const els = [...document.querySelectorAll('[data-testid="you-line"] > *')];
+      const t = els.map((e) => Math.round(e.getBoundingClientRect().top));
+      return els.length === 3 && new Set(t).size === 1 && document.querySelector('[data-testid="you-line"]').getBoundingClientRect().height <= 40;
+    }));
+    const log = page.locator('[data-testid="home-log"]');
+    check("one big Log a set button: tap or scan", ((await log.textContent()) || "").includes("Log a set") && ((await log.textContent()) || "").includes("Tap or scan the sticker"));
+    check("Log a set comes before the composer", await page.evaluate(() => {
+      const a = document.querySelector('[data-testid="home-log"]'), b = document.querySelector('[data-testid="composer"]');
+      return !!a && !!b && a.getBoundingClientRect().bottom <= b.getBoundingClientRect().top;
     }));
     check("composer is there", (await count(page, '[data-testid="composer-open"]')) === 1 && (await count(page, '[data-testid="composer-photo"]')) === 1);
+    check("no feed tabs, no strength-boards card on Home", (await count(page, '.hx-filters, [data-testid^="filter-"], [data-testid="home-add-body"]')) === 0);
+    check("'Gym feed' label above the feed", (await text(page, "#feed-h")) === "Gym feed" && !(await page.locator("#feed-h").evaluate((e) => e.classList.contains("sr-only"))));
     check("home_feed asked once for the first page", calls(st, "home_feed").length >= 1 && body(calls(st, "home_feed")[0]).p_filter === "all");
     const order = await page.evaluate(() => [...document.querySelectorAll(".fx-feed > *")].slice(0, 2).map((e) => e.getAttribute("data-testid")));
     check("'You won' first, then the pinned notice", order[0] === "rw-won-card" && order[1] === "feed-notice", order.join(","));
     check("pinned notice says Pinned", (await text(page, '[data-testid="feed-notice"]')).includes("Pinned") && (await text(page, '[data-testid="feed-notice"]')).includes("Closed Sunday for Diwali"));
-    for (const id of ["feed-text", "feed-photo", "feed-transformation", "feed-pr", "feed-workout", "photo-card", "feed-offer", "feed-milestone", "feed-prize", "feed-challenge", "feed-winners"])
+    for (const id of ["feed-text", "feed-photo", "feed-transformation", "feed-pr", "feed-workout", "photo-card", "feed-offer", "feed-milestone", "feed-winners"])
       check(`card shows: ${id}`, (await count(page, `[data-testid="${id}"]`)) >= 1);
+    check("no prize card, no challenge cards on Home", (await count(page, '[data-testid="feed-prize"], [data-testid="feed-challenge"]')) === 0);
+    const posts = await page.evaluate(() => [...document.querySelectorAll(".fx-feed > *")].map((e) => e.getAttribute("data-testid")).filter((x) => x && x !== "rw-won-card" && x !== "feed-notice"));
+    check("last week's winners is the 2nd post", posts[1] === "feed-winners", posts.slice(0, 4).join(","));
     const rahul = page.locator('[data-testid="feed-text"]').filter({ hasText: "Rahul Mehta" });
     check("text post: big text + machine tag", (await rahul.locator(".fx-body.big").count()) === 1 && ((await rahul.locator('[data-testid="machine-tag"]').textContent()) || "").includes("Squat"));
     check("tag opens the machine guide", (await rahul.locator('[data-testid="machine-tag"]').getAttribute("href")) === "/machine/squat-07/guide");
@@ -84,10 +102,34 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     await ctx.close();
   }
 
-  // 2. filters
+  // 1b. Log a set: the tap-or-scan guide, and "Log your first set"
   {
-    const { ctx, page, st, errors } = await open(browser, "/home");
+    const { ctx, page, errors } = await open(browser, "/home");
+    await page.waitForSelector('[data-testid="home-log"]');
+    await page.locator('[data-testid="home-log"]').click();
+    await page.waitForSelector('[data-testid="tap-guide"]');
+    const g = await text(page, '[data-testid="tap-guide"]');
+    check("guide: tap, or scan the QR, then log", g.includes("Tap") && g.includes("or scan") && g.includes("QR code") && g.includes("Log") && (await page.locator(".hx-guide li").count()) === 3, g);
+    check("guide: link to all machines", (await page.locator('[data-testid="guide-machines"]').getAttribute("href")) === "/machines");
+    check("guide: no axe issues", (await axe(page)).length === 0);
+    await page.locator('[data-testid="guide-machines"]').click();
+    await page.waitForURL(/\/machines$/);
+    check("guide: goes to the machines", page.url().endsWith("/machines"));
+    check("no page errors (guide)", errors.length === 0, errors.join(" | "));
+    await ctx.close();
+    const n = await open(browser, "/home", (s) => ((s.stats = []), s));
+    await n.page.waitForSelector('[data-testid="home-log"]');
+    await n.page.waitForFunction(() => document.querySelector('[data-testid="home-log"]')?.textContent.includes("first"), null, { timeout: 5000 }).catch(() => {});
+    check("brand new member: Log your first set", (await text(n.page, '[data-testid="home-log"]')).includes("Log your first set"));
+    await n.ctx.close();
+  }
+
+  // 2. filters (archived: switched back on for this browser)
+  {
+    const { ctx, page, st, errors } = await open(browser, "/home", (s) => s, { features: ["homeFilters", "homePrizeCard", "homeChallengeCards", "homeLevel"] });
     await page.waitForSelector('[data-testid="feed-text"]');
+    check("archived switched on: level is back in the row", (await count(page, '[data-testid="tile-level"]')) === 1);
+    check("archived switched on: prize + challenge cards are back", (await count(page, '[data-testid="feed-prize"]')) === 1 && (await count(page, '[data-testid="feed-challenge"]')) >= 1);
     check("6 filters, For you selected", (await count(page, '[data-testid^="filter-"]')) === 6 && (await page.locator('[data-testid="filter-all"]').getAttribute("aria-selected")) === "true");
     const only = async (key, want, none) => {
       await page.locator(`[data-testid="filter-${key}"]`).click();
@@ -106,7 +148,7 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     check("gym filter leads with the prize", (await page.evaluate(() => [...document.querySelectorAll(".fx-feed > *")].map((e) => e.getAttribute("data-testid")))).filter((x) => x !== "rw-won-card" && x !== "feed-notice")[0] === "feed-prize");
     check("no page errors (filters)", errors.length === 0, errors.join(" | "));
     await ctx.close();
-    const e = await open(browser, "/home", (s) => ((s.wallPosts = s.wallPosts.filter((w) => w.kind !== "transformation")), s));
+    const e = await open(browser, "/home", (s) => ((s.wallPosts = s.wallPosts.filter((w) => w.kind !== "transformation")), s), { features: ["homeFilters"] });
     await e.page.waitForSelector('[data-testid="feed-text"]');
     await e.page.locator('[data-testid="filter-transformations"]').click();
     await e.page.waitForSelector('[data-testid="feed-empty"]');
@@ -354,7 +396,7 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
 
   // 10. before 0014: falls back to workouts + pump photos
   {
-    const { ctx, page, errors } = await open(browser, "/home", (s) => ((s.missingRpc.home_feed = true), s));
+    const { ctx, page, errors } = await open(browser, "/home", (s) => ((s.missingRpc.home_feed = true), s), { features: ["homeFilters"] });
     await page.waitForSelector('[data-testid="feed-pr"]');
     check("before 0014: workouts + PRs still show", (await count(page, '[data-testid="feed-pr"]')) === 1 && (await count(page, '[data-testid="feed-workout"]')) >= 1);
     check("before 0014: no member posts", (await count(page, '[data-testid="feed-text"]')) === 0);
@@ -365,15 +407,17 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     await ctx.close();
   }
 
-  // 11. resume card when I'm at a machine
+  // 11. right after a tap or scan, Log a set becomes "Log next set"
   {
     const { ctx, page, errors } = await open(browser, "/home", (s) => s, {});
     await page.waitForSelector('[data-testid="feed-text"]');
-    check("no resume card when I'm not at a machine", (await count(page, '[data-testid="resume-card"]')) === 0);
+    check("no 'Log next set' when I'm not at a machine", (await count(page, '[data-testid="resume-card"]')) === 0 && (await count(page, '[data-testid="home-log"]')) === 1);
     await page.evaluate(() => sessionStorage.setItem("racked:unlocked-machine", JSON.stringify({ machineId: "lat-pulldown-01", unlockedAt: Date.now(), source: "nfc" })));
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForSelector('[data-testid="resume-card"]');
-    check("resume card goes back to logging", ((await text(page, '[data-testid="resume-card"]'))).includes("Lat Pulldown") && (await page.locator('[data-testid="resume-card"]').getAttribute("href")) === "/machine/lat-pulldown-01/log");
+    const rc = await text(page, '[data-testid="resume-card"]');
+    check("big button becomes Log next set · Lat Pulldown, straight to logging", rc.includes("Log next set") && rc.includes("Lat Pulldown") && rc.includes("01") && (await page.locator('[data-testid="resume-card"]').getAttribute("href")) === "/machine/lat-pulldown-01/log", rc);
+    check("only one big button", (await count(page, '[data-testid="home-log"]')) === 0);
     await page.locator('[data-testid="nav-plus"]').click();
     check("+ menu offers the same shortcut", ((await text(page, '[data-testid="create-resume"]'))).includes("Lat Pulldown"));
     check("no page errors (resume)", errors.length === 0, errors.join(" | "));

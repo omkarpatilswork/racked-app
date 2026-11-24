@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     siteName: "Racked by Bijlee",
     url: "/",
     locale: "en_IN",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Racked by Bijlee Run Club: Tap. Log. Win." }],
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Racked by Bijlee Run Club: Tap or scan. Log. Win." }],
   },
   twitter: {
     card: "summary_large_image",

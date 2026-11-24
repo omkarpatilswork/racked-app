@@ -241,7 +241,7 @@ function SignedInProfile({ uid, name }: { uid: string; name: string }) {
             <div className="card empty">
               Your progress starts at the first machine.
               <br />
-              Tap a sticker and log a set.
+              Tap or scan a sticker and log a set.
             </div>
           )}
         </section>

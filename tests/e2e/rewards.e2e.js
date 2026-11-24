@@ -17,6 +17,8 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   if (opts.theme) await page.addInitScript((t) => localStorage.setItem("racked:theme", t), opts.theme);
+  // archived features (lib/features.ts) switched back on for this browser
+  if (opts.features) await page.addInitScript((ks) => ks.forEach((k) => localStorage.setItem("racked:feature:" + k, "on")), opts.features);
   const st = mut(defaultState()) || defaultState();
   await setup(ctx, page, st, BASE);
   await page.goto(BASE + url, { waitUntil: "networkidle" }).catch(() => {});
@@ -151,9 +153,15 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await l.ctx.close();
   }
 
-  // 6. Home
+  // 6. Home: winners and "You won" only; the prize and challenge cards are
+  // archived (lib/features.ts) and still work when switched on
   {
-    const { ctx, page, errors } = await open(browser, "/home");
+    const plain = await open(browser, "/home");
+    await plain.page.waitForSelector('[data-testid="feed-winners"]');
+    check("home feed: no prize card, no challenge cards", (await plain.page.locator('[data-testid="feed-prize"], [data-testid="feed-challenge"]').count()) === 0);
+    check("home feed: winners + 'You won' still there", (await plain.page.locator('[data-testid="rw-won-card"]').count()) === 1 && (await text(plain.page, '[data-testid="feed-winners"]')).includes("Asha"));
+    await plain.ctx.close();
+    const { ctx, page, errors } = await open(browser, "/home", (s) => s, { features: ["homePrizeCard", "homeChallengeCards"] });
     await page.waitForSelector('[data-testid="feed-prize"]');
     check("home: Training at Club 360", (await text(page, 'header [data-testid="gym-mark"]')).includes("Club 360"));
     const t = await text(page, '[data-testid="feed-prize"]');

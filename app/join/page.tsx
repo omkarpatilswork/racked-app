@@ -92,7 +92,7 @@ function Join() {
               <GymMark variant="chip" onDark label="Live at" />
             </div>
             <h1>
-              Tap. Log. <span className="join-grad">Win.</span>
+              Tap or scan. Log. <span className="join-grad">Win.</span>
             </h1>
             <p>
               Free, no app to download. Sign in once with Google, tap or scan the sticker on any machine, log your set and

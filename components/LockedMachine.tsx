@@ -29,7 +29,7 @@ export default function LockedMachine({ machine }: { machine: Machine }) {
               <Icon name="lock" />
             </div>
             <div>
-              <h2 style={{ fontSize: 17, margin: 0 }}>Tap in to log here</h2>
+              <h2 style={{ fontSize: 17, margin: 0 }}>Tap or scan to log here</h2>
               <p className="muted" style={{ margin: "4px 0 0", fontSize: 13.5 }}>
                 To keep the leaderboard honest, sets can only be logged at the machine.
               </p>
