@@ -399,8 +399,8 @@ function BoardSlideBw({ board, period }: { board: TvBoard; period: Period }) {
                 {e.bestEver && <small className="tag">Best ever</small>}
               </span>
               <span className="lift">
-                {e.ratio != null ? e.ratio.toFixed(2) : "–"}
-                <small>×BW</small>
+                {e.ratio != null ? Math.round(e.ratio * 100) : "–"}
+                <small>score</small>
               </span>
             </li>
           ))}
@@ -426,9 +426,9 @@ function BoardSlideBw({ board, period }: { board: TvBoard; period: Period }) {
         <h2 className="tv-machine-name">{board.title}</h2>
         <div className="tv-beat" data-testid="tv-beat">
           <small>Ranked for your size</small>
-          <b>×BW = kg ÷ body weight</b>
+          <b>Score = kg ÷ body weight × 100</b>
           <span>
-            {lead.length ? `Lift ${lead[0].ratio?.toFixed(2)}× your body weight to beat ${lead[0].name}. ` : ""}Tap or scan the sticker on machine {board.machineNumber}
+            {lead.length && lead[0].ratio != null ? `Score ${Math.round(lead[0].ratio * 100)} to beat ${lead[0].name}. ` : ""}Tap or scan the sticker on machine {board.machineNumber}
           </span>
         </div>
       </div>
@@ -582,7 +582,7 @@ function PrizeSlide({ feed, now }: { feed: TvFeed; now: number }) {
           </div>
         )}
         <p className="tv-sub">
-          {tops ? `Strongest for your size wins: your best ×BW on every machine this ${word}, added up.` : `Every set earns XP. Most XP this ${word} wins.`}
+          {tops ? `Strongest for your size wins: your best score on every machine this ${word}, added up.` : `Every set earns XP. Most XP this ${word} wins.`}
           {second ? ` ${prizeRankLabel(second)}: ${second.title}.` : ""}
         </p>
       </div>

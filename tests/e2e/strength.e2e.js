@@ -1,4 +1,4 @@
-// Strength boards (0015): body weight + board, ×BW boards with Men / Women /
+// Strength boards (0015) + Ranks v2 (0016): body weight + board, scores (kg ÷ body weight × 100) with Men / Women /
 // All, strength points for the weekly prize, the TV and "Tap or scan. Log. Win.".
 // Against the mocked backend. Run: see tests/README.md
 const { chromium } = require("playwright");
@@ -46,11 +46,11 @@ const strong = (opts) => (s) => enableStrength(s, opts);
     const { ctx, page, st, errors } = await open(browser, "/machine/lat-pulldown-01/log?tap=LP4K9X", strong({ body: null }));
     await page.waitForSelector('[data-testid="body-sheet"]', { timeout: 8000 });
     check("log page asks for body weight + board", ((await text(page, '[data-testid="body-sheet"]'))).includes("strength boards"));
-    check("explains ×BW with an example", ((await text(page, '[data-testid="body-sheet"]'))).includes("0.80×"));
+    check("explains the score with an example", ((await text(page, '[data-testid="body-sheet"]'))).includes("60 kg lifted at 75 kg = 80"));
     check("three choices: Men, Women, Prefer not to say", (await count(page, '[data-testid="body-sheet"] [role="radio"]')) === 3);
     check("save is off until both are filled", await page.locator('[data-testid="bw-save"]').isDisabled());
     check("body weight field is focused", (await page.evaluate(() => document.activeElement?.getAttribute("data-testid"))) === "bw-kg");
-    check("says body weight is private", ((await text(page, '[data-testid="body-sheet"]'))).includes("nobody else sees it"));
+    check("says only you and staff see the number", ((await text(page, '[data-testid="body-sheet"]'))).includes("Only you and gym staff see this number"));
     check("axe: body sheet", (await axe(page)).length === 0);
     await page.locator('[data-testid="bw-later"]').click();
     await sleep(300);
@@ -69,12 +69,12 @@ const strong = (opts) => (s) => enableStrength(s, opts);
     await plain.ctx.close();
     const { ctx, page, st, errors } = await open(browser, "/home", strong({ body: null }), { features: ["homeBodyCard"] });
     await page.waitForSelector('[data-testid="home-add-body"]');
-    check("Home: card to get on the strength boards", ((await text(page, '[data-testid="home-add-body"]'))).includes("×BW"));
+    check("Home: card to get on the strength boards", ((await text(page, '[data-testid="home-add-body"]'))).includes("Your score"));
     await page.locator('[data-testid="home-add-body-btn"]').click();
     await page.waitForSelector('[data-testid="body-sheet"]');
     await page.locator('[data-testid="bw-women"]').click();
     await page.locator('[data-testid="bw-kg"]').fill("61.5");
-    check("example uses your weight", ((await text(page, '[data-testid="body-sheet"]'))).includes("61.5 kg = 0.98×"));
+    check("example uses your weight", ((await text(page, '[data-testid="body-sheet"]'))).includes("61.5 kg = 98"));
     await page.locator('[data-testid="bw-save"]').click();
     await page.waitForSelector('[data-testid="body-sheet"]', { state: "detached" });
     const b = body(calls(st, "set_my_body")[0]);
@@ -109,60 +109,162 @@ const strong = (opts) => (s) => enableStrength(s, opts);
     await ctx.close();
   }
 
-  // 2. Ranks: Men / Women / All, ×BW, strength points
+  // 2. Ranks v2 (0016): small card, two tabs, filters (board · machine · show),
+  //    score / kg moved / heaviest, the "you" bar, progress without XP
+  const pick = async (page, id, value) => {
+    await page.locator(`[data-testid="${id}"] select`).selectOption(value);
+    await sleep(700);
+  };
+  const lastRanks = (st) => body(calls(st, "ranks_board").pop());
+  const rowsText = async (page) => (await page.locator('[data-testid="rk-row"]').allTextContents()).map((t) => t.replace(/\s+/g, " ").trim());
   {
     const { ctx, page, st, errors } = await open(browser, "/leaderboard", strong());
-    await page.waitForSelector('[data-testid="podium"]');
-    check("Men / Women / All tabs, your board first", (await count(page, '[data-testid^="div-"]')) === 3 && (await page.locator('[data-testid="div-men"]').getAttribute("aria-selected")) === "true");
-    check("This week: men's race in points", body(calls(st, "season_division_board").pop()).p_division === "men" && ((await text(page, '[data-testid="leaderboard"]'))).includes("pts"));
-    check("prize banner: #1 Men and #1 Women", ((await text(page, '[data-testid="lb-prize-race"]'))).includes("#1 Men and #1 Women"));
-    const you = await text(page, '[data-testid="my-rank"]');
-    check("you bar: points + how to pass", you.includes("#2") && you.includes("255 pts") && you.includes("29 points to pass Rahul"), you);
-    await page.locator('[data-testid="div-women"]').click();
-    await page.waitForFunction(() => document.querySelector('[data-testid="div-women"]')?.getAttribute("aria-selected") === "true");
-    await sleep(600);
-    check("Women's board", body(calls(st, "season_division_board").pop()).p_division === "women" && ((await text(page, '[data-testid="podium"]'))).includes("Asha"));
-    await page.goto(BASE + "/leaderboard?tab=machine&machine=lat-pulldown-01", { waitUntil: "networkidle" });
-    await page.waitForSelector('[data-testid="podium"]');
-    const b = body(calls(st, "strength_board").pop());
-    check("By machine: ×BW board for your division", b.p_division === "men" && b.p_machine_id === "lat-pulldown-01");
-    await page.waitForFunction(() => (document.querySelector('[data-testid="podium"]')?.textContent || "").includes("0.83"), null, { timeout: 5000 }).catch(() => {});
-    const pod = await text(page, '[data-testid="podium"]');
-    check("podium shows ×BW, not kg", pod.includes("0.83") && pod.includes("× BW") && !/\bkg\b/.test(pod), pod);
-    check("podium labels fit on one line", await page.evaluate(() => [...document.querySelectorAll(".podium-spot .pval")].every((e) => e.getBoundingClientRect().height < 34)));
-    const me = await text(page, '[data-testid="my-rank"]');
-    check("my row: my ×BW and my kg; gap in kg", me.includes("0.69× BW") && me.includes("55 kg") && me.includes("About 11.25 kg more to pass Rahul"), me);
-    await page.locator('[data-testid="div-all"]').click();
+    await page.waitForSelector('[data-testid="leaderboard"]');
+    await page.waitForFunction(() => document.querySelector('[data-testid="rk-board"] select')?.value === "men", null, { timeout: 5000 }).catch(() => {});
+    const hero = await text(page, '[data-testid="lbx-hero"]');
+    check("small card: Leaderboard · Club 360 · Week ends in, no Powered by", hero.includes("Leaderboard") && hero.includes("Club 360") && /Week ends in \d/.test(hero) && !hero.includes("Powered by") && !hero.includes("Baner"), hero);
+    check("small card is small", (await page.locator('[data-testid="lbx-hero"]').boundingBox()).height < 90);
+    check("two tabs: This week · All time", (await count(page, '[data-testid^="lb-tab-"]')) === 2 && (await page.locator('[data-testid="lb-tab-week"]').getAttribute("aria-selected")) === "true");
+    check("filters: board, machine, show (one row)", (await count(page, '[data-testid="rk-filters"] select')) === 3 && await page.evaluate(() => new Set([...document.querySelectorAll(".rk-pick")].map((e) => Math.round(e.getBoundingClientRect().top))).size === 1));
+    const labels = (await page.locator(".rk-pick-l").allTextContents()).join(" · ");
+    check("filter labels: Men · All machines · Score", labels === "Men · All machines · Score", labels);
+    let a = lastRanks(st);
+    check("default: score, this week, your board (Men), all machines", a.p_metric === "score" && a.p_period === "week" && a.p_division === "men" && a.p_machine_id === null, JSON.stringify(a));
+    let rows = await rowsText(page);
+    check("simple list: Rahul 283, You 255, Kabir 240, Dev 120", rows.length === 4 && rows[0].includes("Rahul") && rows[0].endsWith("283") && rows[1].includes("You") && rows[1].endsWith("255"), rows.join(" | "));
+    check("gold, silver, bronze for the top 3; my row highlighted", (await count(page, ".rk-row.g1")) === 1 && (await count(page, ".rk-row.g2.me")) === 1 && (await count(page, ".rk-row.g3")) === 1);
+    check("no podium, no XP on the board", (await count(page, '[data-testid="podium"]')) === 0 && !(await text(page, '[data-testid="leaderboard"]')).includes("XP"));
+    check("prize: one small line to Rewards", (await text(page, '[data-testid="lb-prize-race"]')).includes("#1 Men & #1 Women win prizes") && (await page.locator('[data-testid="lb-prize-race"]').getAttribute("href")) === "/rewards");
+    let you = await text(page, '[data-testid="my-rank"]');
+    check("you bar: #2 · You · 255 · 29 points to pass Rahul", you.includes("#2") && you.includes("You · 255") && you.includes("29 points to pass Rahul"), you);
+    // the info sheet
+    await page.locator('[data-testid="rk-info"]').click();
+    await page.waitForSelector('[data-testid="rk-info-sheet"]');
+    const how = await text(page, '[data-testid="rk-info-sheet"]');
+    check("How scores work: score, kg moved, heaviest", how.includes("kg lifted ÷ your body weight × 100") && how.includes("60 kg at 75 kg = 80") && how.includes("Kg moved") && how.includes("Heaviest lift"), how);
+    check("axe: how scores work", (await axe(page)).length === 0);
+    await page.keyboard.press("Escape");
+    await sleep(300);
+    // women
+    await pick(page, "rk-board", "women");
+    a = lastRanks(st);
+    rows = await rowsText(page);
+    check("Women's board", a.p_division === "women" && rows[0].includes("Asha") && rows[0].endsWith("231") && !rows.some((r) => r.includes("You")), rows.join(" | "));
+    check("not on the women's board: says so", (await text(page, '[data-testid="my-rank"]')).includes("not on this board yet"));
+    // kg moved
+    await pick(page, "rk-show", "moved");
+    a = lastRanks(st);
+    rows = await rowsText(page);
+    check("Show kg moved", a.p_metric === "moved" && rows[0].includes("Asha") && rows[0].includes("3,900 kg") && rows[0].includes("sets"), rows.join(" | "));
+    check("URL keeps the choices", page.url().includes("board=women") && page.url().includes("show=moved"));
+    // all time, everyone
+    await pick(page, "rk-board", "all");
+    await page.locator('[data-testid="lb-tab-all"]').click();
     await sleep(800);
-    check("All: everyone, re-ranked", body(calls(st, "strength_board").pop()).p_division === "all" && ((await text(page, '[data-testid="podium"]'))).includes("Asha"));
-    check("axe: ranks with board tabs", (await axe(page)).length === 0);
+    a = lastRanks(st);
+    rows = await rowsText(page);
+    check("All time · Everyone · kg moved", a.p_period === "all" && a.p_division === "all" && rows[0].includes("52,000 kg") && rows.some((r) => r.includes("Sam")), rows.join(" | "));
+    you = await text(page, '[data-testid="my-rank"]');
+    check("you bar in kg: #3 · 43,600 kg · 4,601 kg more to pass Rahul", you.includes("#3") && you.includes("43,600 kg") && you.includes("4,601 kg more to pass Rahul"), you);
+    check("no prize line off the score race", (await count(page, '[data-testid="lb-prize-race"]')) === 0);
+    // heaviest anywhere: says which machine
+    await pick(page, "rk-show", "heaviest");
+    rows = await rowsText(page);
+    check("Heaviest lift anywhere: kg + which machine", rows[0].includes("160 kg") && rows[0].includes("Leg Press × 8"), rows.join(" | "));
+    // one machine
+    await page.locator('[data-testid="lb-tab-week"]').click();
+    await pick(page, "rk-board", "men");
+    await pick(page, "rk-machine", "lat-pulldown-01");
+    a = lastRanks(st);
+    rows = await rowsText(page);
+    check("one machine · heaviest: kg × reps", a.p_machine_id === "lat-pulldown-01" && a.p_metric === "heaviest" && rows[0].includes("65 kg") && rows[0].includes("× 12 reps"), rows.join(" | "));
+    you = await text(page, '[data-testid="my-rank"]');
+    check("you bar: 10 kg more to pass Rahul", you.includes("You · 55 kg") && you.includes("10 kg more to pass Rahul"), you);
+    await pick(page, "rk-show", "score");
+    rows = await rowsText(page);
+    you = await text(page, '[data-testid="my-rank"]');
+    check("one machine · score with reps", rows[0].endsWith("83") && rows[0].includes("× 12 reps") && rows[1].endsWith("69"), rows.join(" | "));
+    check("score gap in kg for your body weight", you.includes("About 11.25 kg more to pass Rahul"), you);
+    check("dual machine sides are separate choices", (await page.locator('[data-testid="rk-machine"] option').allTextContents()).join("|").includes("Pec Fly|Rear Delt"));
+    await pick(page, "rk-machine", "chest-press-02");
+    check("empty board: wide open", (await count(page, '[data-testid="rk-empty"]')) === 1 && (await text(page, '[data-testid="rk-empty"]')).includes("Chest Press"));
+    // progress: no XP, 3 missions, badges open on tap
+    await page.goto(BASE + "/leaderboard#progress", { waitUntil: "networkidle" });
+    await page.waitForSelector('[data-testid="rw-missions"]');
+    const prog = await text(page, '[data-testid="lb-progress"]');
+    check("progress: no XP anywhere", !/XP/.test(prog), prog.slice(0, 200));
+    check("3 missions: Train 3 days, Beat a personal best, Move 5,000 kg", (await count(page, '[data-testid^="mission-"]')) === 3 && (await count(page, '[data-testid="mission-days3"], [data-testid="mission-pb1"], [data-testid="mission-volume5k"]')) === 3);
+    check("streak: days to the next goal", (await text(page, '[data-testid="rw-streak"]')).includes("more days to a 7-day streak"));
+    await page.locator('[data-testid="badge-open-early_bird"]').click();
+    await page.waitForSelector('[data-testid="badge-sheet"]');
+    check("badge details on tap", (await text(page, '[data-testid="badge-sheet"]')).includes("Log a set before 7 am") && (await text(page, '[data-testid="badge-sheet"]')).includes("Not unlocked yet"));
+    await page.keyboard.press("Escape");
+    check("axe: ranks", (await axe(page)).length === 0);
     check("no page errors (ranks)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }
-  // no body weight: a nudge on Ranks
+  // no body weight: Everyone by default, the you bar asks for it on Score; kg moved still ranks you
   {
-    const { ctx, page, errors } = await open(browser, "/leaderboard", strong({ body: null }));
+    const { ctx, page, st, errors } = await open(browser, "/leaderboard", strong({ body: null }));
     await page.waitForSelector('[data-testid="lb-add-body"]');
-    check("Ranks: add body weight to get on these boards", ((await text(page, '[data-testid="lb-add-body"]'))).includes("body weight"));
+    check("no body weight: Everyone board", lastRanks(st).p_division === "all");
+    check("you bar: add your body weight to get a score", (await text(page, '[data-testid="my-rank"]')).includes("Add your body weight to get a score"));
     await page.locator('[data-testid="lb-add-body"]').click();
     check("…opens the sheet", (await count(page, '[data-testid="body-sheet"]')) === 1);
-    check("no page errors (nudge)", errors.length === 0, errors.join(" | "));
+    await page.keyboard.press("Escape");
+    await sleep(300);
+    await pick(page, "rk-show", "moved");
+    check("kg moved ranks you without a body weight", (await text(page, '[data-testid="my-rank"]')).includes("You · 4,200 kg"));
+    check("no page errors (no body)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }
+  // old links, archived XP, before 0016, signed out
+  {
+    let o = await open(browser, "/leaderboard?tab=machine&machine=lat-pulldown-01&period=all", strong());
+    await o.page.waitForSelector('[data-testid="leaderboard"]');
+    await sleep(600);
+    const a = lastRanks(o.st);
+    check("old ?tab=machine link: that machine, All time", a.p_machine_id === "lat-pulldown-01" && a.p_period === "all" && (await o.page.locator('[data-testid="lb-tab-all"]').getAttribute("aria-selected")) === "true");
+    await o.ctx.close();
+    o = await open(browser, "/leaderboard", strong(), { features: ["ranksXp", "ranksAllMissions"] });
+    await o.page.waitForSelector('[data-testid="rw-missions"]');
+    check("archived switched on: XP is a Show choice", (await o.page.locator('[data-testid="rk-show"] option').allTextContents()).includes("XP"));
+    check("archived switched on: 5 missions with +XP", (await count(o.page, '[data-testid^="mission-"]')) === 5 && (await text(o.page, '[data-testid="rw-missions"]')).includes("XP"));
+    await pick(o.page, "rk-show", "xp");
+    check("XP board from leaderboard_overall", calls(o.st, "leaderboard_overall").length >= 1 && (await text(o.page, '[data-testid="leaderboard"]')).includes("XP"));
+    await o.ctx.close();
+    o = await open(browser, "/leaderboard?show=moved", strong());
+    o.st.missingRpc.ranks_board = true;
+    await o.page.reload({ waitUntil: "networkidle" });
+    await o.page.waitForSelector('[data-testid="rk-unavailable"]');
+    check("before 0016: other boards say they're on their way", (await text(o.page, '[data-testid="rk-unavailable"]')).includes("on its way"));
+    await o.page.locator('[data-testid="rk-unavailable"] button').click();
+    await o.page.waitForSelector('[data-testid="leaderboard"]');
+    check("…Show Score: the race still works (season board)", calls(o.st, "season_division_board").length >= 1 && (await rowsText(o.page))[0].includes("Rahul"));
+    check("no page errors (before 0016)", o.errors.length === 0, o.errors.join(" | "));
+    await o.ctx.close();
+    o = await open(browser, "/leaderboard", (s) => ((s.signedIn = false), enableStrength(s)));
+    await o.page.waitForSelector('[data-testid="leaderboard"]');
+    check("signed out: this week's race", calls(o.st, "ranks_board").length === 0 && (await rowsText(o.page)).length > 0 && (await count(o.page, '[data-testid="my-rank"]')) === 0);
+    await o.page.locator('[data-testid="rk-show"] select').selectOption("heaviest");
+    await o.page.waitForSelector('[data-testid="rk-unavailable"]');
+    check("signed out: other boards ask to sign in", (await text(o.page, '[data-testid="rk-unavailable"]')).includes("Sign in to see this board"));
+    await o.ctx.close();
+  }
 
-  // 3. machine page: your ×BW, top 3 by ×BW
+  // 3. machine page: your score, top 3 by score
   {
     const { ctx, page, errors } = await open(browser, "/machine/lat-pulldown-01?tap=LP4K9X", strong());
     await page.waitForSelector('[data-testid="machine-bw"]');
-    check("your best as ×BW (55 kg ÷ 80 kg)", ((await text(page, '[data-testid="machine-bw"]'))).includes("0.69× body weight"));
+    check("your best as a score (55 kg ÷ 80 kg × 100)", ((await text(page, '[data-testid="machine-bw"]'))).includes("Score 69"));
     await sleep(800);
     const top = await page.locator("text=Top on this machine").locator("..").locator("..").textContent();
-    check("top 3: men's ×BW board", (top || "").includes("· Men") && (top || "").includes("0.83× BW"), top);
+    check("top 3: men's board by score", (top || "").includes("· Men") && (top || "").includes("Score 83"), top);
     check("no page errors (machine)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }
 
-  // 4. Rewards: two races, ×BW challenges
+  // 4. Rewards: two races, challenges by score
   {
     const { ctx, page, st, errors } = await open(browser, "/rewards", strong());
     await page.waitForSelector('[data-testid="rw-prize"]');
@@ -170,7 +272,7 @@ const strong = (opts) => (s) => enableStrength(s, opts);
     check("prize: #1 Men · #1 Women win", t.includes("#1 Men · #1 Women win"), t);
     check("two leaders", t.includes("Men's #1 right now") && t.includes("Rahul") && t.includes("Women's #1 right now") && t.includes("Asha"), t);
     check("your place in your race + how to pass", t.includes("You're #2 on the Men's board") && t.includes("29 points to pass Rahul"), t);
-    check("explains strength points", t.includes("best ×BW"));
+    check("explains the score", t.includes("kg ÷ body weight × 100"), t);
     check("mini board: your race, in points", body(calls(st, "season_division_board").pop()).p_division === "men");
     await page.locator('[data-testid="rw-board-btn"]').click();
     await page.waitForSelector('[data-testid="board-sheet"] [data-testid="div-women"]');
@@ -179,7 +281,7 @@ const strong = (opts) => (s) => enableStrength(s, opts);
     check("full board switches race", body(calls(st, "season_division_board").pop()).p_division === "women" && ((await text(page, '[data-testid="board-sheet"]'))).includes("Asha"));
     await page.keyboard.press("Escape");
     const ch = await text(page, '[data-testid="rw-challenges"]');
-    check("challenge: best for your size, leads per race in ×BW", ch.includes("for your size") && ((await text(page, '[data-testid="chal-lead-men"]'))).includes("1.75× BW") && ((await text(page, '[data-testid="chal-lead-women"]'))).includes("Asha"), ch);
+    check("challenge: best for your size, leads per race as a score", ch.includes("for your size") && ((await text(page, '[data-testid="chal-lead-men"]'))).includes("Score 175") && ((await text(page, '[data-testid="chal-lead-women"]'))).includes("Asha"), ch);
     check("no page errors (rewards)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }
@@ -206,7 +308,7 @@ const strong = (opts) => (s) => enableStrength(s, opts);
     await ctx.close();
   }
 
-  // 6. TV: Tap or scan. Log. Win., Men | Women boards in ×BW, two leaders, winners
+  // 6. TV: Tap or scan. Log. Win., Men | Women boards by score, two leaders, winners
   {
     const { ctx, page, errors } = await open(browser, "/tv", (s) => ((s.signedIn = false), enableStrength(s)), { viewport: { width: 1920, height: 1080 } });
     await page.waitForSelector('[data-testid="slide-join"]', { timeout: 15000 });
@@ -221,8 +323,8 @@ const strong = (opts) => (s) => enableStrength(s, opts);
       if (k === "slide-board" && t.includes("Lat Pulldown") && !seen.lat) {
         seen.lat = true;
         check("TV board: Men and Women columns", (await count(page, '[data-testid="tv-board-men"]')) === 1 && (await count(page, '[data-testid="tv-board-women"]')) === 1);
-        check("TV board: ×BW, no kg lifts", t.includes("0.83") && t.includes("×BW") && !/\d\s*kg/.test(t), t);
-        check("TV board: explains ×BW", t.includes("kg ÷ body weight") && t.includes("to beat Rahul"), t);
+        check("TV board: scores, no kg lifts", t.includes("83") && t.includes("score") && !t.includes("0.83") && !/\d\s*kg\b/.test(t), t);
+        check("TV board: explains the score", t.includes("Score = kg ÷ body weight × 100") && t.includes("Score 83 to beat Rahul"), t);
         const off = await page.evaluate(() => [...document.querySelectorAll(".tv-slide *")].filter((e) => { const r = e.getBoundingClientRect(); return r.width && (r.right > innerWidth + 1 || r.bottom > innerHeight + 1); }).length);
         check("TV board fits the screen", off === 0, String(off));
       }
@@ -243,7 +345,7 @@ const strong = (opts) => (s) => enableStrength(s, opts);
     await page.waitForSelector('[data-testid="join-out"]');
     check("/join: Tap or scan. Log. Win.", ((await text(page, '[data-testid="join-out"] h1'))).includes("Tap or scan. Log. Win."));
     await page.waitForSelector('[data-testid="join-beat"]').catch(() => {});
-    check("/join: a ×BW lift to beat", ((await text(page, '[data-testid="join-beat"]'))).includes("× body weight"));
+    check("/join: a score to beat", /\d+\s*score/.test((await text(page, '[data-testid="join-beat"]'))), await text(page, '[data-testid="join-beat"]'));
     check("no page errors (join)", errors.length === 0, errors.join(" | "));
     await ctx.close();
     const h = await open(browser, "/home", (s) => ((s.signedIn = false), s));

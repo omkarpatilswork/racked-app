@@ -124,12 +124,12 @@ function BodySheet({ onClose }: { onClose: () => void }) {
     onClose();
   }
 
-  const ratioEg = kgOk ? (60 / kgNum).toFixed(2) : "0.80";
+  const scoreEg = kgOk ? Math.round((60 / kgNum) * 100) : 80;
   return (
     <Sheet open onClose={onClose} title={first ? "Get on the strength boards" : "Body weight & board"} testId="body-sheet" className="bw-sheet">
       <p className="bw-lede">
-        Boards and prizes rank by <b>×BW</b>: the weight you lift ÷ your body weight, so everyone competes fairly for their size.
-        {kgOk ? ` Lifting 60 kg at ${kgNum} kg = ${ratioEg}×.` : " 60 kg lifted at 75 kg = 0.80×."}
+        Your <b>score</b> = the weight you lift ÷ your body weight × 100, so everyone competes fairly for their size.
+        {kgOk ? ` Lifting 60 kg at ${kgNum} kg = ${scoreEg}.` : " 60 kg lifted at 75 kg = 80."}
       </p>
 
       <div className="field-label" id="bw-board">
@@ -183,7 +183,7 @@ function BodySheet({ onClose }: { onClose: () => void }) {
       <p className="field-hint">
         {kgLocked
           ? `You can update it again from ${dateOf(cur?.next_body_change)}.`
-          : "Private: nobody else sees it, only your ×BW. You can update it once a week. Prize winners are weighed at the desk."}
+          : "Only you and gym staff see this number. You can update it once a week. Prize winners are weighed at the desk."}
         {cur?.checked_at ? (
           <span className="bw-checked">
             <Icon name="check" /> Checked at the desk {dateOf(cur.checked_at)}

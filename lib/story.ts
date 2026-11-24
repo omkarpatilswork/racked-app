@@ -620,7 +620,7 @@ function blockFor(d: Exclude<StoryData, { kind: "lift" }>, gymName: string): Blo
     case "badge":
       return { eyebrow: "Badge unlocked", title: d.title, sub: d.description, medal: { icon: d.icon }, toneKey: "yellow", motif: "dots" };
     case "streak":
-      return { eyebrow: "Lifting streak", title: `${d.days} days in a row`, sub: d.next ? `${d.next.days - d.days} more for +${d.next.xp} XP` : "Every single day. Legend.", medal: { icon: "flame" }, toneKey: "ember", motif: "speed" };
+      return { eyebrow: "Lifting streak", title: `${d.days} days in a row`, sub: d.next ? (d.next.xp > 0 ? `${d.next.days - d.days} more for +${d.next.xp} XP` : `${d.next.days - d.days} more to a ${d.next.days}-day streak`) : "Every single day. Legend.", medal: { icon: "flame" }, toneKey: "ember", motif: "speed" };
     case "win":
       return { eyebrow: d.place ? `Winner · #${d.place}` : "Winner", title: d.title, sub: d.what, medal: { icon: "trophy" }, toneKey: "yellow", motif: "rings" };
     case "week":
@@ -766,7 +766,7 @@ async function drawBlock(ctx: CanvasRenderingContext2D, o: StoryOptions, d: Excl
     ctx.textAlign = align;
     ctx.fillText(t, left, y + 10);
   }
-  if (d.kind === "badge") {
+  if (d.kind === "badge" && d.xp > 0) {
     slab(ctx, `+${d.xp} XP`, photo ? 92 : STORY_W / 2, y + 4, 40, "#F4B424", "#202018", "#FF482C", photo ? "left" : "center");
   }
 }

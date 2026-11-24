@@ -262,7 +262,7 @@ function RaceSection({ supabase, data, sponsors, reload }: SectionProps & { spon
                 )}
               </div>
             ))}
-            <p className="field-hint">Strength points: each member&rsquo;s best ×BW (kg ÷ body weight) on every machine this week × 100, added up. Sample members never win.</p>
+            <p className="field-hint">Score: each member&rsquo;s best on every machine this week (kg ÷ body weight × 100), added up. Sample members never win.</p>
           </div>
         ) : null}
         {strength && data.live_boards ? null : (

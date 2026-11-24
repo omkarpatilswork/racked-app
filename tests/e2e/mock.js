@@ -246,7 +246,7 @@ async function setup(ctx, page, state, base) {
       if (state.missingRpc[name]) return json(r, { code: "PGRST202", message: "Could not find the function" }, 404);
       const staffOnly = () => json(r, { code: "42501", message: "staff only" }, 403);
       // 0015 (body weight, ×BW boards): only when a test turns it on with enableStrength()
-      const STRENGTH_RPCS = ["my_body", "set_my_body", "strength_board", "strength_boards", "season_division_board", "challenge_division_board", "admin_member_body", "admin_set_member_body"];
+      const STRENGTH_RPCS = ["my_body", "set_my_body", "strength_board", "strength_boards", "season_division_board", "challenge_division_board", "admin_member_body", "admin_set_member_body", "ranks_board"];
       if (!state.strength && STRENGTH_RPCS.includes(name)) return json(r, { code: "PGRST202", message: "Could not find the function" }, 404);
       switch (name) {
         case "my_body": return state.signedIn ? json(r, state.body) : json(r, { code: "42501", message: "Sign in first" }, 401);
@@ -265,6 +265,11 @@ async function setup(ctx, page, state, base) {
           return json(r, rows.map((x) => ({ ...x, weight: x.is_me ? x.weight : null })));
         }
         case "strength_boards": return json(r, state.bwBoards.filter((x) => x.rank <= (body.p_limit || 5)));
+        case "ranks_board": {
+          // 0016: one board, ranked by score | moved | heaviest
+          if (!state.signedIn) return json(r, { code: "42501", message: "permission denied" }, 401);
+          return json(r, rankRows(state, body));
+        }
         case "season_division_board": return json(r, (state.race[body.p_division] || state.race.all).slice(0, body.p_limit || 10).map((x) => ({ ...x, is_me: state.signedIn && x.is_me })));
         case "challenge_division_board": return json(r, (state.chalRace[body.p_division] || state.chalRace.all).map((x) => ({ ...x, is_me: state.signedIn && x.is_me })));
         case "admin_member_body": return state.profile.is_staff ? json(r, state.memberBody || { division: null, body_kg: null }) : staffOnly();
@@ -481,6 +486,48 @@ async function setup(ctx, page, state, base) {
 
 // Database update 0015: body weight, Men's / Women's boards ranked by ×BW,
 // strength points for the weekly prize. body: null = not added yet.
+// Ranks v2 (0016) sample people. week/all: score, kg moved, heaviest [kg, reps, machine].
+// lat: on Lat Pulldown [score, reps], heaviest [kg, reps], kg moved.
+const RANK_PEOPLE = [
+  { name: "Rahul", div: "men", week: { score: 283, moved: 6240, heavy: [140, 10, "leg-press-08"] }, all: { score: 410, moved: 48200, heavy: [160, 8, "leg-press-08"] }, lat: { score: [83, 12], heavy: [65, 12], moved: 2340 } },
+  { name: "Omi", div: "men", me: true, week: { score: 255, moved: 4200, heavy: [120, 12, "leg-press-08"] }, all: { score: 380, moved: 43600, heavy: [130, 10, "leg-press-08"] }, lat: { score: [69, 10], heavy: [55, 10], moved: 1650 } },
+  { name: "Kabir", div: "men", week: { score: 240, moved: 5100, heavy: [110, 8, "leg-press-08"] }, all: { score: 300, moved: 22000, heavy: [120, 8, "leg-press-08"] }, lat: { score: [60, 10], heavy: [48, 10], moved: 1440 } },
+  { name: "Dev", div: "men", week: { score: 120, moved: 2300, heavy: [80, 8, "chest-press-02"] }, all: { score: 150, moved: 9000, heavy: [90, 6, "chest-press-02"] }, lat: { score: [50, 12], heavy: [40, 12], moved: 960 } },
+  { name: "Asha", div: "women", week: { score: 231, moved: 3900, heavy: [100, 8, "leg-press-08"] }, all: { score: 350, moved: 52000, heavy: [120, 8, "leg-press-08"] }, lat: { score: [100, 8], heavy: [60, 8], moved: 1900 } },
+  { name: "Neha", div: "women", week: { score: 190, moved: 2800, heavy: [60, 10, "leg-press-08"] }, all: { score: 260, moved: 15000, heavy: [70, 10, "leg-press-08"] }, lat: { score: [65, 10], heavy: [39, 10], moved: 1050 } },
+  { name: "Sam", div: null, week: { score: null, moved: 1500, heavy: [50, 10, "rowing-03"] }, all: { score: null, moved: 7200, heavy: [55, 10, "rowing-03"] }, lat: null },
+];
+function rankRows(state, b) {
+  const metric = ["score", "moved", "heaviest"].includes(b.p_metric) ? b.p_metric : "score";
+  const period = b.p_period === "all" ? "all" : "week";
+  const div = ["men", "women"].includes(b.p_division) ? b.p_division : "all";
+  const machine = b.p_machine_id || null;
+  const meHasBody = state.body && state.body.body_kg != null;
+  const meDiv = meHasBody ? state.body.division : null;
+  let rows = RANK_PEOPLE.map((p) => ({ ...p, div: p.me ? meDiv : p.div }))
+    .filter((p) => div === "all" || p.div === div)
+    .map((p) => {
+      if (machine) {
+        if (machine !== "lat-pulldown-01" || !p.lat) return null;
+        if (metric === "score") return p.lat.score && (p.div || !p.me) && (!p.me || meHasBody) ? { value: p.lat.score[0], reps: p.lat.score[1], machine_id: machine, p } : null;
+        if (metric === "heaviest") return { value: p.lat.heavy[0], reps: p.lat.heavy[1], machine_id: machine, p };
+        return { value: p.lat.moved, reps: null, machine_id: null, sets: 4, p };
+      }
+      const d = p[period];
+      if (metric === "score") return d.score != null && (!p.me || meHasBody) ? { value: d.score, reps: null, machine_id: null, p } : null;
+      if (metric === "heaviest") return { value: d.heavy[0], reps: d.heavy[1], machine_id: d.heavy[2], p };
+      return { value: d.moved, reps: null, machine_id: null, sets: Math.round(d.moved / 450), p };
+    })
+    .filter(Boolean)
+    .sort((x, y) => y.value - x.value || (y.reps || 0) - (x.reps || 0));
+  if (machine && metric !== "moved" && state.rankHouse) rows.push({ value: state.rankHouse.value, reps: state.rankHouse.reps, machine_id: machine, house: true, p: { name: state.rankHouse.name } });
+  rows.sort((x, y) => y.value - x.value || (y.reps || 0) - (x.reps || 0));
+  const lim = b.p_limit || 50;
+  return rows
+    .map((x, i) => ({ rank: i + 1, name: x.p.name === "Omi" ? "Omi" : x.p.name, avatar_url: null, value: x.value, reps: x.reps, machine_id: x.machine_id, mode: x.machine_id ? "" : null, sets: x.sets ?? 3, is_me: !!x.p.me && state.signedIn, house: !!x.house }))
+    .filter((x) => x.rank <= lim || x.is_me);
+}
+
 function enableStrength(st, opts = {}) {
   st.strength = true;
   st.body = opts.body === null

@@ -36,7 +36,7 @@ const STEPS = [
   {
     no: "04",
     title: "Win rewards",
-    body: "Your best lift for your size (×BW) lands on the Men's or Women's board and the gym TV. Top of the week wins prizes from our partners.",
+    body: "Your score (kg ÷ body weight × 100) lands on the Men's or Women's board and the gym TV. Top of the week wins prizes from our partners.",
   },
 ];
 

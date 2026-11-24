@@ -85,9 +85,9 @@ export default function HouseLifts({ supabase, onChanged }: { supabase: Client; 
                 </b>
                 <span>
                   {machineLabel(h.machine_id, h.mode)} · {niceDate(h.lifted_on)}
-                  {h.ratio != null ? ` · ${Number(h.ratio).toFixed(2)}× BW · ${h.division === "women" ? "Women" : "Men"}` : ""}
+                  {h.ratio != null ? ` · score ${Math.round(Number(h.ratio) * 100)} · ${h.division === "women" ? "Women" : "Men"}` : ""}
                 </span>
-                {h.body_kg === null && <span className="hl-missing">Add a body weight to show it on the ×BW boards</span>}
+                {h.body_kg === null && <span className="hl-missing">Add a body weight to give it a score</span>}
               </span>
               <button type="button" className="iconbtn" aria-label={`Edit ${h.name}'s lift`} onClick={() => setEditing(h)}>
                 <Icon name="edit" />
@@ -175,7 +175,7 @@ function HouseLiftForm({ value, onSave, onClose }: { value: Partial<HouseLiftInp
     if (!Number.isInteger(reps) || reps < 1) return setErr("Add the reps");
     if (!f.lifted_on) return setErr("Add the date");
     const bodyKg = Number(f.body_kg);
-    if (!(bodyKg >= 25 && bodyKg <= 300)) return setErr("Add their body weight (25 to 300 kg): boards rank by ×BW");
+    if (!(bodyKg >= 25 && bodyKg <= 300)) return setErr("Add their body weight (25 to 300 kg): scores need it");
     if (f.division !== "men" && f.division !== "women") return setErr("Pick the Men's or Women's board");
     setErr(null);
     setBusy(true);

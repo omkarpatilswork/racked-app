@@ -57,7 +57,13 @@ export async function adminSetMemberBody(supabase: Client, uid: string, bodyKg: 
   return norm(await call<MyBody>(supabase, "admin_set_member_body", { p_uid: uid, p_body_kg: bodyKg, p_division: division }));
 }
 
-/** 0.8 -> "0.80×" */
+/** Strength score: 0.83 -> "83" (kg lifted ÷ body weight × 100). */
+export function fmtScore(ratio: number | null | undefined) {
+  if (ratio == null || !isFinite(Number(ratio))) return "–";
+  return String(Math.round(Number(ratio) * 100));
+}
+
+/** 0.8 -> "0.80×" (older ×BW wording; the app now shows fmtScore) */
 export function fmtBw(ratio: number | null | undefined) {
   if (ratio == null || !isFinite(Number(ratio))) return "–";
   return `${Number(ratio).toFixed(2)}×`;

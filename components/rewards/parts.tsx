@@ -2,6 +2,7 @@
 
 import DivisionTabs from "@/components/DivisionTabs";
 import type { BoardView } from "@/lib/body";
+import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Sheet from "@/components/Sheet";
@@ -119,7 +120,8 @@ function missionProgress(m: MissionDef, me: MyRewards | null) {
   return m.metric === "sets" ? w.sets : m.metric === "days" ? w.days : m.metric === "machines" ? w.machines : m.metric === "pbs" ? w.pbs : w.volume;
 }
 
-export function MissionsCard({ defs, me }: { defs: MissionDef[]; me: MyRewards | null }) {
+// showXp false (Ranks v2): no +XP pills, no descriptions, "New every Monday".
+export function MissionsCard({ defs, me, showXp = true }: { defs: MissionDef[]; me: MyRewards | null; showXp?: boolean }) {
   if (!defs.length) return null;
   const done = defs.filter((m) => me?.missions_done.includes(m.id) || missionProgress(m, me) >= m.target).length;
   const total = defs.reduce((s, m) => s + m.xp, 0);
@@ -129,10 +131,10 @@ export function MissionsCard({ defs, me }: { defs: MissionDef[]; me: MyRewards |
         <h2 id="rw-missions-h" style={{ fontSize: 17, margin: 0 }}>
           Weekly missions
         </h2>
-        <span className="pill rw-pill num">{me ? `${done}/${defs.length} done` : `Up to ${total} XP`}</span>
+        <span className="pill rw-pill num">{me ? `${done}/${defs.length} done` : showXp ? `Up to ${total} XP` : `${defs.length} this week`}</span>
       </div>
       <p className="faint" style={{ fontSize: 12.5, margin: "2px 0 4px" }}>
-        Bonus XP for this week&rsquo;s goals. New missions every Monday.
+        {showXp ? <>Bonus XP for this week&rsquo;s goals. New missions every Monday.</> : "New every Monday"}
       </p>
       <ul className="rw-mission-list">
         {defs.map((m) => {
@@ -148,9 +150,9 @@ export function MissionsCard({ defs, me }: { defs: MissionDef[]; me: MyRewards |
               <span className="rw-m-body">
                 <span className="rw-m-title">
                   <b>{m.title}</b>
-                  <span className={`rw-xp${isDone ? " got" : ""}`}>+{m.xp} XP</span>
+                  {showXp && <span className={`rw-xp${isDone ? " got" : ""}`}>+{m.xp} XP</span>}
                 </span>
-                <span className="rw-m-desc">{m.description}</span>
+                {showXp && <span className="rw-m-desc">{m.description}</span>}
                 {me && (
                   <span className="rw-m-bar">
                     <span className="progress-track" role="progressbar" aria-label={m.title} aria-valuemin={0} aria-valuemax={m.target} aria-valuenow={Math.min(v, m.target)}>
@@ -169,7 +171,8 @@ export function MissionsCard({ defs, me }: { defs: MissionDef[]; me: MyRewards |
 }
 
 // ---- streak -----------------------------------------------------------------
-export function StreakCard({ steps, me, onShare }: { steps: { days: number; xp: number }[]; me: MyRewards | null; onShare?: () => void }) {
+// showXp false (Ranks v2): streak goals without the +XP bonuses, one line.
+export function StreakCard({ steps, me, onShare, showXp = true }: { steps: { days: number; xp: number }[]; me: MyRewards | null; onShare?: () => void; showXp?: boolean }) {
   if (!steps.length) return null;
   const days = me?.streak.days || 0;
   const next = steps.find((s) => s.days > days);
@@ -191,11 +194,17 @@ export function StreakCard({ steps, me, onShare }: { steps: { days: number; xp: 
             )}
           </h2>
           <div className="faint" style={{ fontSize: 13, marginTop: 2 }}>
-            {next
-              ? me
-                ? `${next.days - days} more day${next.days - days === 1 ? "" : "s"} for +${next.xp} XP`
-                : "Log a set on back-to-back days to earn bonus XP."
-              : `You've hit every streak bonus. Legend.`}
+            {!showXp
+              ? next
+                ? me
+                  ? `${next.days - days} more day${next.days - days === 1 ? "" : "s"} to a ${next.days}-day streak`
+                  : "Log a set on back-to-back days."
+                : "Every streak goal hit. Legend."
+              : next
+                ? me
+                  ? `${next.days - days} more day${next.days - days === 1 ? "" : "s"} for +${next.xp} XP`
+                  : "Log a set on back-to-back days to earn bonus XP."
+                : `You've hit every streak bonus. Legend.`}
           </div>
         </div>
         {onShare && me && days >= 2 && (
@@ -204,13 +213,13 @@ export function StreakCard({ steps, me, onShare }: { steps: { days: number; xp: 
           </button>
         )}
       </div>
-      <ol className="rw-steps" aria-label="Streak bonuses">
+      <ol className="rw-steps" aria-label={showXp ? "Streak bonuses" : "Streak goals"}>
         {steps.map((s) => {
           const got = days >= s.days || me?.streak.claimed.includes(s.days);
           return (
             <li key={s.days} className={got ? "got" : ""} style={{ ["--at" as string]: `${(100 * s.days) / max}%` }}>
               <b className="num">{s.days}d</b>
-              <span>+{s.xp}</span>
+              {showXp && <span>+{s.xp}</span>}
             </li>
           );
         })}
@@ -218,9 +227,11 @@ export function StreakCard({ steps, me, onShare }: { steps: { days: number; xp: 
       <div className="progress-track" aria-hidden="true">
         <div className="progress-fill" style={{ width: `${Math.min(100, (100 * days) / max)}%` }} />
       </div>
-      <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>
-        A streak counts days with at least one logged set, in a row. Miss a day and it starts again.
-      </p>
+      {showXp && (
+        <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>
+          A streak counts days with at least one logged set, in a row. Miss a day and it starts again.
+        </p>
+      )}
     </section>
   );
 }
@@ -384,9 +395,12 @@ export function MyRewardsSection({ list, sponsors, onShare }: { list: Redemption
 }
 
 // ---- badges -----------------------------------------------------------------
-export function BadgesSection({ defs, me, onShare }: { defs: BadgeDef[]; me: MyRewards | null; onShare?: (b: BadgeDef) => void }) {
+// showXp false (Ranks v2): icon + name only; tap a badge for what it's for.
+export function BadgesSection({ defs, me, onShare, showXp = true }: { defs: BadgeDef[]; me: MyRewards | null; onShare?: (b: BadgeDef) => void; showXp?: boolean }) {
+  const [open, setOpen] = useState<BadgeDef | null>(null);
   if (!defs.length) return null;
   const earned = new Map((me?.badges || []).map((b) => [b.id, b.at]));
+  const openAt = open ? earned.get(open.id) : undefined;
   return (
     <section data-testid="rw-badges" aria-labelledby="rw-badges-h">
       <div className="section-head">
@@ -399,18 +413,30 @@ export function BadgesSection({ defs, me, onShare }: { defs: BadgeDef[]; me: MyR
           </span>
         )}
       </div>
-      <ul className="rw-badges">
+      <ul className={`rw-badges${showXp ? "" : " compact"}`}>
         {defs.map((b) => {
           const at = earned.get(b.id);
           return (
             <li key={b.id} className={at ? "got" : ""} data-testid={`badge-${b.id}`}>
-              <span className="rw-badge-ic" aria-hidden="true">
-                <Icon name={at ? b.icon : "lock"} />
-              </span>
-              <b>{b.title}</b>
-              <span>{b.description}</span>
-              <span className="rw-xp">{at ? `+${b.xp} XP earned` : `+${b.xp} XP`}</span>
-              <span className="sr-only">{at ? "Unlocked" : "Locked"}</span>
+              {showXp ? (
+                <>
+                  <span className="rw-badge-ic" aria-hidden="true">
+                    <Icon name={at ? b.icon : "lock"} />
+                  </span>
+                  <b>{b.title}</b>
+                  <span>{b.description}</span>
+                  <span className="rw-xp">{at ? `+${b.xp} XP earned` : `+${b.xp} XP`}</span>
+                  <span className="sr-only">{at ? "Unlocked" : "Locked"}</span>
+                </>
+              ) : (
+                <button type="button" className="rw-badge-btn" onClick={() => setOpen(b)} data-testid={`badge-open-${b.id}`}>
+                  <span className="rw-badge-ic" aria-hidden="true">
+                    <Icon name={at ? b.icon : "lock"} />
+                  </span>
+                  <b>{b.title}</b>
+                  <span className="sr-only">{at ? "Unlocked" : "Locked"}</span>
+                </button>
+              )}
               {at && onShare && (
                 <button type="button" className="share-mini rw-badge-share" onClick={() => onShare(b)} aria-label={`Share the ${b.title} badge`} data-testid={`share-badge-${b.id}`}>
                   <Icon name="share" />
@@ -420,6 +446,24 @@ export function BadgesSection({ defs, me, onShare }: { defs: BadgeDef[]; me: MyR
           );
         })}
       </ul>
+      {open && (
+        <Sheet open onClose={() => setOpen(null)} title={open.title} testId="badge-sheet">
+          <div className={`rw-badge-detail${openAt ? " got" : ""}`}>
+            <span className="rw-badge-ic" aria-hidden="true">
+              <Icon name={openAt ? open.icon : "lock"} />
+            </span>
+            <p>{open.description}</p>
+            <span className="faint">
+              {openAt ? `Unlocked ${new Date(openAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : "Not unlocked yet"}
+            </span>
+          </div>
+          {openAt && onShare && (
+            <button type="button" className="btn btn-ghost" onClick={() => (onShare(open), setOpen(null))} data-testid="badge-sheet-share">
+              <Icon name="share" /> Share it
+            </button>
+          )}
+        </Sheet>
+      )}
     </section>
   );
 }

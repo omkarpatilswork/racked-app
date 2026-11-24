@@ -184,7 +184,7 @@ function SignedInHome() {
           </span>
           <span className="hx-bodycta-copy">
             <b>Get on the strength boards</b>
-            <span>Boards and prizes rank by ×BW: what you lift ÷ your body weight. Men&rsquo;s and Women&rsquo;s.</span>
+            <span>Your score = what you lift ÷ your body weight × 100. Men&rsquo;s and Women&rsquo;s boards.</span>
           </span>
           <button type="button" className="btn btn-primary btn-sm" onClick={openBodySheet} data-testid="home-add-body-btn">
             Add

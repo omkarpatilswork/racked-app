@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMachineBoard, recordTap, type MachineBoardRow } from "@/lib/data";
 import { useMyBody } from "@/components/BodySheet";
-import { defaultBoard, fmtBw, openBodySheet } from "@/lib/body";
+import { defaultBoard, fmtScore, openBodySheet } from "@/lib/body";
 import { calculateMachineLevel } from "@/lib/gamification";
 import { claimTapRecord, resolveTapSource, useMachineLock } from "@/lib/machineLock";
 import { MACHINE_MAP, resolveMachineView } from "@/lib/machines";
@@ -164,11 +164,11 @@ function MachinePageInner({ params }: { params: { id: string } }) {
                   </div>
                   {myBody?.body_kg ? (
                     <div className="hero-bw" data-testid="machine-bw">
-                      {fmtBw(Number(mine.pb_weight) / myBody.body_kg)} body weight
+                      Score {fmtScore(Number(mine.pb_weight) / myBody.body_kg)}
                     </div>
                   ) : body && body !== "off" ? (
                     <button type="button" className="hero-bw add" onClick={openBodySheet} data-testid="machine-add-bw">
-                      Add body weight to rank by ×BW
+                      Add body weight to get a score
                     </button>
                   ) : null}
                 </div>
@@ -253,7 +253,7 @@ function MachinePageInner({ params }: { params: { id: string } }) {
                 rank={u.rank}
                 name={u.display_name}
                 avatarUrl={u.avatar_url}
-                best={u.ratio != null ? `${fmtBw(u.ratio)} BW · ${u.pb_reps} reps` : `${u.pb_weight}${machine.unit}×${u.pb_reps}`}
+                best={u.ratio != null ? `Score ${fmtScore(u.ratio)} · ${u.pb_reps} reps` : `${u.pb_weight}${machine.unit}×${u.pb_reps}`}
                 isMe={!!u.uid && session?.user.id === u.uid}
               />
             ))

@@ -61,11 +61,11 @@ export function PrizeHero({
   const needsBody = strength && !!me && !me.body?.body_kg;
   let you: string | null = null;
   if (me && strength) {
-    if (needsBody) you = "Add your body weight to race for it. Boards rank by strength for your size.";
+    if (needsBody) you = "Add your body weight to race for it. Scores are for your size.";
     else if (!myRace) you = "You're on the All boards. The prizes are for the Men's and Women's races.";
     else if (!myRank) you = `Log a set this ${word} to get on the ${raceName(myRace)} board.`;
     else if (myRank === 1) you = `You're #1 on the ${raceName(myRace)} board. Hold on to it!`;
-    else if (ahead) you = `You're #${myRank} on the ${raceName(myRace)} board. ${fmtXp(ahead.score - myScore + 1)} points to pass ${ahead.name}: beat your best ×BW on any machine.`;
+    else if (ahead) you = `You're #${myRank} on the ${raceName(myRace)} board. ${fmtXp(ahead.score - myScore + 1)} points to pass ${ahead.name}: beat your best score on any machine.`;
     else you = `You're #${myRank} on the ${raceName(myRace)} board.`;
     if (myRank && myRank > 1 && myRank <= prizePlaces) you += " You're in the prizes.";
   } else if (me) {
@@ -192,7 +192,7 @@ export function PrizeHero({
       {ov.settings?.rewards_note && <p className="rw-note">{ov.settings.rewards_note}</p>}
       <p className="rw-fine">
         {strength
-          ? `Strength points: your best ×BW (kg ÷ body weight) on each machine this ${word} × 100, added up. Most points wins, on the Men's and the Women's board. `
+          ? `Score: your best on each machine this ${word} (kg ÷ body weight × 100), added up. Highest score wins, on the Men's and the Women's board. `
           : `Every set you log earns XP. Most XP this ${word} wins. `}
         <button type="button" className="rw-inline-link" onClick={onHow}>
           How it works
@@ -236,7 +236,7 @@ export function ChallengesBlock({
           const st = challengeStatus(c, now);
           const day = weekdayName(c.weekday);
           const goal = strength
-            ? `${c.metric === "best_lift" ? "Best single set for your size (×BW)" : c.metric === "sets" ? "Most sets" : "Most kg moved for your size"}${m ? ` on ${m.name}` : ""}`
+            ? `${c.metric === "best_lift" ? "Best single set for your size (score)" : c.metric === "sets" ? "Most sets" : "Most kg moved for your size"}${m ? ` on ${m.name}` : ""}`
             : `${c.metric === "best_lift" ? "Heaviest single set" : c.metric === "sets" ? "Most sets" : "Most kg moved"}${m ? ` on ${m.name}` : ""}`;
           const lead = (l: { name: string; value: number; reps: number | null } | null | undefined) => (l ? `${l.name} · ${metricValue(c.metric, Number(l.value), l.reps, strength)}` : "Nobody yet");
           return (

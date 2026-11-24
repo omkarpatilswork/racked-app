@@ -150,7 +150,7 @@ function MemberBody({ supabase, member }: { supabase: SupabaseClient<Database>; 
             {b === null
               ? "Loading…"
               : b.body_kg == null
-                ? "Not added yet: not on the ×BW boards"
+                ? "Not added yet: no strength score"
                 : `${b.division ? CHOICE_LABEL[b.division] : "No board"} · ${b.body_kg} kg · ${b.checked_at ? `weighed at the desk ${new Date(b.checked_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}${b.checked_by ? ` by ${b.checked_by}` : ""}` : "their own entry"}`}
           </div>
         </div>

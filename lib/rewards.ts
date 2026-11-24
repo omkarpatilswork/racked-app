@@ -394,13 +394,13 @@ export function prizeForRank(prizes: Prize[] | undefined, rank: number | null | 
 
 // bw: 0015 scoring (best lift = ×BW, volume = kg moved ÷ body weight)
 export function metricLabel(metric: Metric, bw = false) {
-  if (bw) return metric === "best_lift" ? "Best lift for your size" : metric === "sets" ? "Most sets" : "Most volume for your size";
+  if (bw) return metric === "best_lift" ? "Best score" : metric === "sets" ? "Most sets" : "Most kg moved for your size";
   return metric === "best_lift" ? "Heaviest set" : metric === "sets" ? "Most sets" : "Most volume";
 }
 
 export function metricValue(metric: Metric, value: number, reps?: number | null, bw = false) {
-  if (bw && metric === "best_lift") return `${Number(value).toFixed(2)}× BW${reps ? ` · ${reps} reps` : ""}`;
-  if (bw && metric === "volume") return `${trim(Number(value))}× BW moved`;
+  if (bw && metric === "best_lift") return `Score ${Math.round(Number(value) * 100)}${reps ? ` · ${reps} reps` : ""}`;
+  if (bw && metric === "volume") return `Score ${Math.round(Number(value) * 100).toLocaleString("en-IN")}`;
   if (metric === "best_lift") return `${trim(value)} kg${reps ? ` × ${reps}` : ""}`;
   if (metric === "sets") return `${Math.round(value)} set${Math.round(value) === 1 ? "" : "s"}`;
   return `${Math.round(value).toLocaleString("en-IN")} kg`;

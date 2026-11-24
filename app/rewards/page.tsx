@@ -184,7 +184,7 @@ function RewardsInner() {
       kind: "season",
       title: ov.season.title,
       sub: strength
-        ? `Strength points: your best ×BW on each machine this ${ov.season.period} × 100, added up`
+        ? `Score: your best on each machine this ${ov.season.period} (kg ÷ body weight × 100), added up`
         : `${ov.season.players} lifter${ov.season.players === 1 ? "" : "s"} · XP earned this ${ov.season.period}`,
     });
     setBoardDiv(d);

@@ -227,7 +227,7 @@ function BodySection() {
           <span className="lr-body">
             Body weight &amp; board
             <div className="lr-sub">
-              {b?.body_kg ? `${b.division ? CHOICE_LABEL[b.division] : "No board"} · ${b.body_kg} kg (only you see this)` : "Add it to rank by ×BW on the boards"}
+              {b?.body_kg ? `${b.division ? CHOICE_LABEL[b.division] : "No board"} · ${b.body_kg} kg (only you see this)` : "Add it to get a strength score"}
             </div>
           </span>
           <Icon name="chev" />

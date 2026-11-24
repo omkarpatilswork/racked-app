@@ -19,6 +19,7 @@ node tests/sql/0012_rr_controls.test.mjs
 node tests/sql/0013_tv_house_lifts.test.mjs
 node tests/sql/0014_social_feed.test.mjs
 node tests/sql/0015_strength_boards.test.mjs
+node tests/sql/0016_ranks_board.test.mjs    # Ranks v2: score / kg moved / heaviest
 node tests/sql/demo_data.test.mjs           # supabase/demo seed + remove
 ```
 

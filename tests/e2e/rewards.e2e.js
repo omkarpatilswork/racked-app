@@ -147,8 +147,8 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     check("before 0011: home still fine", h.errors.length === 0, h.errors.join(" | "));
     await h.ctx.close();
     const l = await open(browser, "/leaderboard", (s) => ((s.missingRpc.season_board = true), (s.missingRpc.rewards_overview = true), (s.missingRpc.my_rewards = true), s));
-    await l.page.waitForSelector('[data-testid="podium"]');
-    check("before 0011: This week falls back to the XP board", (await l.page.locator(".podium-spot .pname").count()) === 3 && (await l.page.locator('[data-testid="lb-progress"]').count()) === 0);
+    await l.page.waitForSelector('[data-testid="rk-unavailable"]');
+    check("before 0011: Ranks says the board is on its way, no progress", (await l.page.locator('[data-testid="lb-progress"]').count()) === 0 && (await l.page.locator('[data-testid="rk-filters"]').count()) === 1);
     check("before 0011: ranks still fine", l.errors.length === 0, l.errors.join(" | "));
     await l.ctx.close();
   }
@@ -176,19 +176,19 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await ctx.close();
   }
 
-  // 7. Ranks
+  // 7. Ranks (v2; this suite runs without 0015/0016: the weekly race only)
   {
     const { ctx, page, st, errors } = await open(browser, "/leaderboard");
-    await page.waitForSelector('[data-testid="podium"]');
+    await page.waitForSelector('[data-testid="leaderboard"]');
     const hero = await text(page, '[data-testid="lbx-hero"]');
-    check("ranks: Club 360 leaderboard header", hero.includes("Leaderboard") && hero.includes("Club 360") && hero.includes("Baner, Pune") && hero.includes("Powered by Racked × Bijlee"));
+    check("ranks: small Club 360 card with Week ends in, no Powered by", hero.includes("Leaderboard") && hero.includes("Club 360") && /Week ends in \d/.test(hero) && !hero.includes("Powered by"), hero);
     check("ranks: This week is the default", (await page.locator('[data-testid="lb-tab-week"]').getAttribute("aria-selected")) === "true" && rpc(st, "season_board").length >= 1);
-    check("ranks: podium top 3 + prize link", (await page.locator(".podium-spot .pname").count()) === 3 && (await text(page, '[data-testid="lb-prize-race"]')).includes("#1 this week wins"));
-    check("ranks: rows 4+", (await page.locator(".lbx-rows .lb-row").count()) === 3);
+    check("ranks: no board filter before 0015", (await page.locator('[data-testid="rk-board"]').count()) === 0 && (await page.locator('[data-testid="rk-filters"] select').count()) === 2);
+    check("ranks: list + one prize line", (await page.locator('[data-testid="rk-row"]').count()) === 6 && (await text(page, '[data-testid="lb-prize-race"]')).includes("#1 wins a prize"));
     const you = await text(page, '[data-testid="my-rank"]');
-    check("ranks: pinned 'you' bar with the gap", you.includes("#3") && you.includes("380 XP") && you.includes("about 5 sets") && you.includes("Rahul"), you);
-    check("ranks: progress section moved here", (await page.locator('[data-testid="lb-progress"] [data-testid="rw-streak"]').count()) === 1 &&
-      (await text(page, '[data-testid="mission-sets15"]')).includes("9 / 15") && (await page.locator(".rw-badges li.got").count()) === 3);
+    check("ranks: pinned 'you' bar with the gap", you.includes("#3") && you.includes("You · 380") && you.includes("41 points to pass Rahul"), you);
+    check("ranks: progress section, no XP", (await page.locator('[data-testid="lb-progress"] [data-testid="rw-streak"]').count()) === 1 &&
+      (await text(page, '[data-testid="mission-volume5k"]')).includes("4,200 / 5,000 kg") && (await page.locator(".rw-badges li.got").count()) === 3 && !(await text(page, '[data-testid="lb-progress"]')).includes("XP"));
     await page.locator('[data-testid="share-rank"]').click();
     await sleep(600);
     check("ranks: share your rank", (await page.locator(".sheet-backdrop").count()) === 1 && (await page.locator(".sheet-backdrop").textContent()).includes("Close"));
@@ -196,17 +196,12 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     await sleep(300);
     await page.locator('[data-testid="lb-tab-all"]').click();
     await page.waitForURL(/tab=all/);
-    await page.waitForSelector('[data-testid="podium"]');
-    await page.waitForFunction(() => document.querySelectorAll(".lb-row").length === 2, null, { timeout: 5000 }).catch(() => {});
-    check("ranks: All time tab", rpc(st, "leaderboard_overall").some((c) => c.includes('"all"')) && (await page.locator(".lb-row").count()) === 2, `${await page.locator(".lb-row").count()} rows; ${rpc(st, "leaderboard_overall").join(" ")}`);
-    await page.locator('[data-testid="lb-tab-machine"]').click();
-    await page.waitForURL(/tab=machine/);
-    await page.waitForSelector('[data-testid="podium"]');
-    check("ranks: By machine tab", (await text(page, '[data-testid="leaderboard"]')).includes("Lat Pulldown") && (await text(page, '[data-testid="my-rank"]')).includes("kg to pass"));
+    await page.waitForSelector('[data-testid="rk-unavailable"]');
+    check("ranks: All time needs 0016 here", (await text(page, '[data-testid="rk-unavailable"]')).includes("on its way"));
     check("no page errors (ranks)", errors.length === 0, errors.join(" | "));
     await ctx.close();
     const old = await open(browser, "/leaderboard?tab=overall");
-    await old.page.waitForSelector('[data-testid="podium"]');
+    await old.page.waitForSelector('[data-testid="lb-tab-all"]');
     check("ranks: old ?tab=overall links still work", (await old.page.locator('[data-testid="lb-tab-all"]').getAttribute("aria-selected")) === "true");
     await old.ctx.close();
   }

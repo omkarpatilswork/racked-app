@@ -212,8 +212,8 @@ function LiveCard({ live }: { live: TvData | null }) {
                 <b>{leader.name}</b>
                 {leader.ratio != null ? (
                   <span>
-                    {leader.ratio.toFixed(2)}
-                    <small>× body weight</small>
+                    {Math.round(leader.ratio * 100)}
+                    <small>score</small>
                   </span>
                 ) : (
                   <span>
