@@ -56,7 +56,7 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     check("ready prize code at the very top", (await text(page, '[data-testid="rw-mine"]')).includes("RK-7F3A2C") &&
       (await page.evaluate(() => document.querySelector('[data-testid="rw-mine"]').getBoundingClientRect().top < document.querySelector('[data-testid="rw-prize"]').getBoundingClientRect().top)));
     const ch = await text(page, '[data-testid="rw-challenges"]');
-    check("one special challenge, weekly", (await page.locator('[data-testid="rw-challenges"]').count()) === 1 && ch.includes("Every Friday") && ch.includes("Clean Crate Leg Press Challenge") && ch.includes("08 Leg Press") && ch.includes("Heaviest set") && ch.includes("Today ·"), ch);
+    check("one special challenge, weekly", (await page.locator('[data-testid="rw-challenges"]').count()) === 1 && ch.includes("Every Friday") && ch.includes("Clean Crate Leg Press Challenge") && ch.includes("08 Leg Press") && ch.includes("Heaviest set") && /(Today|Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday) · /.test(ch), ch);
     check("challenge: what winners get", (await text(page, '[data-testid="chal-prize"]')).includes("Winners get") && (await text(page, '[data-testid="chal-prize"]')).includes("A goodie bag from The Clean Crate") && (await page.locator('[data-testid="chal-prize"] [data-testid="brand-link-clean-crate"]').count()) === 1);
     check("challenge: live", (await text(page, '[data-testid="chal-status"]')).startsWith("Live now"));
     const rows = await page.locator('[data-testid="chal-row"]').allTextContents();

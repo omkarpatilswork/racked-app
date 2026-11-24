@@ -34,12 +34,14 @@ export default function PumpCheckCard({ bare = false }: { bare?: boolean }) {
         ? "Photo saved. Add another any time today, or leave it at that."
         : "Both photos in — nice work. Check your progress on Profile.";
   if (bare) {
+    // the + drawer's sheet: one short line, no "(optional)" under each slot
+    const line = todays.length === 0 ? "Before and after today\u2019s workout. Both optional." : todays.length === 1 ? "Saved. Add the other one any time today." : "Both in. See them on You.";
     return (
       <section className="pump-card bare" data-testid="pump-card">
-        <div className="pump-sub" style={{ marginBottom: 10 }}>
-          {sub}
+        <div className="pump-sub" style={{ marginBottom: 12 }}>
+          {line}
         </div>
-        <PumpSlots day={day} photos={photos} urls={urls} onAdd={(kind) => manager.pick(kind, day)} onOpen={(p) => manager.viewOwn(p, urls[p.path] ?? null)} />
+        <PumpSlots day={day} photos={photos} urls={urls} onAdd={(kind) => manager.pick(kind, day)} onOpen={(p) => manager.viewOwn(p, urls[p.path] ?? null)} hints={false} />
         {manager.ui}
       </section>
     );

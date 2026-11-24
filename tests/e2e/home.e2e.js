@@ -266,7 +266,7 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     await ctx.close();
   }
 
-  // 6. the + button: menu, machines, posting
+  // 6. the + button (v2): three rows, posting
   {
     const { ctx, page, st, errors } = await open(browser, "/home");
     await page.waitForSelector('[data-testid="feed-text"]');
@@ -275,16 +275,14 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     await plus.click();
     const menu = page.locator('[data-testid="create-menu"]');
     check("create menu: post, transformation, pump check", (await count(page, '[data-testid="create-post"]')) === 1 && (await count(page, '[data-testid="create-transformation"]')) === 1 && (await count(page, '[data-testid="create-pump"]')) === 1);
-    check("create menu: how to log a set", ((await text(page, '[data-testid="create-log"]'))).includes("Tap or scan the sticker"));
-    const links = await page.locator('[data-testid="create-machines"] a').evaluateAll((as) => as.map((a) => a.getAttribute("href")));
-    check("all 10 machines are in the menu", links.length === 10 && links.every((h) => /^\/machine\/[a-z-]+-\d\d$/.test(h)), links.join(","));
-    check("menu titles fit their tiles", await page.evaluate(() => [...document.querySelectorAll(".cx-tile b")].every((b) => b.scrollWidth <= b.clientWidth + 1)));
+    const rows = (await page.locator(".cx2-row").allTextContents()).map((t) => t.trim());
+    check("create menu: three rows with a few words each", rows.length === 3 && rows[0] === "PostWords, photos or both" && rows[1] === "TransformationThen vs now" && rows[2].startsWith("Pump checkToday"), rows.join(" | "));
+    check("create menu: no Log a set box, no machine list, no Log next set (not at a machine)", (await count(page, '[data-testid="create-log"], [data-testid="create-machines"], [data-testid="create-resume"]')) === 0);
+    check("create menu: short drawer (under half the screen)", await page.evaluate(() => document.querySelector('[data-testid="create-menu"]').getBoundingClientRect().height < innerHeight / 2));
+    check("menu titles fit their rows", await page.evaluate(() => [...document.querySelectorAll(".cx2-row b")].every((b) => b.scrollWidth <= b.clientWidth + 1)));
     check("menu: no axe issues", (await axe(page)).length === 0);
-    await page.locator('[data-testid="create-machines"] a').nth(6).click();
-    await page.waitForURL(/\/machine\/squat-07$/, { timeout: 10000 });
-    check("machine link opens the machine", page.url().endsWith("/machine/squat-07") && (await menu.count()) === 0);
-    await page.goto(BASE + "/home", { waitUntil: "networkidle" });
-    await page.waitForSelector('[data-testid="feed-text"]');
+    await page.keyboard.press("Escape");
+    await sleep(300);
 
     // a text + photos post, tagged to a machine
     await page.locator('[data-testid="nav-plus"]').click();
@@ -292,6 +290,8 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     const comp = page.locator('[data-testid="post-composer"]');
     check("composer opens with the text box focused", (await comp.count()) === 1 && (await page.evaluate(() => document.activeElement?.getAttribute("data-testid"))) === "post-text");
     check("post button off while empty", await page.locator('[data-testid="post-submit"]').isDisabled());
+    check("composer: Photos + Tag a machine in one row, one Post button, no Back", (await page.locator('[data-testid="post-composer"] .cx2-tools .cx2-tool').count()) === 2 && (await page.locator('[data-testid="post-composer"] button:has-text("Back")').count()) === 0 && !(await text(page, '[data-testid="post-composer"]')).includes("No links"));
+    check("composer: no photo strip until photos are picked", (await count(page, '[data-testid="post-photos"]')) === 0);
     await page.locator('[data-testid="post-text"]').fill("Go to www.example.com for gloves");
     await page.locator('[data-testid="post-submit"]').click();
     await sleep(300);
@@ -300,7 +300,10 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     await page.locator('[data-testid="post-file"]').setInputFiles([img("a.png"), img("b.png")]);
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="post-photos"] img').length === 2);
     check("2 photos picked with previews", (await page.locator('[data-testid="post-photos"] img').count()) === 2);
+    check("2 photos: the Photos button counts them", (await text(page, '[data-testid="add-photos"]')) === "Photos 2/4");
     await page.locator('[data-testid="post-composer"] select').selectOption({ index: 8 });
+    check("tagged machine shows on the pill", (await text(page, '.cx2-tool[for="cx-machine"] .cx2-tool-t')) === "07 Squat", await text(page, '.cx2-tool[for="cx-machine"] .cx2-tool-t'));
+    check("composer with photos: no axe issues", (await axe(page)).length === 0);
     await page.locator('[data-testid="post-submit"]').click();
     await page.waitForSelector('[data-testid="post-composer"]', { state: "detached", timeout: 10000 });
     const ups = st.calls.filter((c) => c.startsWith("storage:upload pump-photos/"));
@@ -316,7 +319,10 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     check("transformation: needs both photos", await page.locator('[data-testid="transformation-submit"]').isDisabled());
     await page.locator('[data-testid="file-before"]').setInputFiles(img("before.png"));
     await page.locator('[data-testid="file-after"]').setInputFiles(img("after.png"));
-    await page.locator('[data-testid="weeks"]').selectOption("12");
+    check("transformation: how long apart as chips", (await page.locator('[data-testid="weeks"] button').allTextContents()).join(",") === "4 weeks,8 weeks,12 weeks,6 months,1 year,2 years");
+    await page.locator('[data-testid="weeks-12"]').click();
+    check("transformation: chip picked", (await page.locator('[data-testid="weeks-12"]').getAttribute("aria-pressed")) === "true");
+    check("transformation: no axe issues", (await axe(page)).length === 0);
     await page.locator('[data-testid="transformation-text"]').fill("10 weeks of Racked");
     await page.locator('[data-testid="transformation-submit"]').click();
     await page.waitForSelector('[data-testid="transformation-composer"]', { state: "detached", timeout: 10000 });
@@ -328,6 +334,7 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     await page.locator('[data-testid="create-pump"]').click();
     await page.waitForSelector('[data-testid="pump-sheet"] [data-testid="pump-card"]', { timeout: 8000 }).catch(() => {});
     check("pump check opens in a sheet", (await page.locator('[data-testid="pump-sheet"] [data-testid="pump-card"]').count()) === 1);
+    check("pump check: one short line, no '(optional)' under the buttons", (await text(page, '[data-testid="pump-sheet"] .pump-sub')) === "Before and after today\u2019s workout. Both optional." && (await page.locator('[data-testid="pump-sheet"] .pump-slot small').count()) === 0 && (await page.locator('[data-testid="pump-sheet"] p.faint').count()) === 0);
     await page.keyboard.press("Escape");
     // composer bar + photo button
     await page.locator('[data-testid="composer-photo"]').click();
@@ -407,6 +414,22 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     await ctx.close();
   }
 
+  // 6b. archived: the + drawer's "Log a set" box + all 10 machines (plusMachines)
+  {
+    const { ctx, page, errors } = await open(browser, "/home", (s) => s, { features: ["plusMachines"] });
+    await page.waitForSelector('[data-testid="feed-text"]');
+    await page.locator('[data-testid="nav-plus"]').click();
+    await page.waitForSelector('[data-testid="create-machines"]');
+    check("archived on: how to log a set", (await text(page, '[data-testid="create-log"]')).includes("Tap or scan the sticker"));
+    const links = await page.locator('[data-testid="create-machines"] a').evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+    check("archived on: all 10 machines", links.length === 10 && links.every((h) => /^\/machine\/[a-z-]+-\d\d$/.test(h)), links.join(","));
+    await page.locator('[data-testid="create-machines"] a').nth(6).click();
+    await page.waitForURL(/\/machine\/squat-07$/, { timeout: 10000 });
+    check("archived on: machine link opens the machine", page.url().endsWith("/machine/squat-07"));
+    check("no page errors (archived machine list)", errors.length === 0, errors.join(" | "));
+    await ctx.close();
+  }
+
   // 11. right after a tap or scan, Log a set becomes "Log next set"
   {
     const { ctx, page, errors } = await open(browser, "/home", (s) => s, {});
@@ -419,7 +442,9 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     check("big button becomes Log next set · Lat Pulldown, straight to logging", rc.includes("Log next set") && rc.includes("Lat Pulldown") && rc.includes("01") && (await page.locator('[data-testid="resume-card"]').getAttribute("href")) === "/machine/lat-pulldown-01/log", rc);
     check("only one big button", (await count(page, '[data-testid="home-log"]')) === 0);
     await page.locator('[data-testid="nav-plus"]').click();
-    check("+ menu offers the same shortcut", ((await text(page, '[data-testid="create-resume"]'))).includes("Lat Pulldown"));
+    const cr = await text(page, '[data-testid="create-resume"]');
+    check("+ menu: Log next set on top, right after a tap", cr.includes("Log next set") && cr.includes("Lat Pulldown") && (await page.locator('[data-testid="create-resume"]').getAttribute("href")) === "/machine/lat-pulldown-01/log" &&
+      (await page.evaluate(() => document.querySelector('[data-testid="create-resume"]').getBoundingClientRect().top < document.querySelector(".cx2-list").getBoundingClientRect().top)), cr);
     check("no page errors (resume)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }
@@ -549,6 +574,17 @@ async function open(browser, url, mut = (s) => s, opts = {}) {
     await page.waitForSelector('[data-testid="comments-sheet"] [data-testid="comment"]');
     const res2 = await axe(page);
     check(`axe: comments (${theme})`, res2.length === 0, res2.join(" || "));
+    await page.keyboard.press("Escape");
+    await sleep(400);
+    await page.locator('[data-testid="nav-plus"]').click();
+    await page.waitForSelector('[data-testid="create-menu"]');
+    const res3 = await axe(page);
+    check(`axe: + menu @360 (${theme})`, res3.length === 0, res3.join(" || "));
+    await page.locator('[data-testid="create-post"]').click();
+    await page.waitForSelector('[data-testid="post-composer"]');
+    const tools = await page.evaluate(() => [...document.querySelectorAll(".cx2-tool")].every((t) => t.getBoundingClientRect().right <= innerWidth));
+    const res4 = await axe(page);
+    check(`axe + fits: post composer @360 (${theme})`, res4.length === 0 && tools, res4.join(" || "));
     check(`no page errors (${theme})`, errors.length === 0, errors.join(" | "));
     await ctx.close();
   }

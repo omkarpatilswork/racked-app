@@ -63,7 +63,7 @@ export default function BottomNav() {
       <nav className="bottom-nav" aria-label="Main">
         {link(TABS[0])}
         {link(TABS[1])}
-        <button type="button" className="nav-plus" onClick={() => openCreate("menu")} aria-label="Create: post, photo, transformation, pump check or log a set" data-testid="nav-plus">
+        <button type="button" className="nav-plus" onClick={() => openCreate("menu")} aria-label="Create: post, transformation or pump check" data-testid="nav-plus">
           <span>
             <Icon name="plus" />
           </span>

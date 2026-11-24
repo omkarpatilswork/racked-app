@@ -3,7 +3,7 @@
 // Home v4 and Ranks v2 (Nov 2026) keep things simple for launch. Home: a slim
 // streak / sets row, one big "Log a set" button, the composer bar and one
 // feed. Ranks: score, kg moved and heaviest lift, no XP, 3 missions.
-// Rewards v2: Win · Partners, no XP, no Shop. You v2: one stats row, no gym card.
+// Rewards v2: Win · Partners, no XP, no Shop. You v2: one stats row, no gym card. + drawer: Post · Transformation · Pump check.
 // Everything switched off below still works and is still tested: flip
 // it to true, push, and it's back on Home. Prizes, challenges and the
 // body-weight ask keep working on Ranks, Rewards, the log screen, Settings
@@ -20,7 +20,8 @@ export type FeatureKey =
   | "ranksAllMissions"
   | "rewardsShop"
   | "xp"
-  | "youGymCard";
+  | "youGymCard"
+  | "plusMachines";
 
 export const FEATURES: Record<FeatureKey, boolean> = {
   /** Home: the level ring next to the streak and sets (level is on You). */
@@ -47,6 +48,9 @@ export const FEATURES: Record<FeatureKey, boolean> = {
   /** You: the big "Your gym" card (member since, machines used, best streak,
    *  gym Instagram, leaderboard button). Off: one "Club 360 · member since" line. */
   youGymCard: false,
+  /** The + drawer: the "Log a set" how-to box and the list of all 10 machines
+   *  (machine pages stay locked until you tap or scan, so the list couldn't log). */
+  plusMachines: false,
 };
 
 /** The 3 weekly missions shown on Ranks while ranksAllMissions is off. */

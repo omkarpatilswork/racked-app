@@ -10886,3 +10886,253 @@ a.hx-chip:hover {
 .set-theme {
   margin-bottom: 10px;
 }
+
+/* ==========================================================================
+   + drawer v2 (Nov 2026): three rows, "Log next set" only after a tap,
+   Post with a Photos · Tag a machine row, transformation chips, one Post button.
+   components/create/CreateHub.tsx
+   ========================================================================== */
+.cx2-list {
+  display: grid;
+  gap: 8px;
+}
+.cx2-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s var(--ease), border-color 0.15s;
+}
+.cx2-row:active {
+  transform: scale(0.98);
+  border-color: var(--border-strong);
+}
+.cx2-ic {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-grad);
+  color: #1a0603;
+}
+.cx2-ic .icon {
+  width: 22px;
+  height: 22px;
+}
+.cx2-row.t-transformation .cx2-ic {
+  background: linear-gradient(150deg, #ffd766, #f4b424);
+}
+.cx2-row.t-pump .cx2-ic {
+  background: var(--ink);
+  color: var(--bg);
+}
+.cx2-copy {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.cx2-copy b {
+  font-size: 16.5px;
+  font-weight: 800;
+}
+.cx2-copy small {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+.cx2-row > .icon:last-child,
+.cx2-resume > .icon:last-child {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--ink-faint);
+}
+.cx2-resume {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 10px 14px 10px 10px;
+  border-radius: 20px;
+  background: var(--accent-grad);
+  color: #1a0603;
+  text-decoration: none;
+}
+.cx2-resume-n {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.18);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 15px;
+}
+.cx2-resume .cx2-copy b {
+  color: #1a0603;
+}
+.cx2-resume .cx2-copy small {
+  color: rgba(26, 6, 3, 0.78);
+  font-weight: 600;
+}
+.cx2-resume > .icon:last-child {
+  color: #1a0603;
+}
+.cx2-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.cx2-who b {
+  font-size: 14.5px;
+}
+.cx2-who small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.cx2-count {
+  text-align: right;
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+.cx2-count .low {
+  color: var(--ink-soft);
+}
+.cx2-count .over {
+  color: var(--danger);
+  font-weight: 800;
+}
+.cx2-tools {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.cx2-tool {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 16px;
+  border: 1.5px dashed var(--border-strong);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.cx2-tool .icon {
+  flex: none;
+  width: 19px;
+  height: 19px;
+  color: var(--accent-text);
+}
+.cx2-tool small {
+  font-weight: 600;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+.cx2-tool-t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cx2-tool.on {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent-text) 45%, transparent);
+  background: var(--accent-soft);
+}
+.cx2-tool.lead {
+  border-color: var(--accent-text);
+}
+.cx2-tool:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.cx2-tool:focus-within {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+/* the real <select> sits on top of the pill, invisible, so a tap opens the picker */
+.cx2-tool-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  font-size: 16px;
+  cursor: pointer;
+}
+.cx2-post {
+  width: 100%;
+  margin-top: 14px;
+  min-height: 52px;
+}
+.cx2-label {
+  margin: 14px 2px 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+.cx2-label .faint {
+  font-weight: 600;
+}
+.cx2-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -2px;
+  padding: 2px;
+}
+.cx2-chips::-webkit-scrollbar {
+  display: none;
+}
+.cx2-chips button {
+  flex: none;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 99px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 800;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.cx2-chips button.on {
+  background: var(--accent-grad);
+  border-color: transparent;
+  color: var(--yellow-ink);
+}
+.cx2-slots .cx-slot {
+  aspect-ratio: 4 / 5;
+}
+.cx2-cap {
+  margin-top: 12px;
+}

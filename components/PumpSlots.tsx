@@ -16,6 +16,7 @@ export default function PumpSlots({
   onAdd,
   onOpen,
   compact = false,
+  hints = true,
 }: {
   day: string;
   photos: PumpPhoto[];
@@ -24,6 +25,8 @@ export default function PumpSlots({
   onOpen: (photo: PumpPhoto) => void;
   /** small one-line "Pre photo" / "Post photo" buttons (You page) */
   compact?: boolean;
+  /** the small "(optional)" line under each empty slot */
+  hints?: boolean;
 }) {
   return (
     <div className={`pump-slots${compact ? " compact" : ""}`}>
@@ -46,7 +49,7 @@ export default function PumpSlots({
               ) : (
                 <>
                   <b>Add {COPY[kind].label.toLowerCase()} photo</b>
-                  <small>{COPY[kind].hint}</small>
+                  {hints && <small>{COPY[kind].hint}</small>}
                 </>
               )}
             </button>

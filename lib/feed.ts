@@ -251,6 +251,13 @@ export const adminSetCommentHidden = (s: Client, id: number, hidden: boolean) =>
 // (after posting / deleting) without threading callbacks through pages.
 export const OPEN_CREATE = "racked:open-create";
 export const FEED_CHANGED = "racked:feed-changed";
+/** "12 weeks", "6 months", "1 year", "2 years" (transformations) */
+export function apartLabel(weeks: number) {
+  if (weeks === 26) return "6 months";
+  if (weeks >= 52 && weeks % 52 === 0) return weeks === 52 ? "1 year" : `${weeks / 52} years`;
+  return `${weeks} ${weeks === 1 ? "week" : "weeks"}`;
+}
+
 export type CreateTarget = "menu" | "post" | "photo" | "transformation" | "pump" | "machines";
 export function openCreate(target: CreateTarget = "menu") {
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(OPEN_CREATE, { detail: target }));

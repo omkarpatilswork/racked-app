@@ -1,8 +1,10 @@
 "use client";
 
-// The + button's menu and composers: a post (text and/or up to 4 photos), a
-// transformation (before + after), today's pump check, and "log a set"
-// (tap or scan a sticker, or pick one of the 10 machines).
+// The + button: make something for the feed. Three rows — Post (text and/or
+// up to 4 photos), Transformation (before + after), Pump check (today's pre
+// and post photos) — plus "Log next set" on top only in the 4 hours after a
+// tap or scan (machine pages are locked otherwise). The old "Log a set" box
+// and the list of all 10 machines are the plusMachines switch.
 // Opened from the bottom bar, the composer bar on Home, or empty states, via
 // openCreate() in lib/feed.ts.
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -13,10 +15,10 @@ import Icon from "@/components/Icon";
 import Avatar from "@/components/Avatar";
 import PumpCheckCard from "@/components/PumpCheckCard";
 import SignInSheet from "@/components/SignInSheet";
-import { MachineSelect } from "@/components/feed/HomeFeed";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
-import { createPost, hasLink, notifyFeedChanged, onOpenCreate, type CreateTarget } from "@/lib/feed";
+import { apartLabel, createPost, hasLink, notifyFeedChanged, onOpenCreate, type CreateTarget } from "@/lib/feed";
+import { useFeature } from "@/lib/features";
 import { friendlyDbError } from "@/lib/data";
 import { getActiveMachineId } from "@/lib/machineLock";
 import { MACHINE_MAP, MACHINES } from "@/lib/machines";
@@ -48,13 +50,10 @@ export default function CreateHub() {
   return (
     <>
       {view === "menu" && <CreateMenu onPick={(v) => (setFocusPhotos(false), setView(v))} onClose={() => setView(null)} />}
-      {view === "post" && <PostComposer photosFirst={focusPhotos} onClose={() => setView(null)} onBack={() => setView("menu")} />}
-      {view === "transformation" && <TransformationComposer onClose={() => setView(null)} onBack={() => setView("menu")} />}
+      {view === "post" && <PostComposer photosFirst={focusPhotos} onClose={() => setView(null)} />}
+      {view === "transformation" && <TransformationComposer onClose={() => setView(null)} />}
       {view === "pump" && (
         <Sheet open onClose={() => setView(null)} title="Today's pump check" testId="pump-sheet">
-          <p className="faint" style={{ margin: "0 0 12px", fontSize: 13.5 }}>
-            A before and an after photo for today. Both optional; they show on the feed and your profile.
-          </p>
           <PumpCheckCard bare />
         </Sheet>
       )}
@@ -66,65 +65,75 @@ export default function CreateHub() {
 function CreateMenu({ onPick, onClose }: { onPick: (v: View) => void; onClose: () => void }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   useEffect(() => setActiveId(getActiveMachineId()), []);
+  const machinesOn = useFeature("plusMachines");
   const active = activeId ? MACHINE_MAP[activeId] : null;
-  const tiles: { v: View; icon: string; title: string; sub: string }[] = [
-    { v: "post", icon: "pen", title: "Post", sub: "Say something, share photos, tag a machine" },
-    { v: "transformation", icon: "compare", title: "Transformation", sub: "Before and after" },
-    { v: "pump", icon: "camera", title: "Pump check", sub: "Today's photos" },
+  const rows: { v: View; icon: string; title: string; sub: string }[] = [
+    { v: "post", icon: "pen", title: "Post", sub: "Words, photos or both" },
+    { v: "transformation", icon: "compare", title: "Transformation", sub: "Then vs now" },
+    { v: "pump", icon: "camera", title: "Pump check", sub: "Today’s pre & post photos" },
   ];
   return (
     <Sheet open onClose={onClose} title="Create" testId="create-menu" className="cx-sheet">
-      <div className="cx-tiles">
-        {tiles.map((t) => (
-          <button key={t.v} type="button" className={`cx-tile t-${t.v}`} onClick={() => onPick(t.v)} data-testid={`create-${t.v}`}>
-            <span className="cx-tile-ic" aria-hidden="true">
+      {active && (
+        <Link href={`/machine/${active.id}/log`} className="cx2-resume" onClick={onClose} data-testid="create-resume">
+          <span className="cx2-resume-n num" aria-hidden="true">
+            {active.number}
+          </span>
+          <span className="cx2-copy">
+            <b>Log next set</b>
+            <small>{active.name} · you&rsquo;re here</small>
+          </span>
+          <Icon name="chev" />
+        </Link>
+      )}
+      <div className="cx2-list">
+        {rows.map((t) => (
+          <button key={t.v} type="button" className={`cx2-row t-${t.v}`} onClick={() => onPick(t.v)} data-testid={`create-${t.v}`}>
+            <span className="cx2-ic" aria-hidden="true">
               <Icon name={t.icon} />
             </span>
-            <span className="cx-tile-copy">
+            <span className="cx2-copy">
               <b>{t.title}</b>
               <small>{t.sub}</small>
             </span>
-            {t.v === "post" && <Icon name="chev" />}
+            <Icon name="chev" />
           </button>
         ))}
       </div>
 
-      <div className="cx-log" data-testid="create-log">
-        <div className="cx-log-head">
-          <span className="cx-log-ic" aria-hidden="true">
-            <Icon name="nfc" />
-          </span>
-          <div>
-            <b>Log a set</b>
-            <span>Tap or scan the sticker on any machine with your phone.</span>
-          </div>
-        </div>
-        {active && (
-          <Link href={`/machine/${active.id}/log`} className="cx-resume" onClick={onClose} data-testid="create-resume">
-            <Icon name="flame" /> You&rsquo;re at {active.name}. Log your next set
-            <Icon name="chev" />
-          </Link>
-        )}
-      </div>
-
-      <div className="cx-machines-head">
-        <h3>All {MACHINES.length} machines</h3>
-        <span>How to use them, who&rsquo;s top</span>
-      </div>
-      <ul className="cx-machines" data-testid="create-machines">
-        {MACHINES.map((m) => (
-          <li key={m.id}>
-            <Link href={`/machine/${m.id}`} onClick={onClose}>
-              <span className="cx-mno num">{m.number}</span>
-              <span className="cx-mname">
-                <b>{m.name}</b>
-                <small>{m.muscles.slice(0, 2).join(" · ")}</small>
+      {machinesOn && (
+        <>
+          <div className="cx-log" data-testid="create-log">
+            <div className="cx-log-head">
+              <span className="cx-log-ic" aria-hidden="true">
+                <Icon name="nfc" />
               </span>
-              <Icon name="chev" />
-            </Link>
-          </li>
-        ))}
-      </ul>
+              <div>
+                <b>Log a set</b>
+                <span>Tap or scan the sticker on any machine with your phone.</span>
+              </div>
+            </div>
+          </div>
+          <div className="cx-machines-head">
+            <h3>All {MACHINES.length} machines</h3>
+            <span>How to use them, who&rsquo;s top</span>
+          </div>
+          <ul className="cx-machines" data-testid="create-machines">
+            {MACHINES.map((m) => (
+              <li key={m.id}>
+                <Link href={`/machine/${m.id}`} onClick={onClose}>
+                  <span className="cx-mno num">{m.number}</span>
+                  <span className="cx-mname">
+                    <b>{m.name}</b>
+                    <small>{m.muscles.slice(0, 2).join(" · ")}</small>
+                  </span>
+                  <Icon name="chev" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </Sheet>
   );
 }
@@ -161,7 +170,15 @@ function useAfterPost() {
   };
 }
 
-function PostComposer({ photosFirst, onClose, onBack }: { photosFirst: boolean; onClose: () => void; onBack: () => void }) {
+// "Tag a machine" as a pill; the native picker opens on top of it
+function machineName(v: string) {
+  const [id, mode] = v.split("|");
+  const m = MACHINE_MAP[id];
+  if (!m) return null;
+  return `${m.number} ${(mode && m.modes?.[mode]?.label) || m.name}`;
+}
+
+function PostComposer({ photosFirst, onClose }: { photosFirst: boolean; onClose: () => void }) {
   const { session, profile } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const [text, setText] = useState("");
@@ -174,6 +191,7 @@ function PostComposer({ photosFirst, onClose, onBack }: { photosFirst: boolean; 
   const done = useAfterPost();
   const left = MAX - text.length;
   const canPost = (text.trim().length > 0 || picks.length > 0) && left >= 0 && !busy;
+  const tagged = machine ? machineName(machine) : null;
 
   async function submit() {
     if (!session) return;
@@ -202,11 +220,11 @@ function PostComposer({ photosFirst, onClose, onBack }: { photosFirst: boolean; 
 
   return (
     <Sheet open onClose={busy ? () => undefined : onClose} title="New post" testId="post-composer" className="cx-sheet">
-      <div className="cx-who">
-        <Avatar name={profile?.display_name} url={profile?.avatar_url} size={36} />
+      <div className="cx2-who">
+        <Avatar name={profile?.display_name} url={profile?.avatar_url} size={32} />
         <span>
           <b>{profile?.display_name || "You"}</b>
-          <small>Posting to the gym feed · members only</small>
+          <small>Gym feed · members only</small>
         </span>
       </div>
       <label className="sr-only" htmlFor="cx-text">
@@ -216,34 +234,64 @@ function PostComposer({ photosFirst, onClose, onBack }: { photosFirst: boolean; 
         id="cx-text"
         className="cx-text"
         rows={picks.length ? 2 : 4}
-        placeholder={photosFirst ? "Say something about it (optional)" : "What's happening at the gym? A win, a question, a shout-out…"}
+        placeholder={photosFirst ? "Say something about it (optional)" : "What’s happening at the gym?"}
         value={text}
         onChange={(e) => (setText(e.target.value), setErr(null))}
         data-autofocus={photosFirst ? undefined : ""}
         data-testid="post-text"
       />
-      <div className="fx-compose-foot">
-        <span className="faint">No links, please</span>
-        <span className={`num${left < 0 ? " over" : left < 40 ? " low" : ""}`}>{left}</span>
-      </div>
+      {left < 40 && (
+        <div className="cx2-count">
+          <span className={`num${left < 0 ? " over" : " low"}`}>{left}</span>
+        </div>
+      )}
 
-      <div className="cx-photos" data-testid="post-photos">
-        {picks.map((p, i) => (
-          <div key={p.url} className="cx-thumb">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.url} alt={`Photo ${i + 1}`} />
-            <button type="button" onClick={() => remove(i)} aria-label={`Remove photo ${i + 1}`} disabled={busy}>
-              <Icon name="x" />
-            </button>
-          </div>
-        ))}
-        {picks.length < 4 && (
-          <button type="button" className={`cx-add${picks.length ? "" : " wide"}${photosFirst && !picks.length ? " lead" : ""}`} onClick={() => file.current?.click()} disabled={busy} data-testid="add-photos">
-            <Icon name="image" />
-            <span>{picks.length ? "Add" : "Add photos"}</span>
-            {!picks.length && <small>Up to 4</small>}
-          </button>
-        )}
+      {picks.length > 0 && (
+        <div className="cx-photos" data-testid="post-photos">
+          {picks.map((p, i) => (
+            <div key={p.url} className="cx-thumb">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.url} alt={`Photo ${i + 1}`} />
+              <button type="button" onClick={() => remove(i)} aria-label={`Remove photo ${i + 1}`} disabled={busy}>
+                <Icon name="x" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="cx2-tools">
+        <button
+          type="button"
+          className={`cx2-tool${photosFirst && !picks.length ? " lead" : ""}${picks.length ? " on" : ""}`}
+          onClick={() => file.current?.click()}
+          disabled={busy || picks.length >= 4}
+          data-testid="add-photos"
+        >
+          <Icon name="image" />
+          <span className="cx2-tool-t">{picks.length ? `Photos ${picks.length}/4` : "Photos"}</span>
+          {!picks.length && <small>up to 4</small>}
+        </button>
+        <label className={`cx2-tool${tagged ? " on" : ""}`} htmlFor="cx-machine">
+          <Icon name="dumbbell" />
+          <span className="cx2-tool-t">{tagged || "Tag a machine"}</span>
+          <select id="cx-machine" className="cx2-tool-select" value={machine} onChange={(e) => setMachine(e.target.value)} disabled={busy} aria-label="Tag a machine (optional)">
+            <option value="">No machine</option>
+            {MACHINES.flatMap((m) =>
+              m.dual && m.modes
+                ? Object.entries(m.modes).map(([k, md]) => (
+                    <option key={`${m.id}|${k}`} value={`${m.id}|${k}`}>
+                      {m.number} {md.label}
+                    </option>
+                  ))
+                : [
+                    <option key={m.id} value={m.id}>
+                      {m.number} {m.name}
+                    </option>,
+                  ]
+            )}
+          </select>
+        </label>
         <input
           ref={file}
           type="file"
@@ -259,36 +307,27 @@ function PostComposer({ photosFirst, onClose, onBack }: { photosFirst: boolean; 
         />
       </div>
 
-      <label className="field-label" htmlFor="cx-machine" style={{ marginTop: 12 }}>
-        Tag a machine (optional)
-      </label>
-      <MachineSelect id="cx-machine" value={machine} onChange={setMachine} />
-
       {err && (
         <p className="field-error" role="alert">
           {err}
         </p>
       )}
-      <div className="cx-foot">
-        <button type="button" className="btn btn-ghost" onClick={onBack} disabled={busy}>
-          Back
-        </button>
-        <button type="button" className="btn btn-yellow" onClick={submit} disabled={!canPost} data-testid="post-submit">
-          {busy ? progress || "Posting…" : "Post"}
-        </button>
-      </div>
+      <button type="button" className="btn btn-yellow cx2-post" onClick={submit} disabled={!canPost} data-testid="post-submit">
+        {busy ? progress || "Posting…" : "Post"}
+      </button>
     </Sheet>
   );
 }
 
-const WEEKS = [2, 4, 6, 8, 12, 16, 20, 24, 36, 52, 104];
+// "How long apart?" (weeks); tap again to clear
+const APART = [4, 8, 12, 26, 52, 104];
 
-function TransformationComposer({ onClose, onBack }: { onClose: () => void; onBack: () => void }) {
+function TransformationComposer({ onClose }: { onClose: () => void }) {
   const { session } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const [before, setBefore] = useState<Pick | null>(null);
   const [after, setAfter] = useState<Pick | null>(null);
-  const [weeks, setWeeks] = useState("");
+  const [weeks, setWeeks] = useState<number | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -319,7 +358,7 @@ function TransformationComposer({ onClose, onBack }: { onClose: () => void; onBa
           { file: before.file, label: "before" },
           { file: after.file, label: "after" },
         ],
-        weeks: weeks ? Number(weeks) : null,
+        weeks,
       });
       haptic("success");
       toast("Transformation posted");
@@ -350,42 +389,40 @@ function TransformationComposer({ onClose, onBack }: { onClose: () => void; onBa
 
   return (
     <Sheet open onClose={busy ? () => undefined : onClose} title="New transformation" testId="transformation-composer" className="cx-sheet">
-      <div className="cx-slots">
+      <div className="cx-slots cx2-slots">
         {slot("Before", before, bRef, setBefore, "before")}
         {slot("After", after, aRef, setAfter, "after")}
       </div>
-      <label className="field-label" htmlFor="cx-weeks" style={{ marginTop: 12 }}>
-        Time between them (optional)
-      </label>
-      <select id="cx-weeks" className="field" value={weeks} onChange={(e) => setWeeks(e.target.value)} data-testid="weeks">
-        <option value="">Don&rsquo;t say</option>
-        {WEEKS.map((w) => (
-          <option key={w} value={w}>
-            {w === 52 ? "1 year" : w === 104 ? "2 years" : `${w} weeks`}
-          </option>
+      <div className="cx2-label" id="cx-weeks-l">
+        How long apart? <span className="faint">(optional)</span>
+      </div>
+      <div className="cx2-chips" role="group" aria-labelledby="cx-weeks-l" data-testid="weeks">
+        {APART.map((w) => (
+          <button key={w} type="button" aria-pressed={weeks === w} className={weeks === w ? "on" : ""} onClick={() => setWeeks(weeks === w ? null : w)} disabled={busy} data-testid={`weeks-${w}`}>
+            {apartLabel(w)}
+          </button>
         ))}
-      </select>
-      <label className="field-label" htmlFor="cx-cap" style={{ marginTop: 12 }}>
+      </div>
+      <label className="sr-only" htmlFor="cx-cap">
         Caption (optional)
       </label>
-      <textarea id="cx-cap" className="field fx-textarea" rows={2} value={text} onChange={(e) => (setText(e.target.value), setErr(null))} placeholder="What changed? What kept you going?" data-testid="transformation-text" />
-      <div className="fx-compose-foot">
-        <span className="faint">Only members can see it. Delete it any time.</span>
-        <span className={`num${left < 0 ? " over" : ""}`}>{left}</span>
-      </div>
+      <input
+        id="cx-cap"
+        className="field cx2-cap"
+        maxLength={MAX}
+        value={text}
+        onChange={(e) => (setText(e.target.value), setErr(null))}
+        placeholder="What changed? (optional)"
+        data-testid="transformation-text"
+      />
       {err && (
         <p className="field-error" role="alert">
           {err}
         </p>
       )}
-      <div className="cx-foot">
-        <button type="button" className="btn btn-ghost" onClick={onBack} disabled={busy}>
-          Back
-        </button>
-        <button type="button" className="btn btn-yellow" onClick={submit} disabled={!before || !after || busy || left < 0} data-testid="transformation-submit">
-          {busy ? "Posting…" : "Post"}
-        </button>
-      </div>
+      <button type="button" className="btn btn-yellow cx2-post" onClick={submit} disabled={!before || !after || busy || left < 0} data-testid="transformation-submit">
+        {busy ? "Posting…" : "Post"}
+      </button>
     </Sheet>
   );
 }

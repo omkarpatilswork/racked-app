@@ -25,7 +25,7 @@ import {
   type Redemption,
   type RewardsOverview,
 } from "@/lib/rewards";
-import type { FeedItem, GymPost, Media } from "@/lib/feed";
+import { apartLabel, type FeedItem, type GymPost, type Media } from "@/lib/feed";
 import { useFeature } from "@/lib/features";
 
 export type SetItem = Extract<FeedItem, { type: "set" }>;
@@ -353,7 +353,7 @@ function Compare({ before, after, weeks, urls, onDouble }: { before: string | nu
       </span>
       <span className="fx-media-tag l">Before</span>
       <span className="fx-media-tag r">After</span>
-      {weeks && <span className="fx-cmp-weeks">{weeks} {weeks === 1 ? "week" : "weeks"} apart</span>}
+      {weeks && <span className="fx-cmp-weeks">{apartLabel(weeks)} apart</span>}
       <input
         className="sr-only"
         type="range"
