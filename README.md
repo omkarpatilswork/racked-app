@@ -140,6 +140,7 @@ racked-app/
 │   ├── machines/            the list of tagged machines
 │   ├── machine/[id]/        one machine: history, log, guide, feedback
 │   ├── leaderboard/         overall and per-machine ranks
+│   ├── landing/             the landing page at a link members can open too (/brands, /gyms jump to sections)
 │   ├── profile/             You: your numbers, attendance calendar, progress photos, your bests
 │   ├── settings/            You · App · Account: name, Instagram, body weight, theme, rest timer, sign out, delete
 │   ├── welcome/             first-time onboarding

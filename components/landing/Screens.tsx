@@ -206,6 +206,16 @@ export function BoardScreen({ on }: { on: boolean }) {
   );
 }
 
+// A real screenshot of the app inside the phone frame (public/landing/app)
+export function AppShot({ src, alt, eager = false }: { src: string; alt: string; eager?: boolean }) {
+  return (
+    <div className="lp-shot">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={alt} width={600} height={1298} loading={eager ? "eager" : "lazy"} decoding="async" />
+    </div>
+  );
+}
+
 export function Phone({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={`lp-phone${className ? ` ${className}` : ""}`} aria-hidden="true">

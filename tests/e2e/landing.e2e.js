@@ -1,4 +1,6 @@
-// Public landing page (/ and /about) + the routing around it (mocked backend).
+// Public landing page (/, /landing and /about) + the routing around it (mocked backend).
+// Landing v2: the 5-step flow on the first screen, five app screens, For brands,
+// One loop + For gyms; the old scroll walkthrough is switched off.
 // Run: see tests/README.md
 const { chromium } = require("playwright");
 const fs = require("fs");
@@ -23,11 +25,7 @@ async function open(browser, url, mut = out, opts = {}) {
   await page.goto(BASE + url, { waitUntil: "networkidle" }).catch(() => {});
   return { ctx, page, st, errors };
 }
-const scrollToStep = (page, i) =>
-  page.evaluate((i) => {
-    const m = document.querySelector(`[data-step-marker="${i}"]`);
-    window.scrollTo(0, m.getBoundingClientRect().top + window.scrollY + 40);
-  }, i);
+const FLOW = ["01Tap or scan", "02Sign in", "03Log your set", "04You\u2019re on the board", "05Compete & win"];
 
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
@@ -40,7 +38,11 @@ const scrollToStep = (page, i) =>
     const h1 = (await page.locator("h1").textContent()) || "";
     check("hero says what it is: Tap or scan. Log. Win", /tap or scan\.\s*log\./i.test(h1) && /win/i.test(h1), h1);
     check("no app bottom nav on the landing page", (await page.locator(".bottom-nav").count()) === 0);
-    check("big CTA in hero, after walkthrough and at the end", (await page.locator('[data-testid="lp-hero-cta"], [data-testid="lp-mid-cta"], [data-testid="lp-final-cta"]').count()) === 3);
+    check("big CTA in the hero and at the end", (await page.locator('[data-testid="lp-hero-cta"], [data-testid="lp-final-cta"]').count()) === 2 && (await page.locator('[data-testid="lp-mid-cta"]').count()) === 0);
+    check("nav: How it works · The app · For brands · For gyms", (await page.locator(".lp-nav-links a").evaluateAll((as) => as.map((a) => a.getAttribute("href")))).join(",") === "#how,#the-app,#brands,#gyms");
+    check("one short line under the headline", ((await page.locator(".lp-lede").textContent()) || "").trim() === "The gym app with nothing to download.");
+    check("hero phone shows the real Home screen", await page.locator('.lp-hero-phone img[src="/landing/app/home.webp"]').evaluate((i) => i.complete && i.naturalWidth === 600));
+    check("For brands link next to the main button", (await page.locator('[data-testid="lp-hero-brands"]').getAttribute("href")) === "#brands");
     await page.waitForFunction(() => (document.querySelector('[data-testid="lp-ticker"]')?.textContent || "").includes("lifters"));
     const tick = (await page.locator('[data-testid="lp-ticker"] .sr-only').textContent()) || "";
     check("live ticker shows today's real numbers", tick.includes("5 lifters") && tick.includes("32 sets") && tick.includes("22,280 kg moved") && tick.includes("4 new PBs"), tick);
@@ -57,7 +59,7 @@ const scrollToStep = (page, i) =>
     await ctx.close();
   }
 
-  // ---- members skip the landing page; /about still shows it
+  // ---- members skip the landing page at /; /landing and /about still show it
   {
     const { ctx, page, errors } = await open(browser, "/", (s) => s);
     await page.waitForURL((u) => new URL(u).pathname === "/home", { timeout: 15000 });
@@ -67,6 +69,26 @@ const scrollToStep = (page, i) =>
     const home = page.locator('.bottom-nav a[aria-current="page"]');
     check("bottom nav Home tab is /home and active", (await home.getAttribute("href")) === "/home");
     check("no page errors (member redirect)", errors.length === 0, errors.join(" | "));
+    await ctx.close();
+  }
+  {
+    const { ctx, page, errors } = await open(browser, "/landing", (s) => s);
+    await page.waitForSelector('[data-testid="landing"]');
+    await sleep(800);
+    check("/landing shows the landing page to members too (no redirect)", new URL(page.url()).pathname === "/landing");
+    check("/landing: no app nav, Open Racked", (await page.locator(".bottom-nav").count()) === 0 && /open racked/i.test((await page.locator('[data-testid="lp-hero-cta"]').textContent()) || ""));
+    const canon = (await page.locator('link[rel="canonical"]').getAttribute("href")) || "";
+    check("/landing: canonical is /", new URL(canon, BASE).pathname === "/", canon);
+    check("no page errors (/landing as a member)", errors.length === 0, errors.join(" | "));
+    await ctx.close();
+  }
+  for (const [url, hash] of [["/brands", "#brands"], ["/gyms", "#gyms"]]) {
+    const { ctx, page } = await open(browser, url);
+    await page.waitForSelector('[data-testid="landing"]');
+    await sleep(700);
+    const u = new URL(page.url());
+    const top = await page.evaluate((h) => document.querySelector(h).getBoundingClientRect().top, hash);
+    check(`${url} opens /landing${hash}, scrolled to it`, u.pathname === "/landing" && u.hash === hash && Math.abs(top) < 140, `${page.url()} top=${top}`);
     await ctx.close();
   }
   {
@@ -95,35 +117,63 @@ const scrollToStep = (page, i) =>
     await ctx.close();
   }
 
-  // ---- the walkthrough follows the scroll (with and without motion)
+  // ---- how it works: the 5-step flow, on the first screen (with and without motion)
   for (const reduce of [false, true]) {
     for (const [w, h] of [[1440, 900], [390, 844]]) {
       const tag = `${w}px${reduce ? ", reduced motion" : ""}`;
       const { ctx, page, errors } = await open(browser, "/", out, { width: w, height: h, reduce });
-      await page.waitForSelector('[data-testid="landing"]');
-      const seen = [];
-      for (let i = 0; i < 4; i++) {
-        await scrollToStep(page, i);
-        await sleep(reduce ? 500 : 1600);
-        const cur = await page.locator('[data-testid="lp-steps"] li[aria-current="step"]').evaluate((el) => [...el.parentNode.children].indexOf(el)).catch(() => -1);
-        const on = await page.locator(".lp-story .ps.on").getAttribute("data-screen").catch(() => null);
-        seen.push(`${cur}/${on}`);
-      }
-      check(`walkthrough steps 1→4 follow the scroll (${tag})`, seen.join(",") === "0/0,1/1,2/2,3/3", seen.join(","));
-      if (w === 1440) {
-        await page.locator(".lp-step-btn").first().click();
-        await sleep(reduce ? 600 : 1800);
-        check(`clicking a step jumps to it (${tag})`, (await page.locator(".lp-story .ps.on").getAttribute("data-screen")) === "0");
-        const kg = (await page.locator(".lp-story .ps-weight-val").textContent()) || "";
-        check(`log screen ends on 60 kg (${tag})`, kg.trim() === "60", kg);
-      }
+      await page.waitForSelector('[data-testid="lp-flow"]');
+      await sleep(600);
+      const steps = await page.locator('[data-testid="lp-flow"] .lp3-t').allTextContents();
+      check(`flow: 5 steps, tap/scan → sign in → log → board → win (${tag})`, steps.map((t) => t.trim()).join("|") === FLOW.join("|"), steps.join("|"));
+      const fit = await page.evaluate(() => { const r = document.querySelector('[data-testid="lp-flow"] li:last-child').getBoundingClientRect(); return r.bottom <= innerHeight && r.top >= 0; });
+      check(`flow: all 5 steps on the first screen (${tag})`, fit);
+      const anims = await page.locator('[data-testid="lp-flow"] li').evaluateAll((ls) => ls.map((l) => getComputedStyle(l, "::after").animationName));
       if (reduce) {
         const anim = await page.locator(".lp-hero-title .l1").evaluate((el) => getComputedStyle(el).animationName);
         check(`reduced motion: hero headline isn't animated (${tag})`, anim === "none", anim);
+        const firstOn = await page.locator('[data-testid="lp-flow"] li').first().evaluate((l) => getComputedStyle(l, "::after").opacity);
+        check(`reduced motion: no moving glow, step 1 lit (${tag})`, anims.every((a) => a === "none") && firstOn === "1", anims.join(",") + " " + firstOn);
+      } else {
+        check(`flow: the glow walks through the steps (${tag})`, anims.every((a) => a === "lp3Glow"), anims.join(","));
       }
-      check(`no page errors (walkthrough, ${tag})`, errors.length === 0, errors.join(" | "));
+      check(`old scroll walkthrough + "Built to keep you coming back" are off (${tag})`, (await page.locator(".lp-story, .lp-features").count()) === 0);
+      check(`no page errors (flow, ${tag})`, errors.length === 0, errors.join(" | "));
       await ctx.close();
     }
+  }
+
+  // ---- the app, for brands, one loop + for gyms
+  {
+    const { ctx, page, errors } = await open(browser, "/", out, { reduce: true });
+    await page.waitForSelector('[data-testid="lp-screens"]');
+    await page.evaluate(() => document.querySelector("#the-app").scrollIntoView());
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="lp-screens"] img')].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 10000 }).catch(() => {});
+    const caps = await page.locator('[data-testid="lp-screens"] figcaption b').allTextContents();
+    check("the app: five real screens (Home, Log a set, Ranks, Rewards, You)", caps.join(",") === "Home,Log a set,Ranks,Rewards,You", caps.join(","));
+    check("the app: every screenshot loads", await page.locator('[data-testid="lp-screens"] img').evaluateAll((is) => is.length === 5 && is.every((i) => i.complete && i.naturalWidth === 600)));
+    check("the app: 4 short promises", (await page.locator(".lp3-pills li").allTextContents()).join(",") === "No download,Any phone,Fair play built in,Private by default");
+    check("TV: 4 pills", (await page.locator(".lp-tv-facts.pills li").count()) === 4);
+    await page.evaluate(() => document.querySelector("#brands").scrollIntoView());
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="lp-brand-ways"] img')].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 10000 }).catch(() => {});
+    const ways = await page.locator('[data-testid="lp-brand-ways"] h3').allTextContents();
+    check("brands: 4 ways in", ways.join(",") === "Weekly prizes,Your own challenge,Ads on the gym TV,Your page in the app", ways.join(","));
+    check("brands: every picture loads", await page.locator('[data-testid="lp-brand-ways"] img').evaluateAll((is) => is.length === 4 && is.every((i) => i.complete && i.naturalWidth > 0)));
+    check("brands: what they see (taps, scans, codes)", (await page.locator(".lp2-report li").allTextContents()).join(",") === "App taps,TV QR scans,Codes claimed");
+    check("brands: partners at launch", (await page.locator(".lp2-logos span").allTextContents()).join(",") === "Jersey Drip,The Clean Crate");
+    const cta = page.locator('[data-testid="lp-partner-cta"]');
+    check("brands: Become a partner opens an Instagram DM in a new tab", (await cta.getAttribute("href")) === "https://ig.me/m/bijlee.run" && (await cta.getAttribute("target")) === "_blank" && ((await cta.getAttribute("rel")) || "").includes("noopener"));
+    check("one loop: lifters → gyms → brands", (await page.locator(".lp2-node .who").allTextContents()).join(",") === "Lifters · free,Gyms,Brands");
+    check("gyms: Talk to us", (await page.locator('[data-testid="lp-gym-cta"]').getAttribute("href")) === "https://ig.me/m/bijlee.run");
+    check("Bijlee Run Club section and the giant RACKED are still there", (await page.locator(".lp-club .lp-club-head").count()) === 1 && (await page.locator(".lp-giant").count()) === 1 && (await page.locator('[data-testid="lp-final-cta"]').count()) === 1);
+    check("footer links to brands + gyms", (await page.locator('.lp-footer a[href="#brands"], .lp-footer a[href="#gyms"]').count()) === 2);
+    const words = await page.evaluate(() => (document.querySelector(".lp-hero").innerText + " " + document.querySelector("#the-app").innerText).split(/\s+/).filter((w) => /[A-Za-z0-9]/.test(w)).length);
+    check("short copy: first screen + the app under 150 words", words < 150, String(words));
+    check("no page errors (sections)", errors.length === 0, errors.join(" | "));
+    await ctx.close();
+    const weights = await Promise.all(["home", "log", "ranks", "rewards", "you", "brand-prizes", "brand-challenge", "brand-tv", "brand-page"].map((n) => fetch(`${BASE}/landing/app/${n}.webp`).then(async (r) => (r.ok ? (await r.arrayBuffer()).byteLength : 1e9))));
+    const total = weights.reduce((a, b) => a + b, 0);
+    check("screenshots are light (all 9 under 400 KB)", total < 400 * 1024, `${Math.round(total / 1024)} KB`);
   }
 
   // ---- live gym TV + FAQ
@@ -170,7 +220,7 @@ const scrollToStep = (page, i) =>
     const res = await page.evaluate(() => {
       const W = window.innerWidth;
       const over = document.documentElement.scrollWidth - W;
-      const clipped = [...document.querySelectorAll(".lp-line, .lp-hero-title > span, .lp-club-head, .lp-final-title")]
+      const clipped = [...document.querySelectorAll(".lp-line, .lp-hero-title > span, .lp-club-head, .lp-final-title, .lp3-t, .lp2-fcopy h3, .lp2-node h3")]
         .filter((el) => el.scrollWidth > el.clientWidth + 2)
         .map((el) => el.textContent.trim().slice(0, 24));
       const off = [...document.querySelectorAll(".lp-hero-title > span, .lp-hero-actions, .lp-nav > *")]
@@ -194,6 +244,8 @@ const scrollToStep = (page, i) =>
   const axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
   for (const [w, h] of [[390, 844], [1440, 900]]) {
     const { ctx, page } = await open(browser, "/", out, { width: w, height: h, reduce: true });
+    for (let y = 0; y < 12000; y += 800) { await page.evaluate((yy) => window.scrollTo(0, yy), y); await sleep(60); }
+    await page.evaluate(() => window.scrollTo(0, 0));
     await sleep(1200);
     await page.addScriptTag({ content: axeSrc });
     const res = await page.evaluate(async () => {

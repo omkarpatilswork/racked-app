@@ -25,6 +25,7 @@ export function navHidden(pathname: string) {
   return (
     pathname === "/" ||
     pathname.startsWith("/about") ||
+    pathname.startsWith("/landing") ||
     isMachineSubpage ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/rnr") ||

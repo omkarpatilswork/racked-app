@@ -9,13 +9,47 @@ import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { fetchTvData, type TvActivity } from "@/lib/data";
 import { fmtKg } from "@/lib/tvCopy";
-import { BIJLEE_HANDLE, BIJLEE_INSTAGRAM, BIJLEE_URL, LANDING_PHOTOS } from "@/lib/site";
+import { BIJLEE_DM, BIJLEE_HANDLE, BIJLEE_INSTAGRAM, BIJLEE_URL, LANDING_PHOTOS } from "@/lib/site";
 import { useGym, type Gym } from "@/lib/gym";
-import { BoardScreen, HeroScreen, LogScreen, PbScreen, Phone, TapScreen } from "@/components/landing/Screens";
+import { AppShot, BoardScreen, LogScreen, PbScreen, Phone, TapScreen } from "@/components/landing/Screens";
 import TvPreview from "@/components/landing/TvPreview";
 import "./landing.css";
 
 type Gsap = typeof import("gsap").gsap;
+
+// Landing v2 (Nov 2026, Omi: pitch it to members, brands and investors, with
+// far less text): a 5-step flow on the first screen, the real app in five
+// screenshots (public/landing/app/*.webp, taken from the app with sample
+// names), For brands, "One loop" + For gyms. The long scroll walkthrough and
+// "Built to keep you coming back" are switched off, not deleted.
+const SHOW_STORY = false;
+const SHOW_FEATURES = false;
+
+// How it works, on the first screen: five steps, a few words each
+const FLOW = [
+  { no: "01", title: "Tap or scan", sub: "the sticker on the machine", vis: "sticker" },
+  { no: "02", title: "Sign in", sub: "the site opens · one tap", vis: "google" },
+  { no: "03", title: "Log your set", sub: "weight and reps", vis: "set" },
+  { no: "04", title: "You\u2019re on the board", sub: "Men\u2019s & Women\u2019s", vis: "board" },
+  { no: "05", title: "Compete & win", sub: "prizes every week", vis: "win" },
+] as const;
+
+const APP_SCREENS = [
+  { no: "01", src: "/landing/app/home.webp", title: "Home", sub: "Your gym\u2019s feed" },
+  { no: "02", src: "/landing/app/log.webp", title: "Log a set", sub: "Two taps" },
+  { no: "03", src: "/landing/app/ranks.webp", title: "Ranks", sub: "Score for your size" },
+  { no: "04", src: "/landing/app/rewards.webp", title: "Rewards", sub: "Weekly prizes" },
+  { no: "05", src: "/landing/app/you.webp", title: "You", sub: "Streak & PBs" },
+];
+
+const BRAND_WAYS = [
+  { no: "01", src: "/landing/app/brand-prizes.webp", title: "Weekly prizes", body: "#1 & #2 win your product. #3\u201310 get your coupon.", tv: false },
+  { no: "02", src: "/landing/app/brand-challenge.webp", title: "Your own challenge", body: "One day, one machine, your prize.", tv: false },
+  { no: "03", src: "/landing/app/brand-tv.webp", title: "Ads on the gym TV", body: "Your product and a QR to your shop.", tv: true },
+  { no: "04", src: "/landing/app/brand-page.webp", title: "Your page in the app", body: "Products, prices, your shop link.", tv: false },
+];
+
+const PARTNERS_AT_LAUNCH = ["Jersey Drip", "The Clean Crate"];
 
 const STEPS = [
   {
@@ -43,8 +77,8 @@ const STEPS = [
 const FEATURES = [
   {
     no: "01",
-    title: "Streaks, levels, PBs",
-    body: "Every machine keeps your personal best and your level. Show up on back-to-back days and your streak grows.",
+    title: "A score for your size",
+    body: "kg lifted ÷ body weight × 100, on Men's and Women's boards. Every machine keeps your personal best, and your streak grows when you show up.",
   },
   {
     no: "02",
@@ -86,6 +120,42 @@ const faq = (gym: Gym) => [
     a: "Settings → Delete account. It removes your sets, PBs, photos and everything else, for good.",
   },
 ];
+
+// The tiny picture on each step of the first-screen flow
+function FlowVisual({ kind }: { kind: (typeof FLOW)[number]["vis"] }) {
+  if (kind === "sticker")
+    return (
+      <span className="lp3-sticker">
+        <BoltMark />
+      </span>
+    );
+  if (kind === "google")
+    return (
+      <span className="lp3-g">
+        <b>G</b>Continue
+      </span>
+    );
+  if (kind === "set")
+    return (
+      <span className="lp3-set">
+        50<small>kg</small> × 10
+      </span>
+    );
+  if (kind === "board")
+    return (
+      <span className="lp3-row">
+        <span>2</span>You <em>255</em>
+      </span>
+    );
+  return (
+    <span className="lp3-win">
+      <span>
+        <Icon name="trophy" />
+      </span>
+      #1 wins
+    </span>
+  );
+}
 
 function Arrow() {
   return (
@@ -264,6 +334,12 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
           tl.from(row.querySelector(".lp-feature-rule"), { scaleX: 0, transformOrigin: "0 50%", duration: 0.7, ease: "expo.out" })
             .from(row.querySelector(".lp-feature-no"), { xPercent: -30, opacity: 0, duration: 0.5, ease: "power3.out" }, "-=0.45")
             .from(row.querySelectorAll(".lp-feature-copy > *"), { y: 18, opacity: 0, duration: 0.5, stagger: 0.06, ease: "power3.out" }, "-=0.35");
+        });
+        // the app screens and the brand cards rise in, one after the other
+        [".lp2-shot", ".lp2-format", ".lp2-node"].forEach((sel) => {
+          const els = gsap.utils.toArray<HTMLElement>(sel);
+          if (!els.length) return;
+          gsap.from(els, { y: 40, opacity: 0, duration: 0.7, ease: "expo.out", stagger: 0.08, scrollTrigger: { trigger: els[0], start: "top 88%", once: true } });
         });
         // Bijlee slab: words slam in
         gsap.from(".lp-club-head .w", {
@@ -453,8 +529,9 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
         </Link>
         <nav className="lp-nav-links" aria-label="Landing">
           <a href="#how">How it works</a>
-          <a href="#tv">Gym TV</a>
-          <a href="#faq">FAQ</a>
+          <a href="#the-app">The app</a>
+          <a href="#brands">For brands</a>
+          <a href="#gyms">For gyms</a>
         </nav>
         <StartButton testId="lp-nav-cta" size="sm" />
       </header>
@@ -469,7 +546,12 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
         <div className="lp-wrap lp-hero-grid">
           <div className="lp-hero-copy">
             <p className="lp-kicker">
-              <i className="lp-live-dot" /> Live at {gym.name} · by Bijlee Run Club
+              <i className="lp-live-dot" />
+              <span>
+                Live at {gym.name}
+                {gym.location ? `, ${gym.location.split(",").pop()?.trim()}` : ""}
+                <span className="lp3-by"> · by Bijlee Run Club</span>
+              </span>
             </p>
             <h1 id="lp-hero-title" className="lp-hero-title">
               <span className="l1">Tap or scan.</span>
@@ -478,14 +560,11 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
                 <em>rewards.</em>
               </span>
             </h1>
-            <p className="lp-lede">
-              The gym app with nothing to download. Tap or scan the Racked sticker on any machine, log your set in two taps, and
-              win weekly prizes. Boards rank by strength for your size, Men&rsquo;s and Women&rsquo;s.
-            </p>
+            <p className="lp-lede">The gym app with nothing to download.</p>
             <div className="lp-hero-actions">
               <StartButton testId="lp-hero-cta" />
-              <a href="#how" className="lp-textlink">
-                See how it works <span aria-hidden="true">↓</span>
+              <a href="#brands" className="lp-textlink" data-testid="lp-hero-brands">
+                For brands <span aria-hidden="true">→</span>
               </a>
             </div>
             <p className="lp-fine">Free · No download · One-tap Google sign-in</p>
@@ -493,13 +572,30 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
           <div className="lp-hero-visual">
             <div className="lp-hero-phone">
               <Phone>
-                <HeroScreen />
+                <AppShot src="/landing/app/home.webp" alt="The Racked Home screen: Log a set and the gym feed" eager />
               </Phone>
             </div>
             <div className="lp-hero-tag" aria-hidden="true">
               <span>PB</span> 60 kg × 8
             </div>
           </div>
+        </div>
+        <div className="lp-wrap lp3-flow" id="how" data-testid="lp-flow">
+          <h2 className="lp3-flow-h">How it works · about 20 seconds</h2>
+          <ol>
+            {FLOW.map((f, i) => (
+              <li key={f.no} className="lp3-step" style={{ ["--i" as string]: i }}>
+                <span className="lp3-vis" aria-hidden="true">
+                  <FlowVisual kind={f.vis} />
+                </span>
+                <span className="lp3-t">
+                  <i>{f.no}</i>
+                  {f.title}
+                </span>
+                <span className="lp3-s">{f.sub}</span>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
@@ -523,8 +619,9 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
         </div>
       </div>
 
-      {/* ---------------------------------------------------- how it works */}
-      <section className="lp-story" id="how" aria-labelledby="lp-how-title">
+      {/* ------------------------- how it works, the long scroll (switched off) */}
+      {SHOW_STORY && (
+      <section className="lp-story" id="how-story" aria-labelledby="lp-how-title">
         <div className="lp-wrap lp-section-head" data-reveal>
           <p className="lp-label">How it works · 4 steps · about 20 seconds</p>
           <h2 id="lp-how-title" className="lp-h2">
@@ -582,6 +679,46 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
           <StartButton testId="lp-mid-cta" />
         </div>
       </section>
+      )}
+
+      {/* --------------------------------------------------------- the app */}
+      <section className="lp2-app" id="the-app" aria-labelledby="lp-app-title">
+        <div className="lp-wrap">
+          <div className="lp-section-head" data-reveal>
+            <p className="lp-label">The app</p>
+            <h2 id="lp-app-title" className="lp-h2">
+              <span className="lp-line">
+                <span>Five screens.</span>
+              </span>
+              <span className="lp-line">
+                <span>
+                  <em>That&rsquo;s it.</em>
+                </span>
+              </span>
+            </h2>
+          </div>
+          <div className="lp2-shots" data-testid="lp-screens" role="region" aria-label="App screens" tabIndex={0}>
+            {APP_SCREENS.map((a) => (
+              <figure className="lp2-shot" key={a.no}>
+                <Phone>
+                  <AppShot src={a.src} alt={`${a.title}: ${a.sub}`} />
+                </Phone>
+                <figcaption>
+                  <i>{a.no}</i>
+                  <b>{a.title}</b>
+                  <span>{a.sub}</span>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+          <ul className="lp3-pills" aria-label="Why it works">
+            <li>No download</li>
+            <li>Any phone</li>
+            <li>Fair play built in</li>
+            <li>Private by default</li>
+          </ul>
+        </div>
+      </section>
 
       {/* ---------------------------------------------------------- gym TV */}
       <section className="lp-tv" id="tv" aria-labelledby="lp-tv-title">
@@ -605,24 +742,140 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
             </h2>
           </div>
           <TvPreview />
-          <ul className="lp-tv-facts">
-            <li>
-              <b>Scan-to-join QR</b>
-              <span>on every slide, so anyone on the floor can start in seconds</span>
-            </li>
-            <li>
-              <b>Today&rsquo;s kg, live</b>
-              <span>the whole gym&rsquo;s total, counted up as people lift</span>
-            </li>
-            <li>
-              <b>A podium per machine</b>
-              <span>&ldquo;Think you can beat Asha?&rdquo; with open spots for whoever&rsquo;s next</span>
-            </li>
+          <ul className="lp-tv-facts pills">
+            <li>Scan-to-join QR</li>
+            <li>Top 3 per machine</li>
+            <li>Push · Pull · Legs</li>
+            <li>Partner ads</li>
           </ul>
         </div>
       </section>
 
-      {/* ------------------------------------------------ what makes it work */}
+      {/* ------------------------------------------------------ for brands */}
+      <section className="lp2-brands" id="brands" aria-labelledby="lp-brands-title">
+        <div className="lp-wrap">
+          <div className="lp2-brands-head">
+            <div className="lp-section-head" data-reveal>
+              <p className="lp-label">For brands</p>
+              <h2 id="lp-brands-title" className="lp-h2">
+                <span className="lp-line">
+                  <span>Your product.</span>
+                </span>
+                <span className="lp-line">
+                  <span>Their prize.</span>
+                </span>
+                <span className="lp-line">
+                  <span>
+                    <em>Every week.</em>
+                  </span>
+                </span>
+              </h2>
+            </div>
+            <p className="lp2-lede">
+              Reach lifters when they&rsquo;re <b>chasing a PB and a prize</b>.
+            </p>
+          </div>
+          <div className="lp2-formats" data-testid="lp-brand-ways">
+            {BRAND_WAYS.map((w) => (
+              <article className="lp2-format" key={w.no}>
+                <div className="lp2-media">
+                  {w.tv ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className="lp2-tvimg" src={w.src} alt="A partner ad on the gym TV with a QR code to the shop" loading="lazy" width={1040} height={585} />
+                  ) : (
+                    <div className="lp2-peek">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={w.src} alt="" loading="lazy" width={600} height={615} />
+                    </div>
+                  )}
+                </div>
+                <div className="lp2-fcopy">
+                  <span className="lp2-fno">{w.no}</span>
+                  <h3>{w.title}</h3>
+                  <p>{w.body}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="lp2-report">
+            <h3>You see it work</h3>
+            <ul>
+              <li>App taps</li>
+              <li>TV QR scans</li>
+              <li>Codes claimed</li>
+            </ul>
+          </div>
+          <div className="lp2-partners-row">
+            <div className="lp2-logos">
+              <small>Partners at launch</small>
+              {PARTNERS_AT_LAUNCH.map((n) => (
+                <span key={n}>{n}</span>
+              ))}
+            </div>
+            <a className="lp-cta" href={BIJLEE_DM} target="_blank" rel="noopener noreferrer" data-testid="lp-partner-cta">
+              <span>
+                Become a partner <Arrow />
+              </span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ------------------------------------------- how it grows + for gyms */}
+      <section className="lp2-gyms" id="gyms" aria-labelledby="lp-grows-title">
+        <div className="lp-wrap">
+          <div className="lp-section-head" data-reveal>
+            <p className="lp-label">How it grows</p>
+            <h2 id="lp-grows-title" className="lp-h2">
+              <span className="lp-line">
+                <span>One loop.</span>
+              </span>
+              <span className="lp-line">
+                <span>
+                  <em>Everyone wins.</em>
+                </span>
+              </span>
+            </h2>
+          </div>
+          <ol className="lp2-loop">
+            <li className="lp2-node">
+              <span className="who">Lifters · free</span>
+              <h3>Log, climb, win</h3>
+            </li>
+            <li className="lp2-node">
+              <span className="who">Gyms</span>
+              <h3>A floor that competes</h3>
+            </li>
+            <li className="lp2-node">
+              <span className="who">Brands</span>
+              <h3>Reach lifters, measured</h3>
+            </li>
+          </ol>
+          <p className="lp2-back">
+            Better prizes <b aria-hidden="true">→</b>
+            <span className="sr-only">bring</span> more lifters
+          </p>
+          <div className="lp2-gym-box">
+            <div>
+              <h3>Bring Racked to your gym</h3>
+              <ul>
+                <li>Stickers on every machine</li>
+                <li>The TV screen</li>
+                <li>Staff tools</li>
+                <li>Free for members</li>
+              </ul>
+            </div>
+            <a className="lp-cta" href={BIJLEE_DM} target="_blank" rel="noopener noreferrer" data-testid="lp-gym-cta">
+              <span>
+                Talk to us <Arrow />
+              </span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ------------------------------ what makes it work (switched off) */}
+      {SHOW_FEATURES && (
       <section className="lp-features" aria-labelledby="lp-features-title">
         <div className="lp-wrap lp-features-grid">
           <div className="lp-section-head lp-sticky-head" data-reveal>
@@ -657,6 +910,7 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
           </ol>
         </div>
       </section>
+      )}
 
       {/* ------------------------------------------------ Bijlee Run Club */}
       <section className="lp-club" aria-labelledby="lp-club-title">
@@ -764,6 +1018,8 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
             <BoltMark className="lp-lockup-bolt" /> Racked × Bijlee Run Club · Pune
           </span>
           <nav aria-label="Footer">
+            <a href="#brands">For brands</a>
+            <a href="#gyms">For gyms</a>
             <Link href="/privacy">Privacy</Link>
             <a href={BIJLEE_INSTAGRAM} target="_blank" rel="noopener noreferrer">
               Instagram

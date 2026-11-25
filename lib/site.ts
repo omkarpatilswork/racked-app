@@ -9,6 +9,9 @@ export const GYM_NAME = (process.env.NEXT_PUBLIC_GYM_NAME || "").trim();
 export const BIJLEE_URL = "https://www.bijlee.run";
 export const BIJLEE_INSTAGRAM = "https://www.instagram.com/bijlee.run/";
 export const BIJLEE_HANDLE = "@bijlee.run";
+// Opens an Instagram DM to @bijlee.run (the landing page's "Become a
+// partner" / "Talk to us"). Swap for a WhatsApp or mailto link any time.
+export const BIJLEE_DM = "https://ig.me/m/bijlee.run";
 
 export const SITE_TITLE = "Racked by Bijlee — tap or scan a machine, log your set, win";
 export const SITE_DESCRIPTION =

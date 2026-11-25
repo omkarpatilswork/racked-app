@@ -271,7 +271,7 @@ function SignedOutHome() {
             Continue with Google
           </span>
         </button>
-        <Link href="/about" className="text-link-on-dark" style={{ display: "inline-block", marginTop: 18 }}>
+        <Link href="/landing" className="text-link-on-dark" style={{ display: "inline-block", marginTop: 18 }}>
           What is Racked? <span aria-hidden="true">→</span>
         </Link>
         <Link href="/machines" className="btn" style={{ marginTop: 10, background: "rgba(255,255,255,.1)", color: "#fff", border: "1px solid rgba(255,255,255,.16)" }}>

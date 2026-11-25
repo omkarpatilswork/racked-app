@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 // they just tapped). Only a profile with onboarded_at === null triggers it:
 // if migration 0009 hasn't been run the field is missing (undefined) and
 // nobody is redirected.
-const SKIP = ["/welcome", "/tv", "/auth", "/privacy", "/admin", "/offline", "/about"];
+const SKIP = ["/welcome", "/tv", "/auth", "/privacy", "/admin", "/offline", "/about", "/landing"];
 
 export default function OnboardingGate() {
   const { session, profile } = useAuth();
