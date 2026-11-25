@@ -14,6 +14,7 @@
 //     open" slide in place of the boards.
 import type { TvBoard } from "@/lib/data";
 import type { Challenge, Sponsor, SponsorProduct } from "@/lib/rewards";
+import { featureOn } from "@/lib/featureFlags";
 
 export type SlideKind = "join" | "howto" | "board" | "today" | "prize" | "challenge" | "partner" | "winners";
 export type SlideSetting = { times: number; seconds: number };
@@ -25,7 +26,7 @@ export const SECONDS_MAX = 30;
 
 export const SLIDE_KINDS: { kind: SlideKind; label: string; hint: string; minTimes: number; key?: boolean }[] = [
   { kind: "join", label: "Join Racked", hint: "Big QR code to sign up. Always opens the loop.", minTimes: 1, key: true },
-  { kind: "howto", label: "How it works", hint: "Tap or scan the sticker, log your set, climb the board.", minTimes: 0, key: true },
+  { kind: "howto", label: "How it works", hint: "A short demo: tap or scan, log, climb the board, win. Best at 12 seconds.", minTimes: 0, key: true },
   { kind: "board", label: "Machine boards", hint: "Top 3 on one machine. A different machine each time.", minTimes: 0, key: true },
   { kind: "today", label: "Push · Pull · Legs", hint: "How many people did push, pull and legs today. Skipped until someone logs a set.", minTimes: 0, key: true },
   { kind: "prize", label: "This week's prize", hint: "The prize, who's winning and how long is left.", minTimes: 0 },
@@ -33,6 +34,11 @@ export const SLIDE_KINDS: { kind: SlideKind; label: string; hint: string; minTim
   { kind: "partner", label: "Partner ads", hint: "One brand each time, with its website and QR code.", minTimes: 0 },
   { kind: "winners", label: "Winners", hint: "Last week's prize winners.", minTimes: 0 },
 ];
+
+// The kinds staff can set in R&R. Push · Pull · Legs is switched off (lib/featureFlags.ts -> tvToday).
+export function tvSlideKinds() {
+  return SLIDE_KINDS.filter((k) => k.kind !== "today" || featureOn("tvToday"));
+}
 
 export const DEFAULT_TV_SLIDES: TvSlideSettings = {
   join: { times: 2, seconds: 12 },
@@ -124,7 +130,7 @@ export function buildLoop(input: LoopInput, settings: TvSlideSettings, loop = 0)
       groups.push([{ kind: "open", key: `L${L}:open:0` }]);
     }
   }
-  if (input.hasToday) groups.push(Array.from({ length: t.today.times }, (_, i) => ({ kind: "today", key: `L${L}:today:${i}` }) as Slide));
+  if (input.hasToday && featureOn("tvToday")) groups.push(Array.from({ length: t.today.times }, (_, i) => ({ kind: "today", key: `L${L}:today:${i}` }) as Slide));
   if (input.hasPrize) groups.push(Array.from({ length: t.prize.times }, (_, i) => ({ kind: "prize", key: `L${L}:prize:${i}` }) as Slide));
   if (input.challenges.length && t.challenge.times > 0) {
     const c = input.challenges;

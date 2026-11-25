@@ -72,7 +72,7 @@ This creates ~15 fake members with realistic PBs, streaks, and some sample feedb
 1. Push this folder to a GitHub repo (or use `vercel` CLI directly from this folder).
 2. Go to [vercel.com](https://vercel.com), **Add New → Project**, import the repo.
 3. Add the same two `NEXT_PUBLIC_*` environment variables from step 3 (Vercel project → Settings → Environment Variables). You don't need the service-role key on Vercel — that's only for the local seed script. Optional: `NEXT_PUBLIC_SITE_URL` (your real domain, for link previews and the sitemap) and `NEXT_PUBLIC_GYM_NAME` (shown on the landing page).
-4. Deploy. Vercel gives you a URL like `https://racked-by-bijlee.vercel.app` (or point a custom domain like `app.bijlee.run` at it from Vercel's Domains settings).
+4. Deploy. Vercel gives you a URL like `https://racked-by-bijlee.vercel.app`. The live app uses its own domain, **https://www.racked.site** (Vercel → Settings → Domains; DNS at Namecheap). Set `NEXT_PUBLIC_SITE_URL=https://www.racked.site` for Production and redeploy: canonical links use it and every `*.vercel.app` link of the live site redirects there (`next.config.mjs`).
 5. Back in Supabase → **Authentication → URL Configuration**, set **Site URL** to that production URL, and add it (plus `http://localhost:3000` for local dev) under **Redirect URLs**.
 
 That's it — the app is live. Anyone can open the URL, sign in with their own Google account, and start logging sets.
@@ -94,7 +94,7 @@ The first admin has to be set directly in the database — there's no self-serve
 Write each machine's sticker with a URL like:
 
 ```
-https://your-domain.com/machine/lat-pulldown-01
+https://www.racked.site/machine/lat-pulldown-01
 ```
 
 The 9 machine ids are in `lib/machines.ts` (`MACHINE_IDS`). The dual-mode Pec Fly / Rear Delt machine also takes a `?mode=pec-fly` or `?mode=rear-delt` query param if you want a sticker to default to one side.

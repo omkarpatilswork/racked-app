@@ -4,6 +4,7 @@
 // streak / sets row, one big "Log a set" button, the composer bar and one
 // feed. Ranks: score, kg moved and heaviest lift, no XP, 3 missions.
 // Rewards v2: Win · Partners, no XP, no Shop. You v2: one stats row, no gym card. + drawer: Post · Transformation · Pump check.
+// TV v2: no Push · Pull · Legs slide (Omi: not needed).
 // Everything switched off below still works and is still tested: flip
 // it to true, push, and it's back on Home. Prizes, challenges and the
 // body-weight ask keep working on Ranks, Rewards, the log screen, Settings
@@ -21,7 +22,8 @@ export type FeatureKey =
   | "rewardsShop"
   | "xp"
   | "youGymCard"
-  | "plusMachines";
+  | "plusMachines"
+  | "tvToday";
 
 export const FEATURES: Record<FeatureKey, boolean> = {
   /** Home: the level ring next to the streak and sets (level is on You). */
@@ -51,6 +53,9 @@ export const FEATURES: Record<FeatureKey, boolean> = {
   /** The + drawer: the "Log a set" how-to box and the list of all 10 machines
    *  (machine pages stay locked until you tap or scan, so the list couldn't log). */
   plusMachines: false,
+  /** Gym TV: the Push · Pull · Legs slide (how many people did each split).
+   *  Off: it never shows, and R&R Controls -> TV hides its row. */
+  tvToday: false,
 };
 
 /** The 3 weekly missions shown on Ranks while ranksAllMissions is off. */

@@ -27,10 +27,11 @@ They apply every file in `supabase/migrations/` in order to a throwaway
 Postgres (PGlite) with small stand-ins for Supabase's `auth` and `storage`
 schemas, then check behaviour as different users.
 
-## 2. The redirect guard
+## 2. The redirect guard + the real-domain switch
 
 ```bash
 npx tsx tests/safeNext.test.ts
+node tests/domain.test.mjs    # old *.vercel.app links -> www.racked.site (next.config.mjs)
 ```
 
 ## 3. The app in a real browser (backend mocked)

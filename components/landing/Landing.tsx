@@ -745,7 +745,7 @@ export default function Landing({ redirectMembers = false }: { redirectMembers?:
           <ul className="lp-tv-facts pills">
             <li>Scan-to-join QR</li>
             <li>Top 3 per machine</li>
-            <li>Push · Pull · Legs</li>
+            <li>Weekly prizes</li>
             <li>Partner ads</li>
           </ul>
         </div>

@@ -395,13 +395,13 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     // TV: times per loop + seconds
     await page.locator('[data-testid="rw-sec-tv"]').click();
     await page.waitForSelector('[data-testid="rr-tv"]');
-    check("rnr TV: 8 kinds of slide", (await page.locator('[data-testid^="tv-kind-"]').count()) === 8);
-    check("rnr TV: the 4 key slides marked", (await page.locator('[data-testid^="tv-kind-"] .pill-yellow').count()) === 4);
-    check("rnr TV: one loop = 15 slides, about 2.5 min", (await text(page, '[data-testid="tv-loop-time"]')) === "15 slides · 2 min 31 s", await text(page, '[data-testid="tv-loop-time"]'));
+    check("rnr TV: 7 kinds of slide (Push · Pull · Legs is switched off)", (await page.locator('[data-testid^="tv-kind-"]').count()) === 7 && (await page.locator('[data-testid="tv-kind-today"]').count()) === 0);
+    check("rnr TV: the 3 key slides marked", (await page.locator('[data-testid^="tv-kind-"] .pill-yellow').count()) === 3);
+    check("rnr TV: one loop = 13 slides, about 2 min", (await text(page, '[data-testid="tv-loop-time"]')) === "13 slides · 2 min 11 s", await text(page, '[data-testid="tv-loop-time"]'));
     check("rnr TV: link to open the TV", ((await page.locator('[data-testid="open-tv"]').getAttribute("href")) || "").endsWith("/tv"));
     check("rnr TV: nothing to save yet", await page.locator('[data-testid="tv-save"]').isDisabled());
     await page.locator('[data-testid="tv-times-board-up"]').click();
-    check("rnr TV: more boards -> longer loop", (await text(page, '[data-testid="tv-loop-time"]')) === "16 slides · 2 min 41 s", await text(page, '[data-testid="tv-loop-time"]'));
+    check("rnr TV: more boards -> longer loop", (await text(page, '[data-testid="tv-loop-time"]')) === "14 slides · 2 min 21 s", await text(page, '[data-testid="tv-loop-time"]'));
     await page.locator('[data-testid="tv-times-howto-down"]').click();
     await page.locator('[data-testid="tv-times-howto-down"]').click();
     check("rnr TV: a slide can be switched off", (await text(page, '[data-testid="tv-kind-howto"]')).includes("Off") && (await page.locator('[data-testid="tv-secs-howto-up"]').isDisabled()) && (await page.locator('[data-testid="tv-times-howto-down"]').isDisabled()));
@@ -415,7 +415,7 @@ const text = async (page, sel) => ((await page.locator(sel).first().textContent(
     check("rnr TV: saved", tvs.includes('"board":{"times":5,"seconds":10}') && tvs.includes('"howto":{"times":0,"seconds":12}') && tvs.includes('"join":{"times":1,"seconds":15}'), tvs.slice(0, 400));
     check("rnr TV: toast says the screen updates", (await page.locator(".toast").allTextContents()).some((t) => t.includes("TV updated")));
     await page.locator('[data-testid="tv-defaults"]').click();
-    check("rnr TV: back to the suggested settings", (await text(page, '[data-testid="tv-loop-time"]')) === "15 slides · 2 min 31 s");
+    check("rnr TV: back to the suggested settings", (await text(page, '[data-testid="tv-loop-time"]')) === "13 slides · 2 min 11 s");
 
     // gym & page
     await page.locator('[data-testid="rw-sec-gym"]').click();

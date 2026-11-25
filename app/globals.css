@@ -11136,3 +11136,1153 @@ a.hx-chip:hover {
 .cx2-cap {
   margin-top: 12px;
 }
+
+/* ==========================================================================
+   Gym TV v2 (Nov 2026): less text, the prize everywhere, a How it works demo,
+   brands first on challenges, prize partners on ads, winner cards.
+   Sizes are in em (1em = 1% of the screen width), like the rest of the TV.
+   ========================================================================== */
+.tv-foot {
+  padding-right: 42em;
+}
+
+/* a prize photo that always fits: the whole photo, never cropped */
+.tv2-photo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #eaeeef;
+}
+/* the fill around a photo that doesn't match the card's shape: the photo's
+   own top-left corner, blown up and blurred (= its background colour) */
+.tv2-photo .bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 0 0;
+  transform: scale(5);
+  transform-origin: 0 0;
+  filter: blur(0.6em);
+}
+.tv2-photo .fg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.tv2-photo.none {
+  background: linear-gradient(135deg, rgba(244, 180, 36, 0.24), rgba(255, 72, 44, 0.16)), #1d1c16;
+  color: var(--tv-yellow);
+}
+.tv2-photo.none .icon {
+  width: 42%;
+  height: 42%;
+}
+
+/* a brand's logo on a white tile, or its initials */
+.tv2-mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2.2em;
+  height: 2.2em;
+  border-radius: 0.5em;
+  overflow: hidden;
+  background: #fff;
+  color: #111;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 0.7em;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.tv2-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 0.12em;
+}
+
+/* corner QR: what you win */
+.tv-corner-qr.tv2-cqr {
+  right: 3.4em;
+  bottom: 2.4em;
+  gap: 1.3em;
+  padding: 1em 1.8em 1em 1em;
+  border-radius: 1.8em;
+  background: linear-gradient(135deg, rgba(255, 72, 44, 0.22), rgba(255, 72, 44, 0.08)), #141410;
+  border: 1px solid rgba(255, 72, 44, 0.55);
+}
+.tv2-cqr .tv-qr.small .tv-qr-svg,
+.tv2-cqr .tv-qr.small .tv-qr-svg svg {
+  width: 7.6em;
+  height: 7.6em;
+}
+.tv-corner-qr.tv2-cqr > div > b {
+  font-family: var(--font-display);
+  font-size: 2em;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+.tv-corner-qr.tv2-cqr > div > span {
+  display: block;
+  max-width: 11em;
+  margin-top: 0.35em;
+  font-size: 1.45em;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--tv-yellow);
+}
+.tv2-cqr .pz {
+  flex: none;
+  width: 4.6em;
+  height: 4.6em;
+  border-radius: 1em;
+}
+
+/* join */
+.tv2-join {
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 5em;
+}
+.tv2-hero {
+  font-size: 5.6em;
+  line-height: 0.98;
+  margin: 0 0 0.45em;
+}
+.tv2-prizecard {
+  display: flex;
+  align-items: center;
+  gap: 1.8em;
+  width: fit-content;
+  max-width: 100%;
+  padding: 1.2em 2.4em 1.2em 1.2em;
+  border-radius: 2.2em;
+  background: linear-gradient(135deg, rgba(244, 180, 36, 0.18), rgba(255, 72, 44, 0.12));
+  border: 1px solid rgba(244, 180, 36, 0.45);
+  animation: tvRise 0.8s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tv2-prizecard .ph {
+  flex: none;
+  width: 11em;
+  height: 11em;
+  border-radius: 1.4em;
+}
+.tv2-prizecard > div {
+  min-width: 0;
+}
+.tv2-prizecard small {
+  display: block;
+  font: 700 1.2em/1 var(--font-mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tv-yellow);
+}
+.tv2-prizecard b {
+  display: block;
+  margin: 0.25em 0 0.15em;
+  font-family: var(--font-display);
+  font-size: 3.2em;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+.tv2-prizecard > div > span {
+  font-size: 1.7em;
+  font-weight: 800;
+  color: var(--tv-soft);
+}
+.tv2-join .tv-proof {
+  margin-top: 2em;
+}
+.tv2-join-qr {
+  justify-self: center;
+  gap: 1.4em;
+}
+.tv2-join-qr .tv-qr-card {
+  padding: 2em 2em 1.6em;
+  border-radius: 2.8em;
+}
+.tv2-join-qr .tv-qr-card .tv-qr .tv-qr-svg,
+.tv2-join-qr .tv-qr-card .tv-qr .tv-qr-svg svg {
+  width: 22em;
+  height: 22em;
+}
+.tv2-scan {
+  margin-top: 0.35em;
+  font-family: var(--font-display);
+  font-size: 3em;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #0d0d0a;
+}
+.tv2-free {
+  font-size: 1.6em;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--tv-yellow);
+}
+
+/* ---- How it works: the demo (one run = the slide's time, --how) ---- */
+.tv3-how {
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 3em;
+}
+.tv3-stage {
+  position: relative;
+  height: 36em;
+}
+.tv3-stage *,
+.tv3-steps li,
+.tv3-steps li > span,
+.tv3-steps li .d,
+.tv3-steps li .bar {
+  animation-duration: var(--how, 12s);
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+}
+.tv3-stage * {
+  animation-timing-function: ease-in-out;
+}
+.tv3-steps li,
+.tv3-steps li > span,
+.tv3-steps li .d,
+.tv3-steps li .bar {
+  animation-timing-function: linear;
+}
+.tv3-sticker {
+  position: absolute;
+  left: 3em;
+  top: 50%;
+  width: 14.5em;
+  height: 19.5em;
+  margin-top: -9.75em;
+  border-radius: 2.2em;
+  background: #fff;
+  color: #111;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.9em;
+  box-shadow: 0 2em 4em rgba(0, 0, 0, 0.6), 0 0 0 0.5em rgba(255, 255, 255, 0.06);
+  transform: rotate(-5deg);
+  animation-name: tv3-sticker;
+}
+.tv3-sticker .brand {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.6em;
+  letter-spacing: -0.02em;
+}
+.tv3-sticker .brand svg {
+  width: 1.3em;
+  height: 1.3em;
+}
+.tv3-sticker .nfc {
+  width: 5.4em;
+  height: 5.4em;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--tv-grad);
+  color: #fff;
+}
+.tv3-sticker .nfc svg {
+  width: 3em;
+  height: 3em;
+}
+.tv3-sticker .qr {
+  display: grid;
+  grid-template-columns: repeat(9, 0.62em);
+  grid-auto-rows: 0.62em;
+  padding: 0.4em;
+  border-radius: 0.4em;
+  background: #fff;
+  outline: 0.12em solid #ddd;
+}
+.tv3-sticker .qr i {
+  background: #111;
+}
+.tv3-sticker .qr i.o {
+  background: transparent;
+}
+.tv3-sticker small {
+  font: 800 1.05em/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  color: #444;
+}
+.tv3-sticker b {
+  font-family: var(--font-display);
+  font-size: 1.25em;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+.tv3-rings {
+  position: absolute;
+  left: 10.25em;
+  top: 50%;
+  width: 0;
+  height: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.tv3-rings i {
+  position: absolute;
+  left: -4em;
+  top: -7em;
+  width: 8em;
+  height: 8em;
+  border-radius: 50%;
+  border: 0.35em solid var(--tv-yellow);
+  opacity: 0;
+}
+.tv3-rings i:nth-child(1) {
+  animation-name: tv3-ring1;
+}
+.tv3-rings i:nth-child(2) {
+  animation-name: tv3-ring2;
+}
+.tv3-rings i:nth-child(3) {
+  animation-name: tv3-ring3;
+}
+.tv3-phone {
+  position: absolute;
+  right: 4em;
+  top: 50%;
+  width: 16em;
+  height: 34em;
+  margin-top: -17em;
+  border-radius: 2.8em;
+  padding: 0.55em;
+  background: #050504;
+  box-shadow: 0 0 0 0.16em #3a3a33, 0 3em 5em rgba(0, 0, 0, 0.75);
+  animation-name: tv3-phone;
+  z-index: 2;
+}
+.tv3-phone .scr {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 2.3em;
+  overflow: hidden;
+  background: #0d0d0a;
+}
+.tv3-phone .scr img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  opacity: 0;
+}
+.tv3-phone .scr img.s1 {
+  animation-name: tv3-s1;
+}
+.tv3-phone .scr img.s2 {
+  animation-name: tv3-s2;
+}
+.tv3-phone .scr img.s3 {
+  animation-name: tv3-s3;
+}
+.tv3-phone .scr img.s4 {
+  animation-name: tv3-s4;
+}
+.tv3-phone .flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  animation-name: tv3-flash;
+}
+.tv3-phone .isl {
+  position: absolute;
+  top: 0.75em;
+  left: 50%;
+  width: 4.8em;
+  height: 1.35em;
+  margin-left: -2.4em;
+  border-radius: 1em;
+  background: #000;
+  z-index: 3;
+}
+.tv3-tap {
+  position: absolute;
+  left: 50%;
+  top: 77%;
+  width: 4em;
+  height: 4em;
+  margin: -2em 0 0 -2em;
+  border-radius: 50%;
+  background: rgba(244, 180, 36, 0.85);
+  box-shadow: 0 0 0 0.7em rgba(244, 180, 36, 0.3);
+  opacity: 0;
+  animation-name: tv3-tap;
+  z-index: 3;
+}
+.tv3-hl {
+  position: absolute;
+  left: 2.5%;
+  right: 2.5%;
+  top: 44.6%;
+  height: 7%;
+  border-radius: 1em;
+  border: 0.28em solid var(--tv-yellow);
+  box-shadow: 0 0 2em rgba(244, 180, 36, 0.6);
+  opacity: 0;
+  animation-name: tv3-hl;
+  z-index: 3;
+}
+.tv3-float {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 22em;
+  opacity: 0;
+  z-index: 1;
+}
+.tv3-float.f2 {
+  width: auto;
+  animation-name: tv3-f2;
+}
+.tv3-float.f3 {
+  animation-name: tv3-f3;
+}
+.tv3-float.f4 {
+  animation-name: tv3-f4;
+}
+.tv3-card {
+  padding: 1.8em 2em;
+  border-radius: 2.2em;
+  background: #16150f;
+  border: 1px solid var(--tv-line);
+  box-shadow: 0 2em 4em rgba(0, 0, 0, 0.55);
+}
+.f2 .tv3-card {
+  display: grid;
+  gap: 0.5em;
+}
+.f2 .ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 1.7em;
+  font-weight: 800;
+  color: #7ee2a0;
+}
+.f2 .ok i {
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  background: #2fbf71;
+  color: #08140d;
+  display: grid;
+  place-items: center;
+}
+.f2 .ok i svg {
+  width: 0.95em;
+  height: 0.95em;
+  stroke-width: 3;
+}
+.f2 b {
+  font-family: var(--font-display);
+  font-size: 4.2em;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.f2 b small {
+  font-size: 0.5em;
+  color: var(--tv-soft);
+  margin-left: 0.15em;
+}
+.f3 .tv3-card,
+.f4 .tv3-card {
+  background: linear-gradient(135deg, rgba(244, 180, 36, 0.22), rgba(255, 72, 44, 0.14)), #16150f;
+  border-color: rgba(244, 180, 36, 0.5);
+}
+.f3 .tv3-card {
+  display: grid;
+  gap: 0.3em;
+}
+.f3 b {
+  font-family: var(--font-display);
+  font-size: 9em;
+  font-weight: 900;
+  letter-spacing: -0.06em;
+  line-height: 0.9;
+  color: var(--tv-yellow);
+}
+.f3 span {
+  font-size: 2em;
+  font-weight: 800;
+}
+.f4 .tv3-card {
+  padding: 1.2em;
+  display: grid;
+  gap: 0.9em;
+}
+.f4 .ph {
+  height: 15em;
+  border-radius: 1.4em;
+}
+.f4 small {
+  padding: 0 0.6em;
+  font: 800 1.2em/1 var(--font-mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tv-yellow);
+}
+.f4 b {
+  padding: 0 0.35em;
+  font-family: var(--font-display);
+  font-size: 3em;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+.f4 .tv3-card > span:last-child {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0 0.7em 0.5em;
+  font-size: 1.5em;
+  font-weight: 800;
+  color: var(--tv-soft);
+}
+.tv3-right {
+  display: grid;
+  align-content: center;
+  gap: 1.6em;
+}
+.tv3-right .tv-eyebrow {
+  margin-left: 1.2em;
+}
+.tv3-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.9em;
+}
+.tv3-steps li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 4.4em 1fr;
+  align-items: center;
+  gap: 1.3em;
+  padding: 0.8em 1.6em 1em 0.8em;
+  border-radius: 2em;
+  border: 1px solid transparent;
+  overflow: hidden;
+}
+.tv3-steps li > span {
+  width: 4.4em;
+  height: 4.4em;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--tv-card-2);
+  color: var(--tv-ink);
+}
+.tv3-steps li > span svg {
+  width: 2.3em;
+  height: 2.3em;
+}
+.tv3-steps .t {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 3em;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+.tv3-steps .d {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  font-size: 1.6em;
+  font-weight: 700;
+  color: var(--tv-soft);
+}
+.tv3-steps .bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 0.35em;
+  width: 100%;
+  background: var(--tv-grad);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.tv3-steps li.k1 { animation-name: tv3-on1; }
+.tv3-steps li.k2 { animation-name: tv3-on2; }
+.tv3-steps li.k3 { animation-name: tv3-on3; }
+.tv3-steps li.k4 { animation-name: tv3-on4; }
+.tv3-steps li.k1 > span { animation-name: tv3-n1; }
+.tv3-steps li.k2 > span { animation-name: tv3-n2; }
+.tv3-steps li.k3 > span { animation-name: tv3-n3; }
+.tv3-steps li.k4 > span { animation-name: tv3-n4; }
+.tv3-steps li.k1 .d { animation-name: tv3-d1; }
+.tv3-steps li.k2 .d { animation-name: tv3-d2; }
+.tv3-steps li.k3 .d { animation-name: tv3-d3; }
+.tv3-steps li.k4 .d { animation-name: tv3-d4; }
+.tv3-steps li.k1 .bar { animation-name: tv3-b1; }
+.tv3-steps li.k2 .bar { animation-name: tv3-b2; }
+.tv3-steps li.k3 .bar { animation-name: tv3-b3; }
+.tv3-steps li.k4 .bar { animation-name: tv3-b4; }
+@keyframes tv3-sticker { 0%, 22% { opacity: 1; transform: rotate(-5deg); } 12% { transform: rotate(-5deg) scale(1.03); } 27%, 95% { opacity: 0; transform: rotate(-5deg) scale(0.9); } 100% { opacity: 1; transform: rotate(-5deg); } }
+@keyframes tv3-phone { 0%, 6% { transform: none; } 13%, 18% { transform: translateX(-11em) rotate(-8deg); } 25%, 100% { transform: none; } }
+@keyframes tv3-ring1 { 0%, 12% { opacity: 0; transform: scale(0.4); } 14% { opacity: 1; } 22% { opacity: 0; transform: scale(1.9); } 100% { opacity: 0; } }
+@keyframes tv3-ring2 { 0%, 14% { opacity: 0; transform: scale(0.4); } 16% { opacity: 1; } 24% { opacity: 0; transform: scale(1.9); } 100% { opacity: 0; } }
+@keyframes tv3-ring3 { 0%, 16% { opacity: 0; transform: scale(0.4); } 18% { opacity: 0.9; } 26% { opacity: 0; transform: scale(1.9); } 100% { opacity: 0; } }
+@keyframes tv3-flash { 0%, 15% { opacity: 0; } 16.5% { opacity: 0.85; } 19%, 100% { opacity: 0; } }
+@keyframes tv3-s1 { 0%, 16% { opacity: 1; } 16.6%, 99% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes tv3-s2 { 0%, 16% { opacity: 0; } 16.6%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes tv3-s3 { 0%, 49% { opacity: 0; } 50%, 74% { opacity: 1; } 75%, 100% { opacity: 0; } }
+@keyframes tv3-s4 { 0%, 74% { opacity: 0; } 75%, 99% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes tv3-tap { 0%, 28% { opacity: 0; transform: scale(1.6); } 31% { opacity: 1; transform: scale(1.2); } 33.5% { opacity: 1; transform: scale(0.75); } 36% { opacity: 1; transform: scale(1); } 40%, 100% { opacity: 0; transform: scale(1); } }
+@keyframes tv3-hl { 0%, 53% { opacity: 0; transform: scale(1.08); } 56%, 73% { opacity: 1; transform: scale(1); } 75%, 100% { opacity: 0; } }
+@keyframes tv3-f2 { 0%, 33% { opacity: 0; transform: translateY(-50%) translateX(-2em); } 37%, 48% { opacity: 1; transform: translateY(-50%); } 51%, 100% { opacity: 0; transform: translateY(-50%); } }
+@keyframes tv3-f3 { 0%, 54% { opacity: 0; transform: translateY(-50%) scale(0.85); } 58%, 73% { opacity: 1; transform: translateY(-50%) scale(1); } 76%, 100% { opacity: 0; transform: translateY(-50%); } }
+@keyframes tv3-f4 { 0%, 77% { opacity: 0; transform: translateY(-50%) scale(0.85) rotate(-3deg); } 81%, 96% { opacity: 1; transform: translateY(-50%) scale(1) rotate(-2deg); } 99%, 100% { opacity: 0; transform: translateY(-50%); } }
+@keyframes tv3-on1 { 0%, 24% { opacity: 1; background-color: rgba(255, 72, 44, 0.16); border-color: rgba(255, 72, 44, 0.55); } 25.5%, 99% { opacity: 0.32; background-color: transparent; border-color: transparent; } 100% { opacity: 1; background-color: rgba(255, 72, 44, 0.16); border-color: rgba(255, 72, 44, 0.55); } }
+@keyframes tv3-on2 { 0%, 24% { opacity: 0.32; background-color: transparent; border-color: transparent; } 25.5%, 49% { opacity: 1; background-color: rgba(255, 72, 44, 0.16); border-color: rgba(255, 72, 44, 0.55); } 50.5%, 100% { opacity: 0.32; background-color: transparent; border-color: transparent; } }
+@keyframes tv3-on3 { 0%, 49% { opacity: 0.32; background-color: transparent; border-color: transparent; } 50.5%, 74% { opacity: 1; background-color: rgba(255, 72, 44, 0.16); border-color: rgba(255, 72, 44, 0.55); } 75.5%, 100% { opacity: 0.32; background-color: transparent; border-color: transparent; } }
+@keyframes tv3-on4 { 0%, 74% { opacity: 0.32; background-color: transparent; border-color: transparent; } 75.5%, 99% { opacity: 1; background-color: rgba(255, 72, 44, 0.16); border-color: rgba(255, 72, 44, 0.55); } 100% { opacity: 0.32; background-color: transparent; border-color: transparent; } }
+@keyframes tv3-n1 { 0%, 24% { background: #ff482c; color: #fff; } 25.5%, 99% { background: rgba(255, 255, 255, 0.08); color: #f5f4ee; } 100% { background: #ff482c; color: #fff; } }
+@keyframes tv3-n2 { 0%, 24% { background: rgba(255, 255, 255, 0.08); color: #f5f4ee; } 25.5%, 49% { background: #ff482c; color: #fff; } 50.5%, 100% { background: rgba(255, 255, 255, 0.08); color: #f5f4ee; } }
+@keyframes tv3-n3 { 0%, 49% { background: rgba(255, 255, 255, 0.08); color: #f5f4ee; } 50.5%, 74% { background: #ff482c; color: #fff; } 75.5%, 100% { background: rgba(255, 255, 255, 0.08); color: #f5f4ee; } }
+@keyframes tv3-n4 { 0%, 74% { background: rgba(255, 255, 255, 0.08); color: #f5f4ee; } 75.5%, 99% { background: #ff482c; color: #fff; } 100% { background: rgba(255, 255, 255, 0.08); color: #f5f4ee; } }
+@keyframes tv3-d1 { 0%, 24% { max-height: 2em; opacity: 1; margin-top: 0.3em; } 25.5%, 99% { max-height: 0; opacity: 0; margin-top: 0; } 100% { max-height: 2em; opacity: 1; margin-top: 0.3em; } }
+@keyframes tv3-d2 { 0%, 24% { max-height: 0; opacity: 0; margin-top: 0; } 25.5%, 49% { max-height: 2em; opacity: 1; margin-top: 0.3em; } 50.5%, 100% { max-height: 0; opacity: 0; margin-top: 0; } }
+@keyframes tv3-d3 { 0%, 49% { max-height: 0; opacity: 0; margin-top: 0; } 50.5%, 74% { max-height: 2em; opacity: 1; margin-top: 0.3em; } 75.5%, 100% { max-height: 0; opacity: 0; margin-top: 0; } }
+@keyframes tv3-d4 { 0%, 74% { max-height: 0; opacity: 0; margin-top: 0; } 75.5%, 99% { max-height: 2em; opacity: 1; margin-top: 0.3em; } 100% { max-height: 0; opacity: 0; margin-top: 0; } }
+@keyframes tv3-b1 { 0% { transform: scaleX(0); opacity: 1; } 24.5% { transform: scaleX(1); opacity: 1; } 25%, 100% { transform: scaleX(0); opacity: 0; } }
+@keyframes tv3-b2 { 0%, 25% { transform: scaleX(0); opacity: 0; } 25.1% { opacity: 1; transform: scaleX(0); } 49.5% { transform: scaleX(1); opacity: 1; } 50%, 100% { transform: scaleX(0); opacity: 0; } }
+@keyframes tv3-b3 { 0%, 50% { transform: scaleX(0); opacity: 0; } 50.1% { opacity: 1; transform: scaleX(0); } 74.5% { transform: scaleX(1); opacity: 1; } 75%, 100% { transform: scaleX(0); opacity: 0; } }
+@keyframes tv3-b4 { 0%, 75% { transform: scaleX(0); opacity: 0; } 75.1% { opacity: 1; transform: scaleX(0); } 99.5% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(0); opacity: 0; } }
+
+/* machine board (×BW) */
+.tv2-beat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5em;
+  margin-top: 1.2em;
+  padding: 0.7em 1.3em;
+  border-radius: 99em;
+  background: rgba(255, 72, 44, 0.16);
+  border: 1px solid rgba(255, 72, 44, 0.45);
+  font-size: 2em;
+  font-weight: 800;
+}
+.tv2-beat b {
+  font-family: var(--font-display);
+  color: var(--tv-yellow);
+}
+.tv2-fair {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6em;
+  margin-top: 0.4em;
+  font-size: 1.5em;
+  font-weight: 700;
+  color: var(--tv-soft);
+}
+.tv2-fair .icon {
+  width: 1.3em;
+  height: 1.3em;
+}
+.tv2-fair em {
+  margin-left: 0.6em;
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  letter-spacing: 0.02em;
+  color: var(--tv-faint);
+}
+.tv2-fair em::before {
+  content: "·";
+  margin-right: 0.7em;
+}
+
+/* this week's prizes */
+.tv2-prize {
+  grid-template-columns: 1fr;
+  align-content: center;
+  gap: 2em;
+}
+.tv2-prize-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2em;
+}
+.tv2-prize-top h2 {
+  margin: 0.2em 0 0;
+  font-family: var(--font-display);
+  font-size: 4.2em;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.tv2-count {
+  display: grid;
+  justify-items: end;
+  gap: 0.2em;
+  flex: none;
+}
+.tv2-count small {
+  font: 700 1.2em/1 var(--font-mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tv-faint);
+}
+.tv2-count b {
+  font-family: var(--font-display);
+  font-size: 4.2em;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--tv-yellow);
+}
+.tv2-pcards {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 0.8fr;
+  gap: 2em;
+  align-items: stretch;
+}
+.tv2-pcards.n2 {
+  grid-template-columns: 1.2fr 1fr;
+}
+.tv2-pcards.n1 {
+  grid-template-columns: minmax(0, 48em);
+}
+.tv2-pcard {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border-radius: 2.4em;
+  overflow: hidden;
+  background: var(--tv-card);
+  border: 1px solid var(--tv-line);
+  animation: tvRise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tv2-pcard:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.tv2-pcard:nth-child(3) {
+  animation-delay: 0.24s;
+}
+.tv2-pcard .ph {
+  height: 13.5em;
+}
+.tv2-pcard .cap {
+  min-width: 0;
+  padding: 1em 1.5em 1.2em;
+  display: grid;
+  align-content: start;
+  gap: 0.3em;
+}
+.tv2-pcard .cap b {
+  font-family: var(--font-display);
+  font-size: 2.4em;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+.tv2-pcard .cap > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 1.5em;
+  font-weight: 800;
+  color: var(--tv-soft);
+}
+.tv2-rank {
+  position: absolute;
+  top: 1em;
+  left: 1em;
+  padding: 0.35em 0.8em;
+  border-radius: 99em;
+  background: var(--tv-yellow);
+  color: #1a1206;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 2em;
+  line-height: 1.1;
+}
+.tv2-rank.r2 {
+  background: #cfcfc6;
+}
+.tv2-rank.r3 {
+  background: #e0a26e;
+}
+.tv2-pcard.coupon {
+  grid-template-rows: auto;
+  align-content: center;
+  justify-items: start;
+  padding: 2em;
+  border: 2px dashed rgba(244, 180, 36, 0.55);
+  background: rgba(244, 180, 36, 0.07);
+}
+.tv2-pcard.coupon .tv2-rank {
+  position: static;
+  font-size: 1.6em;
+}
+.tv2-pcard.coupon .cap {
+  padding: 0.8em 0 0;
+}
+.tv2-pcard.coupon .cap b {
+  font-size: 2.6em;
+}
+.tv2-leads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.4em;
+}
+.tv2-leads > div {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  padding: 0.6em 1.3em;
+  border-radius: 99em;
+  background: var(--tv-card-2);
+  font-size: 1.7em;
+  font-weight: 800;
+}
+.tv2-leads small {
+  font: 700 0.7em/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tv-faint);
+}
+.tv2-leads > div > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.tv2-leads .icon {
+  width: 1.1em;
+  height: 1.1em;
+  color: var(--tv-accent);
+}
+.tv2-leads b {
+  font-family: var(--font-display);
+}
+.tv2-leads em {
+  font-style: normal;
+  font-size: 0.7em;
+  color: var(--tv-faint);
+}
+
+/* challenge: the brand first */
+.tv2-chal {
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 4em;
+}
+.tv2-chal-main {
+  min-width: 0;
+}
+.tv2-presents {
+  display: flex;
+  align-items: center;
+  gap: 1.2em;
+}
+.tv2-mark.big {
+  width: 2.7em;
+  height: 2.7em;
+  border-radius: 0.7em;
+  font-size: 2.2em;
+}
+.tv2-presents small {
+  display: block;
+  font: 700 1.2em/1 var(--font-mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tv-faint);
+}
+.tv2-presents b {
+  display: block;
+  margin-top: 0.15em;
+  font-family: var(--font-display);
+  font-size: 2.6em;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+.tv2-chal-title {
+  margin: 0.5em 0 0.4em;
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}
+.tv2-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+}
+.tv2-chips .tv-chip {
+  font-size: 1.5em;
+}
+.tv2-chal-side {
+  min-width: 0;
+  display: grid;
+  gap: 1.6em;
+}
+.tv2-win {
+  display: grid;
+  grid-template-columns: 12em 1fr;
+  gap: 1.6em;
+  align-items: center;
+  padding: 1.4em;
+  border-radius: 2.4em;
+  background: linear-gradient(135deg, rgba(244, 180, 36, 0.18), rgba(255, 72, 44, 0.1));
+  border: 1px solid rgba(244, 180, 36, 0.45);
+}
+.tv2-win .ph {
+  width: 12em;
+  height: 12em;
+  border-radius: 1.6em;
+}
+.tv2-win > div {
+  min-width: 0;
+}
+.tv2-win small {
+  display: block;
+  font: 700 1.2em/1 var(--font-mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tv-yellow);
+}
+.tv2-win b {
+  display: block;
+  margin: 0.3em 0;
+  font-family: var(--font-display);
+  font-size: 3em;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+.tv2-win > div > span {
+  font-size: 1.6em;
+  font-weight: 800;
+  color: var(--tv-soft);
+}
+.tv2-chal-leads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2em;
+}
+.tv2-chal-leads.one {
+  grid-template-columns: 1fr;
+}
+.tv2-chal-leads > div {
+  min-width: 0;
+  padding: 1.2em 1.4em;
+  border-radius: 1.8em;
+  background: var(--tv-card);
+  border: 1px solid var(--tv-line);
+}
+.tv2-chal-leads small {
+  display: block;
+  font: 700 1.1em/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tv-faint);
+}
+.tv2-chal-leads b {
+  display: block;
+  margin: 0.25em 0 0.1em;
+  font-family: var(--font-display);
+  font-size: 2.6em;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tv2-chal-leads span {
+  font-size: 1.5em;
+  font-weight: 800;
+  color: var(--tv-yellow);
+}
+
+/* partner ad: prize badge, bigger brand, prize photo when there's no own photo */
+.tv2-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 1.2em;
+  padding: 0.55em 1.1em;
+  border-radius: 99em;
+  background: var(--tv-yellow);
+  color: #1a1206;
+  font-size: 1.5em;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+.tv2-badge .icon {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+}
+.tv2-adlogo {
+  margin-bottom: 0.4em;
+}
+.tv2-adlogo .tv2-mark {
+  width: 2.9em;
+  height: 2.9em;
+  border-radius: 0.75em;
+  font-size: 1.6em;
+}
+.tv2-adlogo > span:not(.tv2-mark) {
+  font-size: 3.2em;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+.tv2-adcopy .tv-ad-head {
+  font-size: 3.6em;
+  max-width: 11.5em;
+}
+.tv2-poster {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: grid;
+  align-content: center;
+  opacity: 0.07;
+  pointer-events: none;
+}
+.tv2-poster span {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 12em;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.tv2-poster span:nth-child(2) {
+  margin-left: -3em;
+}
+.tv2-adprod {
+  position: absolute !important;
+  right: 21.5em;
+  top: 50%;
+  width: 21em;
+  height: 21em;
+  margin-top: -10.5em;
+  border-radius: 2.2em;
+  box-shadow: 0 2em 5em rgba(0, 0, 0, 0.6);
+  transform: rotate(-3deg);
+  z-index: 1;
+  animation: tv2Tilt 0.8s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes tv2Tilt {
+  from { opacity: 0; transform: rotate(-8deg) scale(0.9); }
+  to { opacity: 1; transform: rotate(-3deg); }
+}
+
+/* winners */
+.tv2-winners {
+  grid-template-columns: 1fr;
+  align-content: center;
+  justify-items: center;
+  gap: 1.4em;
+  text-align: center;
+}
+.tv2-winners .tv-title {
+  font-size: 4.6em;
+  margin: 0;
+}
+.tv2-wincards {
+  width: 100%;
+  max-width: 84em;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2em;
+  margin-top: 1em;
+  text-align: left;
+}
+.tv2-wincards.n1 {
+  max-width: 44em;
+  grid-template-columns: 1fr;
+}
+.tv2-wincard {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 10.5em 1fr;
+  gap: 1.8em;
+  align-items: center;
+  padding: 1.4em;
+  border-radius: 2.4em;
+  background: linear-gradient(135deg, rgba(244, 180, 36, 0.2), rgba(255, 72, 44, 0.08));
+  border: 1px solid rgba(244, 180, 36, 0.5);
+  animation: tvRise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tv2-wincard + .tv2-wincard {
+  animation-delay: 0.12s;
+}
+.tv2-wincard .ph {
+  width: 10.5em;
+  height: 10.5em;
+  border-radius: 1.6em;
+}
+.tv2-wincard > div {
+  min-width: 0;
+}
+.tv2-wincard small {
+  display: block;
+  font: 700 1.2em/1 var(--font-mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tv-yellow);
+}
+.tv2-wincard b {
+  display: block;
+  margin: 0.15em 0;
+  font-family: var(--font-display);
+  font-size: 4em;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tv2-wincard > div > span {
+  font-size: 1.6em;
+  font-weight: 800;
+  color: var(--tv-soft);
+}
+.tv2-also {
+  margin-top: 1em;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4em 1.4em;
+  font-size: 1.6em;
+  font-weight: 800;
+  color: var(--tv-soft);
+}
+.tv2-also b {
+  color: var(--tv-ink);
+}
+.tv2-next {
+  margin-top: 0.4em;
+  font-size: 2em;
+  font-weight: 800;
+  color: var(--tv-soft);
+}
+.tv2-next b {
+  color: var(--tv-yellow);
+}

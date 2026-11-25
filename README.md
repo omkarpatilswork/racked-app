@@ -4,7 +4,7 @@
 
 <br/>
 
-[![Live app](https://img.shields.io/badge/live%20app-racked--app--liard.vercel.app-EF4444?style=for-the-badge)](https://racked-app-liard.vercel.app)
+[![Live app](https://img.shields.io/badge/live%20app-www.racked.site-EF4444?style=for-the-badge)](https://www.racked.site)
 [![Bijlee](https://img.shields.io/badge/runs%20at-Bijlee-111111?style=for-the-badge)](https://bijlee.run)
 
 ![Next.js](https://img.shields.io/badge/Next.js-14-000000?style=flat-square&logo=nextdotjs)
@@ -97,7 +97,7 @@ The notes written for each update are kept in [`docs/updates/`](docs/updates).
 
 |  |  |
 |---|---|
-| **Status** | Live at [racked-app-liard.vercel.app](https://racked-app-liard.vercel.app), used at Bijlee. |
+| **Status** | Live at [www.racked.site](https://www.racked.site) (old links on racked-app-liard.vercel.app redirect there), used at Bijlee. |
 | **Coverage** | 10 machines, defined in [`lib/machines.ts`](lib/machines.ts) |
 | **Database** | 12 migrations in [`supabase/migrations/`](supabase/migrations) |
 | **Fair play** | Impossible weights are refused by the database; suspicious jumps go to a staff review queue. Staff can remove any set or reset a member or machine; members get a note explaining why. |

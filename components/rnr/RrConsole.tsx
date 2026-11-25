@@ -20,6 +20,7 @@ import {
   SECONDS_MAX,
   SECONDS_MIN,
   SLIDE_KINDS,
+  tvSlideKinds,
   TIMES_MAX,
   type SlideKind,
   type TvSlideSettings,
@@ -2118,7 +2119,7 @@ function TvSection({ supabase, data, reload }: SectionProps) {
       </section>
 
       <div className="stack">
-        {SLIDE_KINDS.map((k) => {
+        {tvSlideKinds().map((k) => {
           const v = f[k.kind];
           return (
             <article key={k.kind} className={`card rr-tv-row${v.times === 0 ? " off" : ""}`} data-testid={`tv-kind-${k.kind}`}>

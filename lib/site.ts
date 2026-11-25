@@ -1,7 +1,9 @@
 // Site-wide settings for the public landing page and link previews.
 // Both can be changed on Vercel (Project → Settings → Environment
 // Variables) without touching code, then redeploy:
-//   NEXT_PUBLIC_SITE_URL  the real domain once you have it, e.g. https://racked.run
+//   NEXT_PUBLIC_SITE_URL  the real domain: https://www.racked.site (set on
+//                         Vercel for Production; it also sends every old
+//                         *.vercel.app link there, see next.config.mjs)
 //   NEXT_PUBLIC_GYM_NAME  the gym's name as members know it, e.g. "Club360 Baner"
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://racked-app-liard.vercel.app").replace(/\/+$/, "");
 export const GYM_NAME = (process.env.NEXT_PUBLIC_GYM_NAME || "").trim();

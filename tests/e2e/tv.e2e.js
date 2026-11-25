@@ -34,6 +34,8 @@ async function offscreen(page) {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) return;
       if (el.closest(".tv-aurora") || el.closest(".tv-progress")) return;
+      // clipped on purpose: the brand watermark on ads, the blurred fill behind prize photos
+      if (el.closest(".tv2-poster") || el.matches(".tv2-photo .bg")) return;
       if (r.left < -1 || r.top < -1 || r.right > W + 1 || r.bottom > H + 1) out.push(`${el.className || el.tagName} ${Math.round(r.right)}x${Math.round(r.bottom)}`);
     });
     // the slide body must not run into the footer bar
@@ -42,6 +44,7 @@ async function offscreen(page) {
     if (foot && slide) {
       const fTop = foot.getBoundingClientRect().top;
       slide.querySelectorAll("*").forEach((el) => {
+        if (el.closest(".tv2-poster") || el.matches(".tv2-photo .bg")) return;
         const r = el.getBoundingClientRect();
         if (r.width && r.height && r.bottom > fTop + 2) out.push(`under footer: ${el.className || el.tagName}`);
       });
@@ -73,7 +76,7 @@ async function offscreen(page) {
     check("footer: Tap or scan. Log. Win. + the sticker is on every machine", ((await page.locator(".tv-foot-msg").textContent()) || "").includes("Tap or scan. Log. Win.") && ((await page.locator(".tv-foot-msg").textContent()) || "").includes("sticker is on every machine"));
     await sleep(1200);
     const dots = await page.locator(".tv-dots i").count();
-    check("one loop = 15 slides with the suggested settings", dots === 15, String(dots));
+    check("one loop = 13 slides with the suggested settings (no Push · Pull · Legs)", dots === 13, String(dots));
 
     const kinds = [];
     const issues = [];
@@ -99,33 +102,45 @@ async function offscreen(page) {
         }
         if (t.includes("Pec Fly")) check("a board with one lifter shows open places", (await page.locator(".tv-mrow.open").count()) === 2);
       }
-      if (k === "slide-today") {
-        const n = async (x) => ((await page.locator(`[data-testid="tv-split-${x}"] .tv-split-n`).textContent()) || "").trim();
-        check("push / pull / legs: people per split (someone doing two counts in both)", (await n("push")) === "2" && (await n("pull")) === "5" && (await n("legs")) === "2", `${await n("push")} ${await n("pull")} ${await n("legs")}`);
-        check("push / pull / legs: the busiest is highlighted", (await page.locator(".tv-split-card.top").count()) === 1 && ((await page.locator(".tv-split-card.top").textContent()) || "").includes("Pull"));
-        check("push / pull / legs: no kg totals or extra stats", !/kg|elephant|PB/i.test(t), t);
+      if (k === "slide-howto" && !kinds.slice(0, -1).includes("slide-howto")) {
+        check("how it works: 4 steps (tap or scan, log, climb, win)", (await page.locator(".tv3-steps li").count()) === 4 && ["Tap or scan", "Log your set", "Climb the board", "Win prizes"].every((x) => t.includes(x)), t);
+        const shots = await page.evaluate(() => [...document.querySelectorAll(".tv3-phone img")].map((i) => [i.getAttribute("src"), i.complete && i.naturalWidth > 0]));
+        check("how it works: the phone shows 4 real app screens", shots.length === 4 && shots.every((x) => x[1]) && shots.map((x) => x[0]).join() === "/tv/how/home.webp,/tv/how/log.webp,/tv/how/ranks.webp,/tv/how/rewards.webp", JSON.stringify(shots));
+        check("how it works: the demo ends on this week's #1 prize", t.includes("#1 wins") && t.includes("Training jersey") && t.includes("Jersey Drip"), t);
+        check("how it works: it moves (one run = the slide's 12 s)", await page.evaluate(() => document.getAnimations().filter((a) => /tv3-/.test(a.animationName || "")).length >= 20 && getComputedStyle(document.querySelector(".tv3-phone")).animationDuration === "12s"));
       }
-      if (k === "slide-howto") check("how it works: Tap or scan. Log. Win.", (await page.locator(".tv-howto-steps li").count()) === 3 && t.includes("Tap or scan the sticker") && t.includes("Win rewards") && /Tap or scan\. Log\. Win\./.test(t), t);
       if (k === "slide-prizes") {
-        check("prize: #1 wins, the prize, countdown", t.includes("#1 wins") && t.includes("Training jersey") && /ends in \d+d/i.test(t), t.slice(0, 160));
+        check("prize: #1 wins, every prize as a card, countdown", t.includes("#1 wins") && (await page.locator('[data-testid="tv-prize-card"]').count()) === 3 && t.includes("Training jersey") && t.includes("Discovery Box") && t.includes("Partner coupons") && /\d+d/.test((await page.locator('[data-testid="tv-prize-ends"]').textContent()) || ""), t.slice(0, 200));
+        check("prize: each card names its brand", t.includes("Jersey Drip") && t.includes("The Clean Crate"));
+        check("prize: no explanation paragraph", !t.includes("Every set earns XP") && !t.includes("added up"), t);
         check("prize: who's winning (first name)", ((await page.locator('[data-testid="tv-prize-leader"]').textContent()) || "").includes("Asha is winning") && !t.includes("Rao"));
       }
       if (k === "slide-challenge") {
         check("challenge: live, title, leader, prize", /Live now/i.test(t) && t.includes("Leg Press Challenge") && t.includes("Rahul") && t.includes("goodie bag"), t.slice(0, 200));
+        check("challenge: brand first ('Presented by The Clean Crate')", ((await page.locator('[data-testid="tv-chal-brand"]').textContent()) || "").includes("Presented byThe Clean Crate"));
       }
       if (k === "slide-partner") {
         const brand = (await page.locator('[data-testid="tv-ad-brand"]').textContent()) || "";
         const link = await page.locator('[data-testid="tv-ad-qr"] [data-testid="tv-qr"]').getAttribute("data-value");
         check("partner ad: brand + QR to /go/<brand>?src=tv", ["Jersey Drip", "The Clean Crate"].includes(brand) && new RegExp(`^${BASE}/go/(jersey-drip|clean-crate)\\?src=tv`).test(link || ""), `${brand} ${link}`);
         check("partner ad: website shown", /jerseydrip\.shop|thecleancratefoods\.com/.test((await page.locator('[data-testid="tv-ad-site"]').textContent()) || ""));
+        const badge = (await page.locator('[data-testid="tv-ad-prize"]').textContent().catch(() => "")) || "";
+        check("partner ad: prize partners get a badge with their prize", brand === "Jersey Drip" ? badge.includes("Prize partner · #1 Training jersey") : badge.includes("Prize partner · #2 Discovery Box"), `${brand}: ${badge}`);
       }
-      if (k === "slide-winners") check("winners: last week's top 3", (await page.locator(".tv-win-card").count()) === 3 && t.includes("Well lifted, Asha!"));
+      if (k === "slide-winners") {
+        check("winners: #1 as a card with the prize + brand", (await page.locator('[data-testid="tv-win-card"]').count()) === 1 && t.includes("Well lifted, Asha!") && ((await page.locator('[data-testid="tv-win-card"]').textContent()) || "").includes("Training jersey · Jersey Drip"), t);
+        check("winners: #2 and #3 in one line", ((await page.locator('[data-testid="tv-win-rest"]').textContent()) || "").replace(/\s+/g, " ").includes("#2 Rahul & #3 Omi · Partner coupons"), (await page.locator('[data-testid="tv-win-rest"]').textContent()) || "");
+      }
+      if (k === "slide-board" && !kinds.slice(0, -1).includes("slide-board")) {
+        const corner = (await page.locator('[data-testid="tv-corner-qr"]').textContent()) || "";
+        check("corner QR: Scan to join + what you win", corner.includes("Scan to join") && corner.includes("Win a Training jersey"), corner);
+      }
       await page.keyboard.press("ArrowRight");
     }
     const count = (k) => kinds.filter((x) => x === k).length;
     check(
-      "times per loop: Join 2, How 2, Boards 4, Push/Pull/Legs 2, Prize 1, Challenge 2 (live), Ad 1, Winners 1",
-      count("slide-join") === 2 && count("slide-howto") === 2 && count("slide-board") === 4 && count("slide-today") === 2 && count("slide-prizes") === 1 && count("slide-challenge") === 2 && count("slide-partner") === 1 && count("slide-winners") === 1,
+      "times per loop: Join 2, How 2, Boards 4, Prize 1, Challenge 2 (live), Ad 1, Winners 1 (Push/Pull/Legs off)",
+      count("slide-join") === 2 && count("slide-howto") === 2 && count("slide-board") === 4 && count("slide-today") === 0 && count("slide-prizes") === 1 && count("slide-challenge") === 2 && count("slide-partner") === 1 && count("slide-winners") === 1,
       kinds.join(",")
     );
     check("Join opens the loop", kinds[0] === "slide-join");
@@ -133,7 +148,7 @@ async function offscreen(page) {
     check("all 4 machines with lifts get a board", ["Lat Pulldown", "Chest Press", "Leg Press", "Pec Fly"].every((n) => boards.some((b) => b.includes(n))));
     check("nothing off-screen, corner QR right everywhere", issues.length === 0, issues.join(" | "));
     await sleep(1500);
-    check("wraps round to the next loop's Join", (await slideKind(page)) === "slide-join" && (await page.locator(".tv-dots i").count()) === 15);
+    check("wraps round to the next loop's Join", (await slideKind(page)) === "slide-join" && (await page.locator(".tv-dots i").count()) === 13);
     await page.keyboard.press("ArrowLeft");
     await sleep(500);
     check("left arrow goes back to the last loop's end", (await slideKind(page)) === kinds[kinds.length - 1]);
@@ -142,6 +157,34 @@ async function offscreen(page) {
     check("no gym branding on the TV (Omi's call)", !body.includes("Club 360"));
     check("nav hidden on the TV", (await page.locator(".bottom-nav").count()) === 0);
     check("no page errors (TV, full)", errors.length === 0, errors.join(" | "));
+    await ctx.close();
+  }
+
+  // ---- Push · Pull · Legs: switched off (featureFlags tvToday), still works when on
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, timezoneId: "Asia/Kolkata" });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.addInitScript(() => localStorage.setItem("racked:feature:tvToday", "on"));
+    await setup(ctx, page, signedOut(defaultState()), BASE);
+    await page.goto(BASE + "/tv", { waitUntil: "networkidle" }).catch(() => {});
+    await page.waitForSelector('[data-testid="slide-join"]');
+    await sleep(1200);
+    check("tvToday on: the loop gets Push · Pull · Legs back (15)", (await page.locator(".tv-dots i").count()) === 15, String(await page.locator(".tv-dots i").count()));
+    let found = false;
+    for (let i = 0; i < 15 && !found; i++) {
+      await page.keyboard.press("ArrowRight");
+      await sleep(250);
+      found = (await page.locator('[data-testid="slide-today"]').count()) === 1;
+    }
+    await sleep(900);
+    const t = (await page.locator('[data-testid="slide-today"]').textContent().catch(() => "")) || "";
+    const n = async (x) => ((await page.locator(`[data-testid="tv-split-${x}"] .tv-split-n`).textContent()) || "").trim();
+    check("push / pull / legs: people per split (someone doing two counts in both)", found && (await n("push")) === "2" && (await n("pull")) === "5" && (await n("legs")) === "2");
+    check("push / pull / legs: the busiest is highlighted", (await page.locator(".tv-split-card.top").count()) === 1 && ((await page.locator(".tv-split-card.top").textContent()) || "").includes("Pull"));
+    check("push / pull / legs: no kg totals or extra stats", !/kg|elephant|PB/i.test(t), t);
+    check("no page errors (tvToday on)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }
 
@@ -216,7 +259,11 @@ async function offscreen(page) {
     const { ctx, page, errors } = await open(browser, "/tv", (s) => (signedOut(s), (s.missingRpc.tv_feed = true), (s.missingRpc.rewards_overview = true), s));
     await page.waitForSelector('[data-testid="slide-join"]');
     await sleep(1200);
-    check("without rewards: Join, How, Boards, Today only (10)", (await page.locator(".tv-dots i").count()) === 10, String(await page.locator(".tv-dots i").count()));
+    check("without rewards: Join, How, Boards only (8)", (await page.locator(".tv-dots i").count()) === 8, String(await page.locator(".tv-dots i").count()));
+    await page.keyboard.press("ArrowRight");
+    await sleep(600);
+    const corner = (await page.locator('[data-testid="tv-corner-qr"]').textContent().catch(() => "")) || "";
+    check("without a prize: corner QR says free, no app", corner.includes("Scan to join") && corner.includes("Free · No app to download") && !corner.includes("Win"), corner);
     check("no page errors (TV, no rewards)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }
@@ -226,7 +273,7 @@ async function offscreen(page) {
     const { ctx, page, st, errors } = await open(browser, "/tv", (s) => (signedOut(s), (s.missingRpc.tv_feed = true), (s.missingRpc.machine_boards = true), s));
     await page.waitForSelector('[data-testid="slide-join"]');
     await sleep(1200);
-    check("before 0013: same 15-slide loop from the old feeds", (await page.locator(".tv-dots i").count()) === 15, String(await page.locator(".tv-dots i").count()));
+    check("before 0013: same 13-slide loop from the old feeds", (await page.locator(".tv-dots i").count()) === 13, String(await page.locator(".tv-dots i").count()));
     check("before 0013: boards from tv_boards", st.calls.some((c) => c.includes("rpc/tv_boards")) && st.calls.some((c) => c.includes("rpc/rewards_overview")));
     let chest = "";
     for (let i = 0; i < 15 && !chest; i++) {
@@ -337,6 +384,11 @@ async function offscreen(page) {
   {
     const r = await fetch(BASE + "/robots.txt").then((x) => x.text());
     check("robots: /tv and /go blocked, /join allowed", r.includes("Disallow: /tv") && r.includes("Disallow: /go") && !r.includes("/join"));
+    check("robots: the short staff links are blocked too", r.includes("Disallow: /staff") && r.includes("Disallow: /rr"));
+    for (const [from, to] of [["/staff", "/admin"], ["/rr", "/rnr"]]) {
+      const res = await fetch(BASE + from, { redirect: "manual" });
+      check(`short link ${from} opens ${to}`, [307, 308].includes(res.status) && (res.headers.get("location") || "").endsWith(to), `${res.status} ${res.headers.get("location")}`);
+    }
   }
 
   // ---- a11y + layout on /join

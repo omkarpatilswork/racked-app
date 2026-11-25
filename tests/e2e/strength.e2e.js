@@ -314,7 +314,8 @@ const strong = (opts) => (s) => enableStrength(s, opts);
   {
     const { ctx, page, errors } = await open(browser, "/tv", (s) => ((s.signedIn = false), enableStrength(s)), { viewport: { width: 1920, height: 1080 } });
     await page.waitForSelector('[data-testid="slide-join"]', { timeout: 15000 });
-    check("TV join slide: Tap or scan. Log. Win.", ((await text(page, '[data-testid="slide-join"]'))).includes("Tap or scan. Log. Win."));
+    const joinPrize = await text(page, '[data-testid="tv-join-prize"]');
+    check("TV join slide: this week's prize, Men & Women", joinPrize.includes("Win this week") && joinPrize.includes("Training jersey") && joinPrize.includes("#1 Men & #1 Women"), joinPrize);
     check("TV footer: Tap or scan. Log. Win.", ((await text(page, ".tv-foot-msg"))).includes("Tap or scan. Log. Win."));
     const seen = {};
     for (let i = 0; i < 18; i++) {
@@ -326,17 +327,18 @@ const strong = (opts) => (s) => enableStrength(s, opts);
         seen.lat = true;
         check("TV board: Men and Women columns", (await count(page, '[data-testid="tv-board-men"]')) === 1 && (await count(page, '[data-testid="tv-board-women"]')) === 1);
         check("TV board: scores, no kg lifts", t.includes("83") && t.includes("score") && !t.includes("0.83") && !/\d\s*kg\b/.test(t), t);
-        check("TV board: explains the score", t.includes("Score = kg ÷ body weight × 100") && t.includes("Score 83 to beat Rahul"), t);
+        check("TV board: one 'beat' pill + the formula, small", (await text(page, '[data-testid="tv-beat"]')).includes("Beat Rahul's 83") && (await text(page, '[data-testid="tv-fair"]')).includes("Score = kg ÷ body weight × 100"), t);
         const off = await page.evaluate(() => [...document.querySelectorAll(".tv-slide *")].filter((e) => { const r = e.getBoundingClientRect(); return r.width && (r.right > innerWidth + 1 || r.bottom > innerHeight + 1); }).length);
         check("TV board fits the screen", off === 0, String(off));
       }
       await page.keyboard.press("ArrowRight");
       await sleep(700);
     }
-    check("TV how it works: Tap or scan. Log. Win.", (seen["slide-howto"] || []).some((t) => t.includes("Tap or scan. Log. Win.") && t.includes("Men's & Women's")));
+    check("TV how it works: tap or scan, log, climb, win (Men & Women)", (seen["slide-howto"] || []).some((t) => t.includes("Tap or scan") && t.includes("Climb the board") && t.includes("Every week · Men & Women")));
     check("TV prize: #1 Men & #1 Women, both leaders in points", (seen["slide-prizes"] || []).some((t) => t.includes("#1 Men & #1 Women") && t.includes("Rahul") && t.includes("Asha") && t.includes("pts")), (seen["slide-prizes"] || []).join(" | "));
     check("TV winners: Men's and Women's", (seen["slide-winners"] || []).some((t) => t.includes("Rahul & Asha")), (seen["slide-winners"] || []).join(" | "));
-    check("TV challenge: for your size, Men & Women", (seen["slide-challenge"] || []).some((t) => t.includes("for your size") && t.includes("Men & Women")), (seen["slide-challenge"] || []).join(" | "));
+    check("TV challenge: for your size, Men and Women leading", (seen["slide-challenge"] || []).some((t) => t.includes("for your size") && t.includes("Men · leading") && t.includes("Women · leading")), (seen["slide-challenge"] || []).join(" | "));
+    check("TV winners: prize cards for #1 Men and #1 Women", (seen["slide-winners"] || []).some((t) => t.includes("#1 Men") && t.includes("#1 Women")), (seen["slide-winners"] || []).join(" | "));
     check("no page errors (TV)", errors.length === 0, errors.join(" | "));
     await ctx.close();
   }
